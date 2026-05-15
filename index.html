@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.0/babel.min.js"></script>
 <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -22,700 +22,932 @@ input,select,textarea{font-family:inherit;outline:none}
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#2d3748;border-radius:3px}
+
 :root{
---bg:#0b0f1a;--bg-card:#131a2b;--bg-card2:#1a2236;--bg-input:#0f1525;
---border:#1e293b;--accent:#10b981;--accent2:#34d399;--accent-d:#059669;--accent-bg:rgba(16,185,129,.08);
---red:#ef4444;--red-bg:rgba(239,68,68,.08);--orange:#f59e0b;--blue:#3b82f6;--purple:#8b5cf6;--cyan:#06b6d4;
---t1:#e2e8f0;--t2:#94a3b8;--t3:#64748b;
---sidebar:260px;--radius:12px;--rs:8px;
+–bg:#0b0f1a;–bgc:#131a2b;–bgc2:#1a2236;–bgi:#0f1525;
+–brd:#1e293b;–acc:#10b981;–acc2:#34d399;–accd:#059669;–accbg:rgba(16,185,129,.08);
+–red:#ef4444;–redbg:rgba(239,68,68,.08);–org:#f59e0b;–blu:#3b82f6;–pur:#8b5cf6;–cyn:#06b6d4;
+–t1:#e2e8f0;–t2:#94a3b8;–t3:#64748b;
+–sw:260px;–rad:12px;–rs:8px;
 }
+
 #root{display:flex;min-height:100vh;width:100%}
-.sb{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar);background:#0d1220;border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;transition:transform .3s}
+
+/* SIDEBAR */
+.sb{position:fixed;left:0;top:0;bottom:0;width:var(–sw);background:#0d1220;border-right:1px solid var(–brd);display:flex;flex-direction:column;z-index:100;transition:transform .3s}
 .sb-brand{padding:24px 22px 18px;display:flex;align-items:center;gap:12px}
-.sb-logo{width:38px;height:38px;background:linear-gradient(135deg,var(--accent),var(--cyan));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;font-family:'Outfit',sans-serif}
+.sb-logo{width:38px;height:38px;background:linear-gradient(135deg,var(–acc),var(–cyn));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;font-family:‘Outfit’,sans-serif}
 .sb-brand h1{font-size:1.25rem;color:#fff;font-weight:700}
-.sb-brand h1 span{color:var(--accent)}
+.sb-brand h1 span{color:var(–acc)}
 .sb-nav{flex:1;padding:8px 12px;display:flex;flex-direction:column;gap:2px}
-.nv{display:flex;align-items:center;gap:14px;padding:11px 16px;border-radius:var(--rs);color:var(--t2);font-size:.9rem;font-weight:500;transition:all .2s;background:transparent;width:100%;text-align:left}
-.nv:hover{background:var(--bg-card);color:var(--t1)}
-.nv.act{background:var(--accent-bg);color:var(--accent)}
+.nv{display:flex;align-items:center;gap:14px;padding:11px 16px;border-radius:var(–rs);color:var(–t2);font-size:.9rem;font-weight:500;transition:all .2s;background:transparent;width:100%;text-align:left}
+.nv:hover{background:var(–bgc);color:var(–t1)}
+.nv.act{background:var(–accbg);color:var(–acc)}
 .nv svg{width:20px;height:20px;flex-shrink:0}
-.sb-ft{padding:14px 20px;border-top:1px solid var(--border);font-size:.72rem;color:var(--t3);text-align:center}
-.main{margin-left:var(--sidebar);flex:1;min-height:100vh;width:calc(100% - var(--sidebar))}
+.sb-ft{padding:14px 20px;border-top:1px solid var(–brd);font-size:.72rem;color:var(–t3);text-align:center}
+
+/* MAIN */
+.main{margin-left:var(–sw);flex:1;min-height:100vh;width:calc(100% - var(–sw))}
 .pg{padding:28px 36px;max-width:1600px;width:100%}
 .pg-hd{margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
 .pg-hd h2{font-size:1.55rem;color:#fff}
-.pg-hd p{color:var(--t2);font-size:.85rem;margin-top:2px}
-.cd{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;transition:border-color .2s}
+.pg-hd p{color:var(–t2);font-size:.85rem;margin-top:2px}
+
+/* CARDS */
+.cd{background:var(–bgc);border:1px solid var(–brd);border-radius:var(–rad);padding:22px;transition:border-color .2s}
 .cd:hover{border-color:#2d3748}
-.st-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:24px}
-.st .lb{font-size:.8rem;color:var(--t2);margin-bottom:8px;display:flex;align-items:center;gap:8px}
-.st .vl{font-size:1.45rem;font-weight:700;font-family:'Outfit',sans-serif;color:#fff}
-.st .sub{font-size:.78rem;color:var(--t3);margin-top:4px}
-.st-icon{width:34px;height:34px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px}
-.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--rs);font-size:.86rem;font-weight:600;transition:all .2s}
-.btn-p{background:var(--accent);color:#fff}.btn-p:hover{background:var(--accent-d);transform:translateY(-1px)}
-.btn-s{background:var(--bg-card);color:var(--t1);border:1px solid var(--border)}.btn-s:hover{border-color:var(--t3)}
-.btn-d{background:var(--red-bg);color:var(--red)}.btn-d:hover{background:rgba(239,68,68,.15)}
-.btn-g{background:transparent;color:var(--t2);padding:7px 10px}.btn-g:hover{color:var(--t1);background:var(--bg-card)}
-.btn-sm{padding:6px 12px;font-size:.8rem}
-.btn-i{width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:var(--rs);background:transparent;color:var(--t2);transition:all .15s}
-.btn-i:hover{background:var(--bg-card);color:var(--t1)}
+.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:24px}
+.st .lb{font-size:.8rem;color:var(–t2);margin-bottom:8px}
+.st .vl{font-size:1.45rem;font-weight:700;font-family:‘Outfit’,sans-serif;color:#fff}
+.st .sub{font-size:.78rem;color:var(–t3);margin-top:4px}
+.si{width:34px;height:34px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(–rs);font-size:.86rem;font-weight:600;transition:all .2s}
+.bp{background:var(–acc);color:#fff}.bp:hover{background:var(–accd);transform:translateY(-1px)}
+.bs{background:var(–bgc);color:var(–t1);border:1px solid var(–brd)}.bs:hover{border-color:var(–t3)}
+.bd{background:var(–redbg);color:var(–red)}.bd:hover{background:rgba(239,68,68,.15)}
+.bi{width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:var(–rs);background:transparent;color:var(–t2);transition:all .15s;border:none}
+.bi:hover{background:var(–bgc);color:var(–t1)}
+
+/* FORMS */
 .fg{margin-bottom:16px}
-.fg label{display:block;font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
-.fi{width:100%;padding:10px 13px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--rs);color:var(--t1);font-size:.9rem;transition:border-color .2s}
-.fi:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(16,185,129,.1)}
-.fi::placeholder{color:var(--t3)}
+.fg label{display:block;font-size:.78rem;font-weight:600;color:var(–t2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.fi{width:100%;padding:10px 13px;background:var(–bgi);border:1px solid var(–brd);border-radius:var(–rs);color:var(–t1);font-size:.9rem;transition:border-color .2s}
+.fi:focus{border-color:var(–acc);box-shadow:0 0 0 3px rgba(16,185,129,.1)}
+.fi::placeholder{color:var(–t3)}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.mo{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fi .2s}
-.mo-c{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;animation:su .25s}
-.mo-h{padding:20px 22px 0;display:flex;align-items:center;justify-content:space-between}
-.mo-h h3{font-size:1.1rem;color:#fff}
-.mo-b{padding:18px 22px}
-.mo-f{padding:0 22px 20px;display:flex;gap:10px;justify-content:flex-end}
+
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s}
+.moc{background:var(–bgc);border:1px solid var(–brd);border-radius:16px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;animation:slideUp .25s}
+.moh{padding:20px 22px 0;display:flex;align-items:center;justify-content:space-between}
+.moh h3{font-size:1.1rem;color:#fff}
+.mob{padding:18px 22px}
+.mof{padding:0 22px 20px;display:flex;gap:10px;justify-content:flex-end}
+
+/* TABLE */
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse}
-thead th{text-align:left;font-size:.76rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid var(--border)}
-tbody td{padding:13px 14px;border-bottom:1px solid var(--border);font-size:.88rem}
-tbody tr:hover{background:var(--bg-card2)}
+thead th{text-align:left;font-size:.76rem;font-weight:600;color:var(–t3);text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid var(–brd)}
+tbody td{padding:13px 14px;border-bottom:1px solid var(–brd);font-size:.88rem}
+tbody tr:hover{background:var(–bgc2)}
 tbody tr:last-child td{border-bottom:none}
+
+/* WALLET */
 .wg{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
 .wc{position:relative;overflow:hidden}
 .wc-nm{font-size:.95rem;font-weight:600;color:#fff;margin-bottom:2px}
-.wc-bl{font-size:1.5rem;font-weight:700;font-family:'Outfit',sans-serif;color:#fff;margin-top:10px}
+.wc-bl{font-size:1.5rem;font-weight:700;font-family:‘Outfit’,sans-serif;color:#fff;margin-top:10px}
 .wc-act{display:flex;gap:4px;position:absolute;top:14px;right:14px}
+
+/* CATEGORY */
 .cg{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:10px}
-.cc{display:flex;align-items:center;gap:11px;padding:13px 14px;position:relative}
+.cc{display:flex;align-items:center;gap:11px;padding:13px 14px}
 .cc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .cc-nm{font-size:.9rem;font-weight:500;flex:1}
 .cc-act{display:flex;gap:2px}
-.tx-a.inc{color:var(--accent)}.tx-a.exp{color:var(--red)}
-.tx-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:16px;font-size:.76rem;font-weight:500}
-.empty{text-align:center;padding:50px 20px;color:var(--t3)}
+
+/* TXN */
+.txi{color:var(–acc)}.txe{color:var(–red)}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:16px;font-size:.76rem;font-weight:500}
+
+/* EMPTY */
+.empty{text-align:center;padding:50px 20px;color:var(–t3)}
 .empty .ei{font-size:42px;margin-bottom:14px;opacity:.5}
-.empty h3{color:var(--t2);margin-bottom:6px;font-size:1rem}
+.empty h3{color:var(–t2);margin-bottom:6px;font-size:1rem}
 .empty p{font-size:.84rem;max-width:280px;margin:0 auto}
-.tabs{display:flex;gap:3px;margin-bottom:20px;background:var(--bg-input);border-radius:var(--rs);padding:3px;width:fit-content}
-.tab{padding:7px 18px;border-radius:6px;font-size:.83rem;font-weight:600;color:var(--t3);background:transparent;transition:all .2s}
-.tab.act{background:var(--bg-card);color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.12)}
-.toast-c{position:fixed;bottom:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
-.toast{padding:12px 18px;border-radius:var(--rs);font-size:.86rem;font-weight:500;animation:su .3s;display:flex;align-items:center;gap:9px}
-.toast-ok{background:#065f46;color:#a7f3d0;border:1px solid #10b981}
-.toast-err{background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444}
-.bb-bg{width:100%;height:7px;background:var(--bg-input);border-radius:4px;overflow:hidden;margin-top:8px}
-.bb-fill{height:100%;border-radius:4px;transition:width .5s}
-.clr-opts{display:flex;gap:7px;flex-wrap:wrap}
-.clr-o{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s}
-.clr-o.sel{border-color:#fff;transform:scale(1.15)}
+
+/* TABS */
+.tabs{display:flex;gap:3px;background:var(–bgi);border-radius:var(–rs);padding:3px;width:fit-content}
+.tab{padding:7px 18px;border-radius:6px;font-size:.83rem;font-weight:600;color:var(–t3);background:transparent;transition:all .2s}
+.tab.act{background:var(–bgc);color:var(–acc);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+
+/* TOAST */
+.tc{position:fixed;bottom:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 18px;border-radius:var(–rs);font-size:.86rem;font-weight:500;animation:slideUp .3s;display:flex;align-items:center;gap:9px}
+.tok{background:#065f46;color:#a7f3d0;border:1px solid #10b981}
+.terr{background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444}
+
+/* BUDGET BAR */
+.bbg{width:100%;height:7px;background:var(–bgi);border-radius:4px;overflow:hidden;margin-top:8px}
+.bfill{height:100%;border-radius:4px;transition:width .5s}
+
+/* COLOR PICKER */
+.clr{display:flex;gap:7px;flex-wrap:wrap}
+.co{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s}
+.co.sel{border-color:#fff;transform:scale(1.15)}
+
+/* FILTER */
 .fbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
 .fbar .fi{max-width:180px}
-.mh{display:none;position:fixed;top:0;left:0;right:0;height:54px;background:#0d1220;border-bottom:1px solid var(--border);z-index:100;padding:0 14px;align-items:center;justify-content:space-between}
-.mn{display:none;position:fixed;bottom:0;left:0;right:0;height:62px;background:#0d1220;border-top:1px solid var(--border);z-index:100;padding:0 4px;align-items:center;justify-content:space-around}
-.mn-i{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65rem;color:var(--t3);padding:5px 10px;border-radius:8px;background:transparent;transition:color .2s}
-.mn-i.act{color:var(--accent)}
-.mn-i svg{width:21px;height:21px}
-.dash-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
-@keyframes fi{from{opacity:0}to{opacity:1}}
-@keyframes su{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* DASH GRID */
+.dg{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
+
+/* MOBILE */
+.mh{display:none;position:fixed;top:0;left:0;right:0;height:54px;background:#0d1220;border-bottom:1px solid var(–brd);z-index:100;padding:0 14px;align-items:center;justify-content:space-between}
+.mn{display:none;position:fixed;bottom:0;left:0;right:0;height:62px;background:#0d1220;border-top:1px solid var(–brd);z-index:100;padding:0 4px;align-items:center;justify-content:space-around}
+.mni{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65rem;color:var(–t3);padding:5px 10px;border-radius:8px;background:transparent;transition:color .2s;border:none}
+.mni.act{color:var(–acc)}
+.mni svg{width:21px;height:21px}
+
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
 @media(max-width:768px){
 .sb{transform:translateX(-100%)}.sb.open{transform:translateX(0)}
 .mh,.mn{display:flex}
 .main{margin-left:0;padding-bottom:76px;padding-top:54px}
 .pg{padding:16px 14px}
-.st-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+.sg{grid-template-columns:repeat(2,1fr);gap:8px}
 .st .vl{font-size:1.15rem}
 .fr{grid-template-columns:1fr}
 .wg{grid-template-columns:1fr}
 .cg{grid-template-columns:1fr}
 .pg-hd h2{font-size:1.2rem}
 .fbar .fi{max-width:100%;flex:1}
-.dash-grid{grid-template-columns:1fr}
+.dg{grid-template-columns:1fr}
 }
+
+/* LOADING */
+.loading-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;color:var(–acc);font-weight:600}
+.loading-screen div{text-align:center}
+.loading-screen .icon{font-size:2.5rem;margin-bottom:14px}
 </style>
+
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const{useState,useEffect,useCallback,useMemo,createContext,useContext}=React;
+
+<div id="root">
+  <div class="loading-screen">
+    <div>
+      <div class="icon">💰</div>
+      Memuat WealthFlow...
+    </div>
+  </div>
+</div>
+
+<script type="text/babel" data-presets="env,react">
+var useState = React.useState;
+var useEffect = React.useEffect;
+var useCallback = React.useCallback;
+var useMemo = React.useMemo;
+var createContext = React.createContext;
+var useContext = React.useContext;
+var Fragment = React.Fragment;
 
 /* ═══ SUPABASE ═══ */
-const SB_URL=‘https://wkhjxgrjkrakfhwckriu.supabase.co’;
-const SB_KEY=‘eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraGp4Z3Jqa3Jha2Zod2Nrcml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjQyOTUsImV4cCI6MjA5NDMwMDI5NX0.Prtzf84zL-MvJuWF6Qk9HrJLzb2wmxxRD_OA094ulck’;
-const sb=window.supabase.createClient(SB_URL,SB_KEY);
+var SB_URL = 'https://wkhjxgrjkrakfhwckriu.supabase.co';
+var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraGp4Z3Jqa3Jha2Zod2Nrcml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjQyOTUsImV4cCI6MjA5NDMwMDI5NX0.Prtzf84zL-MvJuWF6Qk9HrJLzb2wmxxRD_OA094ulck';
+var sb = window.supabase.createClient(SB_URL, SB_KEY);
 
-/* ═══ SVG ICONS ═══ */
-const IC={
-dashboard:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>,
-wallet:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="16" cy="14" r="1"/></svg>,
-txn:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
-cat:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 000 20 14.5 14.5 0 000-20"/><path d="M2 12h20"/></svg>,
-budget:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 11-6.22-8.56"/><path d="M21 3v6h-6"/></svg>,
-invest:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
-plus:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-edit:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
-trash:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>,
-x:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-menu:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
-};
+/* ═══ ICONS ═══ */
+function Ico({name}) {
+  var icons = {
+    dashboard: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>,
+    wallet: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="16" cy="14" r="1"/></svg>,
+    txn: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
+    cat: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 000 20 14.5 14.5 0 000-20"/><path d="M2 12h20"/></svg>,
+    budget: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 11-6.22-8.56"/><path d="M21 3v6h-6"/></svg>,
+    invest: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
+    plus: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+    edit: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+    trash: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>,
+    x: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+    menu: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
+  };
+  return icons[name] || null;
+}
 
 /* ═══ HELPERS ═══ */
-const COLORS=[’#10b981’,’#3b82f6’,’#f59e0b’,’#ef4444’,’#8b5cf6’,’#ec4899’,’#06b6d4’,’#f97316’,’#14b8a6’,’#6366f1’,’#84cc16’,’#e11d48’];
-const fmtIDR=n=>new Intl.NumberFormat(‘id-ID’,{style:‘currency’,currency:‘IDR’,minimumFractionDigits:0,maximumFractionDigits:0}).format(n||0);
-const fmtDate=d=>d?new Date(d).toLocaleDateString(‘id-ID’,{day:‘numeric’,month:‘short’,year:‘numeric’}):’-’;
-const today=()=>new Date().toISOString().split(‘T’)[0];
+var COLORS = ['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#6366f1','#84cc16','#e11d48'];
+
+function fmtIDR(n) {
+  return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0,maximumFractionDigits:0}).format(n||0);
+}
+function fmtDate(d) {
+  return d ? new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '-';
+}
+function getToday() {
+  return new Date().toISOString().split('T')[0];
+}
+function findById(arr, id) {
+  if (!arr || !id) return null;
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i].id === id) return arr[i];
+  }
+  return null;
+}
+function getCatName(cats, id) {
+  var c = findById(cats, id);
+  return c ? c.name : '-';
+}
+function getCatColor(cats, id) {
+  var c = findById(cats, id);
+  return c ? (c.color || '#64748b') : '#64748b';
+}
+function getWalletName(wallets, id) {
+  var w = findById(wallets, id);
+  return w ? w.name : '-';
+}
+function safeGet(obj, key) {
+  return obj ? obj[key] : undefined;
+}
 
 /* ═══ TOAST ═══ */
-const ToastCtx=createContext();
-function ToastProvider({children}){
-const[ts,setTs]=useState([]);
-const add=useCallback((m,t=‘ok’)=>{const id=Date.now();setTs(p=>[…p,{id,m,t}]);setTimeout(()=>setTs(p=>p.filter(x=>x.id!==id)),3000);},[]);
-return<ToastCtx.Provider value={add}>{children}<div className="toast-c">{ts.map(t=><div key={t.id} className={`toast toast-${t.t}`}>{t.t===‘ok’?‘✓’:‘✗’} {t.m}</div>)}</div></ToastCtx.Provider>;
+var ToastCtx = createContext();
+function ToastProvider(props) {
+  var _s = useState([]);
+  var ts = _s[0], setTs = _s[1];
+  var add = useCallback(function(m, t) {
+    var typ = t || 'ok';
+    var id = Date.now();
+    setTs(function(p) { return p.concat([{id:id,m:m,t:typ}]); });
+    setTimeout(function() { setTs(function(p) { return p.filter(function(x) { return x.id !== id; }); }); }, 3000);
+  }, []);
+  return (
+    <ToastCtx.Provider value={add}>
+      {props.children}
+      <div className="tc">
+        {ts.map(function(t) {
+          return <div key={t.id} className={'toast ' + (t.t === 'ok' ? 'tok' : 'terr')}>{t.t === 'ok' ? '✓' : '✗'} {t.m}</div>;
+        })}
+      </div>
+    </ToastCtx.Provider>
+  );
 }
-const useToast=()=>useContext(ToastCtx);
+function useToast() { return useContext(ToastCtx); }
 
 /* ═══ MODAL ═══ */
-function Modal({open,onClose,title,children,footer}){
-if(!open)return null;
-return<div className="mo" onClick={onClose}><div className=“mo-c” onClick={e=>e.stopPropagation()}>
-<div className="mo-h"><h3>{title}</h3><button className="btn-i" onClick={onClose}>{IC.x}</button></div>
-<div className="mo-b">{children}</div>
-{footer&&<div className="mo-f">{footer}</div>}
-
-  </div></div>;
+function Modal(props) {
+  if (!props.open) return null;
+  return (
+    <div className="mo" onClick={props.onClose}>
+      <div className="moc" onClick={function(e) { e.stopPropagation(); }}>
+        <div className="moh">
+          <h3>{props.title}</h3>
+          <button className="bi" onClick={props.onClose}><Ico name="x"/></button>
+        </div>
+        <div className="mob">{props.children}</div>
+        {props.footer && <div className="mof">{props.footer}</div>}
+      </div>
+    </div>
+  );
 }
 
 /* ═══ CONFIRM ═══ */
-function useConfirm(){
-const[s,setS]=useState(null);
-const confirm=useCallback(msg=>new Promise(r=>{setS({msg,r})}),[]);
-const el=s?<div className=“mo” onClick={()=>{s.r(false);setS(null)}}><div className=“mo-c” onClick={e=>e.stopPropagation()}>
-<div className="mo-h"><h3>Konfirmasi</h3></div>
-<div className="mo-b"><p style={{color:‘var(–t2)’,lineHeight:1.6}}>{s.msg}</p></div>
-<div className="mo-f">
-<button className=“btn btn-s” onClick={()=>{s.r(false);setS(null)}}>Batal</button>
-<button className=“btn btn-d” onClick={()=>{s.r(true);setS(null)}}>Hapus</button>
-</div>
-
-  </div></div>:null;
-  return[confirm,el];
-}
-
-/* ═══════════════════════════════════════
-APP
-═══════════════════════════════════════ */
-function App(){
-const[page,setPage]=useState(‘dashboard’);
-const[mob,setMob]=useState(false);
-const[wallets,setW]=useState([]);
-const[transactions,setT]=useState([]);
-const[categories,setC]=useState([]);
-const[budgets,setB]=useState([]);
-const[investments,setI]=useState([]);
-const[loading,setL]=useState(true);
-const[dbError,setDbError]=useState(’’);
-const toast=useToast();
-
-useEffect(()=>{(async()=>{
-setL(true);
-const[wR,tR,cR,bR,iR]=await Promise.all([
-sb.from(‘wallets’).select(’*’).order(‘created_at’,{ascending:true}),
-sb.from(‘transactions’).select(’*’).order(‘date’,{ascending:false}),
-sb.from(‘categories’).select(’*’).order(‘name’,{ascending:true}),
-sb.from(‘budgets’).select(’*’).order(‘created_at’,{ascending:true}),
-sb.from(‘investments’).select(’*’).order(‘created_at’,{ascending:true}),
-]);
-if(wR.data)setW(wR.data);
-if(tR.data)setT(tR.data);
-if(cR.data)setC(cR.data); else if(cR.error)setDbError(prev=>prev+’\ncategories: ’+cR.error.message);
-if(bR.data)setB(bR.data);
-if(iR.data)setI(iR.data);
-setL(false);
-})();},[]);
-
-const rW=async()=>{const{data}=await sb.from(‘wallets’).select(’*’).order(‘created_at’);if(data)setW(data);};
-const rT=async()=>{const{data}=await sb.from(‘transactions’).select(’*’).order(‘date’,{ascending:false});if(data)setT(data);};
-const rC=async()=>{const{data}=await sb.from(‘categories’).select(’*’).order(‘name’);if(data)setC(data);};
-const rB=async()=>{const{data}=await sb.from(‘budgets’).select(’*’).order(‘created_at’);if(data)setB(data);};
-const rI=async()=>{const{data}=await sb.from(‘investments’).select(’*’).order(‘created_at’);if(data)setI(data);};
-
-const ctx={wallets,transactions,categories,budgets,investments,rW,rT,rC,rB,rI};
-const nav=[
-{id:‘dashboard’,label:‘Dashboard’,icon:IC.dashboard},
-{id:‘wallets’,label:‘Dompet’,icon:IC.wallet},
-{id:‘transactions’,label:‘Transaksi’,icon:IC.txn},
-{id:‘categories’,label:‘Kategori’,icon:IC.cat},
-{id:‘budgets’,label:‘Anggaran’,icon:IC.budget},
-{id:‘investments’,label:‘Investasi’,icon:IC.invest},
-];
-const go=p=>{setPage(p);setMob(false);};
-
-if(loading)return<div style={{display:‘flex’,alignItems:‘center’,justifyContent:‘center’,minHeight:‘100vh’,color:‘var(–accent)’,fontWeight:600}}>
-<div style={{textAlign:‘center’}}><div style={{fontSize:‘2.5rem’,marginBottom:14,animation:‘su .5s’}}>💰</div>Memuat WealthFlow…</div></div>;
-
-return<>
-<aside className={`sb${mob?' open':''}`}>
-<div className="sb-brand"><div className="sb-logo">W</div><h1>Wealth<span>Flow</span></h1></div>
-<nav className="sb-nav">{nav.map(n=><button key={n.id} className={`nv${page===n.id?' act':''}`} onClick={()=>go(n.id)}>{n.icon}{n.label}</button>)}</nav>
-<div className="sb-ft">WealthFlow v2.0</div>
-</aside>
-
-```
-<div className="mh">
-  <button className="btn-i" onClick={()=>setMob(!mob)}>{IC.menu}</button>
-  <h1 style={{fontFamily:'Outfit',fontSize:'1.05rem',fontWeight:700,color:'#fff'}}>Wealth<span style={{color:'var(--accent)'}}>Flow</span></h1>
-  <div style={{width:34}}/>
-</div>
-{mob&&<div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.4)',zIndex:99}} onClick={()=>setMob(false)}/>}
-
-<div className="mn">{nav.slice(0,5).map(n=><button key={n.id} className={`mn-i${page===n.id?' act':''}`} onClick={()=>go(n.id)}>{n.icon}<span>{n.label}</span></button>)}</div>
-
-<main className="main"><div className="pg">
-  {dbError&&<div style={{background:'var(--red-bg)',border:'1px solid var(--red)',borderRadius:'var(--rs)',padding:'12px 16px',marginBottom:16,fontSize:'.84rem',color:'#fca5a5'}}>
-    <strong>Database notice:</strong> {dbError}<br/>
-    <span style={{fontSize:'.78rem',color:'var(--t3)'}}>Pastikan tabel "categories" sudah dibuat di Supabase (lihat SQL di bawah halaman Kategori).</span>
-  </div>}
-  {page==='dashboard'&&<Dashboard {...ctx}/>}
-  {page==='wallets'&&<Wallets {...ctx}/>}
-  {page==='transactions'&&<Transactions {...ctx}/>}
-  {page==='categories'&&<CategoriesPage {...ctx}/>}
-  {page==='budgets'&&<BudgetsPage {...ctx}/>}
-  {page==='investments'&&<InvestmentsPage {...ctx}/>}
-</div></main>
-```
-
-</>;
-}
-
-/* ═══════════════════════════════════════
-DASHBOARD
-═══════════════════════════════════════ */
-function Dashboard({wallets,transactions,categories,budgets,investments}){
-const totalBal=wallets.reduce((s,w)=>s+(+w.balance||0),0);
-const now=new Date();
-const mo=transactions.filter(t=>{const d=new Date(t.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();});
-const inc=mo.filter(t=>t.type===‘income’).reduce((s,t)=>s+(+t.amount||0),0);
-const exp=mo.filter(t=>t.type===‘expense’).reduce((s,t)=>s+(+t.amount||0),0);
-const invTot=investments.reduce((s,i)=>s+(+i.current_value||+i.amount||0),0);
-const recent=transactions.slice(0,8);
-const cn=id=>{const c=categories.find(x=>x.id===id);return c?c.name:(id||’-’);};
-const wn=id=>{const w=wallets.find(x=>x.id===id);return w?w.name:’-’;};
-
-return<>
-<div className="pg-hd"><div><h2>Dashboard</h2><p>Ringkasan keuangan Anda</p></div></div>
-<div className="st-grid">
-<div className="cd st"><div className=“st-icon” style={{background:‘var(–accent-bg)’,color:‘var(–accent)’}}>💰</div><div className="lb">Total Saldo</div><div className="vl">{fmtIDR(totalBal)}</div><div className="sub">{wallets.length} dompet</div></div>
-<div className="cd st"><div className=“st-icon” style={{background:‘var(–accent-bg)’,color:‘var(–accent)’}}>📈</div><div className="lb">Pemasukan Bulan Ini</div><div className=“vl” style={{color:‘var(–accent)’}}>{fmtIDR(inc)}</div></div>
-<div className="cd st"><div className=“st-icon” style={{background:‘var(–red-bg)’,color:‘var(–red)’}}>📉</div><div className="lb">Pengeluaran Bulan Ini</div><div className=“vl” style={{color:‘var(–red)’}}>{fmtIDR(exp)}</div></div>
-<div className="cd st"><div className=“st-icon” style={{background:‘rgba(59,130,246,.08)’,color:‘var(–blue)’}}>📊</div><div className="lb">Investasi</div><div className=“vl” style={{color:‘var(–blue)’}}>{fmtIDR(invTot)}</div><div className="sub">{investments.length} aset</div></div>
-</div>
-
-```
-<div className="dash-grid">
-  <div className="cd">
-    <h3 style={{fontSize:'1rem',marginBottom:14,color:'#fff'}}>Transaksi Terakhir</h3>
-    {recent.length===0?<div className="empty"><div className="ei">📋</div><p>Belum ada transaksi</p></div>:
-    <div>{recent.map(t=><div key={t.id} style={{display:'flex',alignItems:'center',gap:12,padding:'9px 0',borderBottom:'1px solid var(--border)'}}>
-      <div style={{width:34,height:34,borderRadius:8,background:t.type==='income'?'var(--accent-bg)':'var(--red-bg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>{t.type==='income'?'↗':'↘'}</div>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:'.84rem',fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.description||cn(t.category_id)}</div>
-        <div style={{fontSize:'.72rem',color:'var(--t3)'}}>{fmtDate(t.date)} · {wn(t.wallet_id)}</div>
+function useConfirm() {
+  var _s = useState(null);
+  var s = _s[0], setS = _s[1];
+  var confirm = useCallback(function(msg) {
+    return new Promise(function(resolve) {
+      setS({msg: msg, resolve: resolve});
+    });
+  }, []);
+  var el = null;
+  if (s) {
+    el = (
+      <div className="mo" onClick={function() { s.resolve(false); setS(null); }}>
+        <div className="moc" onClick={function(e) { e.stopPropagation(); }}>
+          <div className="moh"><h3>Konfirmasi</h3></div>
+          <div className="mob"><p style={{color:'var(--t2)',lineHeight:1.6}}>{s.msg}</p></div>
+          <div className="mof">
+            <button className="btn bs" onClick={function() { s.resolve(false); setS(null); }}>Batal</button>
+            <button className="btn bd" onClick={function() { s.resolve(true); setS(null); }}>Hapus</button>
+          </div>
+        </div>
       </div>
-      <div className={`tx-a ${t.type==='income'?'inc':'exp'}`} style={{fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>{t.type==='income'?'+':'-'}{fmtIDR(t.amount)}</div>
-    </div>)}</div>}
-  </div>
-
-  <div className="cd">
-    <h3 style={{fontSize:'1rem',marginBottom:14,color:'#fff'}}>Dompet</h3>
-    {wallets.length===0?<div className="empty"><div className="ei">👛</div><p>Belum ada dompet</p></div>:
-    <div>{wallets.map(w=><div key={w.id} style={{display:'flex',alignItems:'center',gap:12,padding:'9px 0',borderBottom:'1px solid var(--border)'}}>
-      <div style={{width:34,height:34,borderRadius:8,background:w.color||'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,color:'#fff',fontWeight:700,fontFamily:'Outfit'}}>{(w.name||'W')[0].toUpperCase()}</div>
-      <div style={{flex:1}}><div style={{fontSize:'.86rem',fontWeight:500}}>{w.name}</div></div>
-      <div style={{fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>{fmtIDR(w.balance)}</div>
-    </div>)}</div>}
-
-    {budgets.length>0&&<>
-      <h3 style={{fontSize:'1rem',marginBottom:12,marginTop:22,color:'#fff'}}>Anggaran</h3>
-      {budgets.map(b=>{
-        const sp=transactions.filter(t=>t.type==='expense'&&t.category_id===b.category_id).reduce((s,t)=>s+(+t.amount||0),0);
-        const pct=b.amount>0?Math.min((sp/b.amount)*100,100):0;
-        const nm=categories.find(c=>c.id===b.category_id)?.name||'-';
-        return<div key={b.id} style={{marginBottom:10}}>
-          <div style={{display:'flex',justifyContent:'space-between',fontSize:'.8rem'}}><span style={{fontWeight:500}}>{nm}</span><span style={{color:'var(--t3)'}}>{fmtIDR(sp)} / {fmtIDR(b.amount)}</span></div>
-          <div className="bb-bg"><div className="bb-fill" style={{width:pct+'%',background:pct>90?'var(--red)':pct>70?'var(--orange)':'var(--accent)'}}/></div>
-        </div>;
-      })}
-    </>}
-  </div>
-</div>
-```
-
-</>;
+    );
+  }
+  return [confirm, el];
 }
 
-/* ═══════════════════════════════════════
-WALLETS
-═══════════════════════════════════════ */
-function Wallets({wallets,rW}){
-const toast=useToast();
-const[modal,setM]=useState(null);
-const[confirm,cEl]=useConfirm();
-const[f,setF]=useState({name:’’,balance:’’,color:COLORS[0]});
+/* ══════════════════════════════════════════
+   APP
+══════════════════════════════════════════ */
+function App() {
+  var _page = useState('dashboard'), page = _page[0], setPage = _page[1];
+  var _mob = useState(false), mob = _mob[0], setMob = _mob[1];
+  var _w = useState([]), wallets = _w[0], setW = _w[1];
+  var _t = useState([]), transactions = _t[0], setT = _t[1];
+  var _c = useState([]), categories = _c[0], setC = _c[1];
+  var _b = useState([]), budgets = _b[0], setB = _b[1];
+  var _i = useState([]), investments = _i[0], setI = _i[1];
+  var _l = useState(true), loading = _l[0], setL = _l[1];
+  var _e = useState(''), dbErr = _e[0], setDbErr = _e[1];
+  var toast = useToast();
 
-const openA=()=>{setF({name:’’,balance:’’,color:COLORS[Math.floor(Math.random()*COLORS.length)]});setM({mode:‘add’});};
-const openE=w=>{setF({name:w.name,balance:String(w.balance||0),color:w.color||COLORS[0]});setM({mode:‘edit’,d:w});};
+  useEffect(function() {
+    Promise.all([
+      sb.from('wallets').select('*').order('created_at', {ascending: true}),
+      sb.from('transactions').select('*').order('date', {ascending: false}),
+      sb.from('categories').select('*').order('name', {ascending: true}),
+      sb.from('budgets').select('*').order('created_at', {ascending: true}),
+      sb.from('investments').select('*').order('created_at', {ascending: true}),
+    ]).then(function(results) {
+      if (results[0].data) setW(results[0].data);
+      if (results[1].data) setT(results[1].data);
+      if (results[2].data) setC(results[2].data);
+      else if (results[2].error) setDbErr('categories: ' + results[2].error.message);
+      if (results[3].data) setB(results[3].data);
+      if (results[4].data) setI(results[4].data);
+      setL(false);
+    }).catch(function(err) {
+      setDbErr(err.message);
+      setL(false);
+    });
+  }, []);
 
-const save=async()=>{
-if(!f.name.trim()){toast(‘Nama dompet wajib diisi’,‘err’);return;}
-const p={name:f.name.trim(),balance:+f.balance||0,color:f.color};
-if(modal.mode===‘add’){const{error}=await sb.from(‘wallets’).insert(p);if(error){toast(error.message,‘err’);return;}toast(‘Dompet ditambahkan’);}
-else{const{error}=await sb.from(‘wallets’).update(p).eq(‘id’,modal.d.id);if(error){toast(error.message,‘err’);return;}toast(‘Dompet diperbarui’);}
-setM(null);rW();
-};
+  var rW = function() { sb.from('wallets').select('*').order('created_at').then(function(r) { if(r.data) setW(r.data); }); };
+  var rT = function() { sb.from('transactions').select('*').order('date',{ascending:false}).then(function(r) { if(r.data) setT(r.data); }); };
+  var rC = function() { sb.from('categories').select('*').order('name').then(function(r) { if(r.data) setC(r.data); }); };
+  var rB = function() { sb.from('budgets').select('*').order('created_at').then(function(r) { if(r.data) setB(r.data); }); };
+  var rI = function() { sb.from('investments').select('*').order('created_at').then(function(r) { if(r.data) setI(r.data); }); };
 
-const del=async w=>{
-if(!await confirm(`Hapus dompet "${w.name}"?`))return;
-const{error}=await sb.from(‘wallets’).delete().eq(‘id’,w.id);
-if(error){toast(error.message,‘err’);return;}
-toast(‘Dompet dihapus’);rW();
-};
+  var ctx = {wallets:wallets, transactions:transactions, categories:categories, budgets:budgets, investments:investments, rW:rW, rT:rT, rC:rC, rB:rB, rI:rI};
 
-return<>
-<div className="pg-hd"><div><h2>Dompet</h2><p>Kelola semua dompet keuangan Anda</p></div><button className="btn btn-p" onClick={openA}>{IC.plus} Tambah Dompet</button></div>
-{wallets.length===0?<div className="cd"><div className="empty"><div className="ei">👛</div><h3>Belum Ada Dompet</h3><p>Tambahkan dompet pertama Anda</p></div></div>:
-<div className="wg">{wallets.map(w=><div key={w.id} className="cd wc">
-<div style={{position:‘absolute’,top:0,left:0,right:0,height:3,background:w.color||‘var(–accent)’}}/>
-<div className="wc-act">
-<button className=“btn-i” onClick={()=>openE(w)}>{IC.edit}</button>
-<button className=“btn-i” onClick={()=>del(w)} style={{color:‘var(–red)’}}>{IC.trash}</button>
-</div>
-<div style={{width:42,height:42,borderRadius:10,background:w.color||‘var(–accent)’,display:‘flex’,alignItems:‘center’,justifyContent:‘center’,fontSize:18,color:’#fff’,fontWeight:700,fontFamily:‘Outfit’,marginBottom:8}}>{(w.name||‘W’)[0].toUpperCase()}</div>
-<div className="wc-nm">{w.name}</div>
-<div className="wc-bl">{fmtIDR(w.balance)}</div>
-</div>)}</div>}
+  var nav = [
+    {id:'dashboard', label:'Dashboard', icon:'dashboard'},
+    {id:'wallets', label:'Dompet', icon:'wallet'},
+    {id:'transactions', label:'Transaksi', icon:'txn'},
+    {id:'categories', label:'Kategori', icon:'cat'},
+    {id:'budgets', label:'Anggaran', icon:'budget'},
+    {id:'investments', label:'Investasi', icon:'invest'},
+  ];
 
-```
-<Modal open={!!modal} onClose={()=>setM(null)} title={modal?.mode==='add'?'Tambah Dompet':'Edit Dompet'} footer={<><button className="btn btn-s" onClick={()=>setM(null)}>Batal</button><button className="btn btn-p" onClick={save}>{modal?.mode==='add'?'Tambah':'Simpan'}</button></>}>
-  <div className="fg"><label>Nama Dompet</label><input className="fi" placeholder="cth: BCA, Cash, GoPay..." value={f.name} onChange={e=>setF({...f,name:e.target.value})}/></div>
-  <div className="fg"><label>Saldo</label><input className="fi" type="number" placeholder="0" value={f.balance} onChange={e=>setF({...f,balance:e.target.value})}/></div>
-  <div className="fg"><label>Warna</label><div className="clr-opts">{COLORS.map(c=><div key={c} className={`clr-o${f.color===c?' sel':''}`} style={{background:c}} onClick={()=>setF({...f,color:c})}/>)}</div></div>
-</Modal>
-{cEl}
-```
+  function go(p) { setPage(p); setMob(false); }
 
-</>;
+  if (loading) {
+    return (
+      <div className="loading-screen">
+        <div><div className="icon">💰</div>Memuat WealthFlow...</div>
+      </div>
+    );
+  }
+
+  return (
+    <Fragment>
+      {/* SIDEBAR */}
+      <aside className={'sb' + (mob ? ' open' : '')}>
+        <div className="sb-brand"><div className="sb-logo">W</div><h1>Wealth<span>Flow</span></h1></div>
+        <nav className="sb-nav">
+          {nav.map(function(n) {
+            return <button key={n.id} className={'nv' + (page === n.id ? ' act' : '')} onClick={function() { go(n.id); }}><Ico name={n.icon}/>{n.label}</button>;
+          })}
+        </nav>
+        <div className="sb-ft">WealthFlow v2.0</div>
+      </aside>
+
+      {/* MOBILE HEADER */}
+      <div className="mh">
+        <button className="bi" onClick={function() { setMob(!mob); }}><Ico name="menu"/></button>
+        <h1 style={{fontFamily:'Outfit',fontSize:'1.05rem',fontWeight:700,color:'#fff'}}>Wealth<span style={{color:'var(--acc)'}}>Flow</span></h1>
+        <div style={{width:34}}/>
+      </div>
+      {mob && <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.4)',zIndex:99}} onClick={function() { setMob(false); }}/>}
+
+      {/* MOBILE NAV */}
+      <div className="mn">
+        {nav.slice(0,5).map(function(n) {
+          return <button key={n.id} className={'mni' + (page === n.id ? ' act' : '')} onClick={function() { go(n.id); }}><Ico name={n.icon}/><span>{n.label}</span></button>;
+        })}
+      </div>
+
+      {/* CONTENT */}
+      <main className="main"><div className="pg">
+        {dbErr && <div style={{background:'var(--redbg)',border:'1px solid var(--red)',borderRadius:'var(--rs)',padding:'12px 16px',marginBottom:16,fontSize:'.84rem',color:'#fca5a5'}}>
+          <strong>DB Notice:</strong> {dbErr}
+        </div>}
+        {page === 'dashboard' && <Dashboard {...ctx}/>}
+        {page === 'wallets' && <WalletsPage {...ctx}/>}
+        {page === 'transactions' && <TransactionsPage {...ctx}/>}
+        {page === 'categories' && <CategoriesPage {...ctx}/>}
+        {page === 'budgets' && <BudgetsPage {...ctx}/>}
+        {page === 'investments' && <InvestmentsPage {...ctx}/>}
+      </div></main>
+    </Fragment>
+  );
 }
 
-/* ═══════════════════════════════════════
-TRANSACTIONS
-═══════════════════════════════════════ */
-function Transactions({wallets,transactions,categories,rT,rW}){
-const toast=useToast();
-const[modal,setM]=useState(null);
-const[confirm,cEl]=useConfirm();
-const[f,setF]=useState({type:‘expense’,wallet_id:’’,category_id:’’,amount:’’,description:’’,date:today()});
-const[fType,setFT]=useState(‘all’);
-const[fWal,setFW]=useState(‘all’);
-const[search,setSrch]=useState(’’);
+/* ══════════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════════ */
+function Dashboard(props) {
+  var wallets = props.wallets, transactions = props.transactions, categories = props.categories, budgets = props.budgets, investments = props.investments;
+  var totalBal = wallets.reduce(function(s,w) { return s + (Number(w.balance)||0); }, 0);
+  var now = new Date();
+  var mo = transactions.filter(function(t) { var d = new Date(t.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
+  var inc = mo.filter(function(t) { return t.type === 'income'; }).reduce(function(s,t) { return s + (Number(t.amount)||0); }, 0);
+  var exp = mo.filter(function(t) { return t.type === 'expense'; }).reduce(function(s,t) { return s + (Number(t.amount)||0); }, 0);
+  var invTot = investments.reduce(function(s,i) { return s + (Number(i.current_value) || Number(i.amount) || 0); }, 0);
+  var recent = transactions.slice(0, 8);
 
-const cn=id=>{const c=categories.find(x=>x.id===id);return c?c.name:(id||’-’);};
-const cc=id=>categories.find(x=>x.id===id)?.color||’#64748b’;
-const wn=id=>{const w=wallets.find(x=>x.id===id);return w?w.name:’-’;};
+  return (
+    <Fragment>
+      <div className="pg-hd"><div><h2>Dashboard</h2><p>Ringkasan keuangan Anda</p></div></div>
+      <div className="sg">
+        <div className="cd st"><div className="si" style={{background:'var(--accbg)',color:'var(--acc)'}}>💰</div><div className="lb">Total Saldo</div><div className="vl">{fmtIDR(totalBal)}</div><div className="sub">{wallets.length} dompet</div></div>
+        <div className="cd st"><div className="si" style={{background:'var(--accbg)',color:'var(--acc)'}}>📈</div><div className="lb">Pemasukan Bulan Ini</div><div className="vl" style={{color:'var(--acc)'}}>{fmtIDR(inc)}</div></div>
+        <div className="cd st"><div className="si" style={{background:'var(--redbg)',color:'var(--red)'}}>📉</div><div className="lb">Pengeluaran Bulan Ini</div><div className="vl" style={{color:'var(--red)'}}>{fmtIDR(exp)}</div></div>
+        <div className="cd st"><div className="si" style={{background:'rgba(59,130,246,.08)',color:'var(--blu)'}}>📊</div><div className="lb">Investasi</div><div className="vl" style={{color:'var(--blu)'}}>{fmtIDR(invTot)}</div><div className="sub">{investments.length} aset</div></div>
+      </div>
 
-const list=useMemo(()=>{
-let l=[…transactions];
-if(fType!==‘all’)l=l.filter(t=>t.type===fType);
-if(fWal!==‘all’)l=l.filter(t=>t.wallet_id===fWal);
-if(search.trim())l=l.filter(t=>(t.description||’’).toLowerCase().includes(search.toLowerCase())||cn(t.category_id).toLowerCase().includes(search.toLowerCase()));
-return l;
-},[transactions,fType,fWal,search,categories]);
+      <div className="dg">
+        <div className="cd">
+          <h3 style={{fontSize:'1rem',marginBottom:14,color:'#fff'}}>Transaksi Terakhir</h3>
+          {recent.length === 0 ? <div className="empty"><div className="ei">📋</div><p>Belum ada transaksi</p></div> :
+          <div>{recent.map(function(t) {
+            return (
+              <div key={t.id} style={{display:'flex',alignItems:'center',gap:12,padding:'9px 0',borderBottom:'1px solid var(--brd)'}}>
+                <div style={{width:34,height:34,borderRadius:8,background:t.type==='income'?'var(--accbg)':'var(--redbg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>
+                  {t.type === 'income' ? '↗' : '↘'}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:'.84rem',fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.description || getCatName(categories, t.category_id)}</div>
+                  <div style={{fontSize:'.72rem',color:'var(--t3)'}}>{fmtDate(t.date)} · {getWalletName(wallets, t.wallet_id)}</div>
+                </div>
+                <div className={t.type === 'income' ? 'txi' : 'txe'} style={{fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>
+                  {t.type === 'income' ? '+' : '-'}{fmtIDR(t.amount)}
+                </div>
+              </div>
+            );
+          })}</div>}
+        </div>
 
-const openA=()=>{setF({type:‘expense’,wallet_id:wallets[0]?.id||’’,category_id:’’,amount:’’,description:’’,date:today()});setM({mode:‘add’});};
-const openE=t=>{setF({type:t.type,wallet_id:t.wallet_id||’’,category_id:t.category_id||’’,amount:String(t.amount||0),description:t.description||’’,date:t.date||today()});setM({mode:‘edit’,d:t});};
+        <div className="cd">
+          <h3 style={{fontSize:'1rem',marginBottom:14,color:'#fff'}}>Dompet</h3>
+          {wallets.length === 0 ? <div className="empty"><div className="ei">👛</div><p>Belum ada dompet</p></div> :
+          <div>{wallets.map(function(w) {
+            return (
+              <div key={w.id} style={{display:'flex',alignItems:'center',gap:12,padding:'9px 0',borderBottom:'1px solid var(--brd)'}}>
+                <div style={{width:34,height:34,borderRadius:8,background:w.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,color:'#fff',fontWeight:700,fontFamily:'Outfit'}}>{(w.name||'W')[0].toUpperCase()}</div>
+                <div style={{flex:1}}><div style={{fontSize:'.86rem',fontWeight:500}}>{w.name}</div></div>
+                <div style={{fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>{fmtIDR(w.balance)}</div>
+              </div>
+            );
+          })}</div>}
 
-const save=async()=>{
-if(!f.amount||+f.amount<=0){toast(‘Jumlah harus > 0’,‘err’);return;}
-const p={type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,amount:+f.amount,description:f.description.trim(),date:f.date};
-if(modal.mode===‘add’){
-const{error}=await sb.from(‘transactions’).insert(p);
-if(error){toast(error.message,‘err’);return;}
-if(f.wallet_id){const w=wallets.find(x=>x.id===f.wallet_id);if(w){const nb=f.type===‘income’?(+w.balance||0)+(+f.amount):(+w.balance||0)-(+f.amount);await sb.from(‘wallets’).update({balance:nb}).eq(‘id’,f.wallet_id);}}
-toast(‘Transaksi ditambahkan’);
-}else{
-const{error}=await sb.from(‘transactions’).update(p).eq(‘id’,modal.d.id);
-if(error){toast(error.message,‘err’);return;}
-toast(‘Transaksi diperbarui’);
-}
-setM(null);rT();rW();
-};
-
-const del=async t=>{
-if(!await confirm(`Hapus transaksi "${t.description||fmtIDR(t.amount)}"?`))return;
-const{error}=await sb.from(‘transactions’).delete().eq(‘id’,t.id);
-if(error){toast(error.message,‘err’);return;}
-if(t.wallet_id){const w=wallets.find(x=>x.id===t.wallet_id);if(w){const nb=t.type===‘income’?(+w.balance||0)-(+t.amount):(+w.balance||0)+(+t.amount);await sb.from(‘wallets’).update({balance:nb}).eq(‘id’,t.wallet_id);}}
-toast(‘Transaksi dihapus’);rT();rW();
-};
-
-const relCats=categories.filter(c=>c.type===f.type);
-
-return<>
-<div className="pg-hd"><div><h2>Transaksi</h2><p>Catatan pemasukan & pengeluaran</p></div><button className="btn btn-p" onClick={openA}>{IC.plus} Tambah</button></div>
-<div className="fbar">
-<input className=“fi” placeholder=“Cari…” value={search} onChange={e=>setSrch(e.target.value)} style={{maxWidth:200}}/>
-<select className=“fi” value={fType} onChange={e=>setFT(e.target.value)} style={{maxWidth:150}}><option value="all">Semua Tipe</option><option value="income">Pemasukan</option><option value="expense">Pengeluaran</option></select>
-<select className=“fi” value={fWal} onChange={e=>setFW(e.target.value)} style={{maxWidth:160}}><option value="all">Semua Dompet</option>{wallets.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select>
-</div>
-<div className="cd">
-{list.length===0?<div className="empty"><div className="ei">📋</div><h3>Tidak Ada Transaksi</h3><p>Mulai catat pemasukan dan pengeluaran</p></div>:
-<div className="tw"><table>
-<thead><tr><th>Tanggal</th><th>Keterangan</th><th>Kategori</th><th>Dompet</th><th style={{textAlign:‘right’}}>Jumlah</th><th></th></tr></thead>
-<tbody>{list.map(t=><tr key={t.id}>
-<td style={{color:‘var(–t3)’,fontSize:’.82rem’,whiteSpace:‘nowrap’}}>{fmtDate(t.date)}</td>
-<td style={{fontWeight:500,maxWidth:200,overflow:‘hidden’,textOverflow:‘ellipsis’,whiteSpace:‘nowrap’}}>{t.description||’-’}</td>
-<td><span className=“tx-badge” style={{background:t.type===‘income’?‘var(–accent-bg)’:‘var(–red-bg)’,color:t.type===‘income’?‘var(–accent)’:‘var(–red)’}}><span style={{width:6,height:6,borderRadius:‘50%’,background:cc(t.category_id),display:‘inline-block’}}/>{cn(t.category_id)}</span></td>
-<td style={{color:‘var(–t2)’,fontSize:’.84rem’}}>{wn(t.wallet_id)}</td>
-<td className={`tx-a ${t.type==='income'?'inc':'exp'}`} style={{textAlign:‘right’,fontWeight:600,fontFamily:‘Outfit’,fontSize:’.88rem’}}>{t.type===‘income’?’+’:’-’}{fmtIDR(t.amount)}</td>
-<td style={{whiteSpace:‘nowrap’}}><button className=“btn-i” onClick={()=>openE(t)}>{IC.edit}</button><button className=“btn-i” onClick={()=>del(t)} style={{color:‘var(–red)’}}>{IC.trash}</button></td>
-</tr>)}</tbody>
-</table></div>}
-</div>
-
-```
-<Modal open={!!modal} onClose={()=>setM(null)} title={modal?.mode==='add'?'Tambah Transaksi':'Edit Transaksi'} footer={<><button className="btn btn-s" onClick={()=>setM(null)}>Batal</button><button className="btn btn-p" onClick={save}>{modal?.mode==='add'?'Tambah':'Simpan'}</button></>}>
-  <div className="fg"><label>Tipe</label><div className="tabs"><button className={`tab${f.type==='expense'?' act':''}`} onClick={()=>setF({...f,type:'expense',category_id:''})}>Pengeluaran</button><button className={`tab${f.type==='income'?' act':''}`} onClick={()=>setF({...f,type:'income',category_id:''})}>Pemasukan</button></div></div>
-  <div className="fr">
-    <div className="fg"><label>Jumlah (Rp)</label><input className="fi" type="number" placeholder="0" value={f.amount} onChange={e=>setF({...f,amount:e.target.value})}/></div>
-    <div className="fg"><label>Tanggal</label><input className="fi" type="date" value={f.date} onChange={e=>setF({...f,date:e.target.value})}/></div>
-  </div>
-  <div className="fr">
-    <div className="fg"><label>Dompet</label><select className="fi" value={f.wallet_id} onChange={e=>setF({...f,wallet_id:e.target.value})}><option value="">Pilih dompet</option>{wallets.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
-    <div className="fg"><label>Kategori</label><select className="fi" value={f.category_id} onChange={e=>setF({...f,category_id:e.target.value})}><option value="">Pilih kategori</option>{relCats.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-  </div>
-  <div className="fg"><label>Keterangan</label><input className="fi" placeholder="Deskripsi transaksi..." value={f.description} onChange={e=>setF({...f,description:e.target.value})}/></div>
-</Modal>
-{cEl}
-```
-
-</>;
+          {budgets.length > 0 && (
+            <Fragment>
+              <h3 style={{fontSize:'1rem',marginBottom:12,marginTop:22,color:'#fff'}}>Anggaran</h3>
+              {budgets.map(function(b) {
+                var sp = transactions.filter(function(t) { return t.type==='expense' && t.category_id===b.category_id; }).reduce(function(s,t) { return s+(Number(t.amount)||0); }, 0);
+                var pct = b.amount > 0 ? Math.min((sp / b.amount) * 100, 100) : 0;
+                var nm = getCatName(categories, b.category_id);
+                return (
+                  <div key={b.id} style={{marginBottom:10}}>
+                    <div style={{display:'flex',justifyContent:'space-between',fontSize:'.8rem'}}><span style={{fontWeight:500}}>{nm}</span><span style={{color:'var(--t3)'}}>{fmtIDR(sp)} / {fmtIDR(b.amount)}</span></div>
+                    <div className="bbg"><div className="bfill" style={{width:pct+'%',background:pct>90?'var(--red)':pct>70?'var(--org)':'var(--acc)'}}/></div>
+                  </div>
+                );
+              })}
+            </Fragment>
+          )}
+        </div>
+      </div>
+    </Fragment>
+  );
 }
 
-/* ═══════════════════════════════════════
-CATEGORIES
-═══════════════════════════════════════ */
-function CategoriesPage({categories,rC}){
-const toast=useToast();
-const[modal,setM]=useState(null);
-const[confirm,cEl]=useConfirm();
-const[f,setF]=useState({name:’’,type:‘expense’,color:COLORS[0]});
-const[tab,setTab]=useState(‘expense’);
+/* ══════════════════════════════════════════
+   WALLETS
+══════════════════════════════════════════ */
+function WalletsPage(props) {
+  var wallets = props.wallets, rW = props.rW;
+  var toast = useToast();
+  var _m = useState(null), modal = _m[0], setM = _m[1];
+  var _c = useConfirm(), confirm = _c[0], cEl = _c[1];
+  var _f = useState({name:'',balance:'',color:COLORS[0]}), f = _f[0], setF = _f[1];
 
-const openA=()=>{setF({name:’’,type:tab,color:COLORS[Math.floor(Math.random()*COLORS.length)]});setM({mode:‘add’});};
-const openE=c=>{setF({name:c.name,type:c.type,color:c.color||COLORS[0]});setM({mode:‘edit’,d:c});};
+  function openA() { setF({name:'',balance:'',color:COLORS[Math.floor(Math.random()*COLORS.length)]}); setM({mode:'add'}); }
+  function openE(w) { setF({name:w.name,balance:String(w.balance||0),color:w.color||COLORS[0]}); setM({mode:'edit',d:w}); }
 
-const save=async()=>{
-if(!f.name.trim()){toast(‘Nama kategori wajib diisi’,‘err’);return;}
-const p={name:f.name.trim(),type:f.type,color:f.color};
-if(modal.mode===‘add’){const{error}=await sb.from(‘categories’).insert(p);if(error){toast(error.message,‘err’);return;}toast(‘Kategori ditambahkan’);}
-else{const{error}=await sb.from(‘categories’).update(p).eq(‘id’,modal.d.id);if(error){toast(error.message,‘err’);return;}toast(‘Kategori diperbarui’);}
-setM(null);rC();
-};
+  function save() {
+    if (!f.name.trim()) { toast('Nama dompet wajib diisi','err'); return; }
+    var p = {name:f.name.trim(), balance:Number(f.balance)||0, color:f.color};
+    if (modal.mode === 'add') {
+      sb.from('wallets').insert(p).then(function(r) { if(r.error){toast(r.error.message,'err');return;} toast('Dompet ditambahkan'); setM(null); rW(); });
+    } else {
+      sb.from('wallets').update(p).eq('id',modal.d.id).then(function(r) { if(r.error){toast(r.error.message,'err');return;} toast('Dompet diperbarui'); setM(null); rW(); });
+    }
+  }
 
-const del=async c=>{
-if(!await confirm(`Hapus kategori "${c.name}"?`))return;
-const{error}=await sb.from(‘categories’).delete().eq(‘id’,c.id);
-if(error){toast(error.message,‘err’);return;}
-toast(‘Kategori dihapus’);rC();
-};
+  function del(w) {
+    confirm('Hapus dompet "'+w.name+'"?').then(function(ok) {
+      if (!ok) return;
+      sb.from('wallets').delete().eq('id',w.id).then(function(r) { if(r.error){toast(r.error.message,'err');return;} toast('Dompet dihapus'); rW(); });
+    });
+  }
 
-const expC=categories.filter(c=>c.type===‘expense’);
-const incC=categories.filter(c=>c.type===‘income’);
-const shown=tab===‘expense’?expC:incC;
+  return (
+    <Fragment>
+      <div className="pg-hd">
+        <div><h2>Dompet</h2><p>Kelola semua dompet keuangan Anda</p></div>
+        <button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah Dompet</button>
+      </div>
 
-return<>
-<div className="pg-hd"><div><h2>Kategori</h2><p>Kelola kategori pemasukan & pengeluaran</p></div><button className="btn btn-p" onClick={openA}>{IC.plus} Tambah</button></div>
-<div className="tabs" style={{marginBottom:18}}><button className={`tab${tab==='expense'?' act':''}`} onClick={()=>setTab(‘expense’)}>Pengeluaran ({expC.length})</button><button className={`tab${tab==='income'?' act':''}`} onClick={()=>setTab(‘income’)}>Pemasukan ({incC.length})</button></div>
+      {wallets.length === 0 ? <div className="cd"><div className="empty"><div className="ei">👛</div><h3>Belum Ada Dompet</h3><p>Tambahkan dompet pertama Anda</p></div></div> :
+      <div className="wg">{wallets.map(function(w) {
+        return (
+          <div key={w.id} className="cd wc">
+            <div style={{position:'absolute',top:0,left:0,right:0,height:3,background:w.color||'var(--acc)'}}/>
+            <div className="wc-act">
+              <button className="bi" onClick={function(){openE(w);}}><Ico name="edit"/></button>
+              <button className="bi" onClick={function(){del(w);}} style={{color:'var(--red)'}}><Ico name="trash"/></button>
+            </div>
+            <div style={{width:42,height:42,borderRadius:10,background:w.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,color:'#fff',fontWeight:700,fontFamily:'Outfit',marginBottom:8}}>
+              {(w.name||'W')[0].toUpperCase()}
+            </div>
+            <div className="wc-nm">{w.name}</div>
+            <div className="wc-bl">{fmtIDR(w.balance)}</div>
+          </div>
+        );
+      })}</div>}
+
+      <Modal open={!!modal} onClose={function(){setM(null);}} title={modal && modal.mode === 'add' ? 'Tambah Dompet' : 'Edit Dompet'} footer={
+        <Fragment>
+          <button className="btn bs" onClick={function(){setM(null);}}>Batal</button>
+          <button className="btn bp" onClick={save}>{modal && modal.mode === 'add' ? 'Tambah' : 'Simpan'}</button>
+        </Fragment>
+      }>
+        <div className="fg"><label>Nama Dompet</label><input className="fi" placeholder="cth: BCA, Cash, GoPay..." value={f.name} onChange={function(e){setF({name:e.target.value,balance:f.balance,color:f.color});}}/></div>
+        <div className="fg"><label>Saldo</label><input className="fi" type="number" placeholder="0" value={f.balance} onChange={function(e){setF({name:f.name,balance:e.target.value,color:f.color});}}/></div>
+        <div className="fg"><label>Warna</label>
+          <div className="clr">{COLORS.map(function(c){return <div key={c} className={'co'+(f.color===c?' sel':'')} style={{background:c}} onClick={function(){setF({name:f.name,balance:f.balance,color:c});}}/>;})}</div>
+        </div>
+      </Modal>
+      {cEl}
+    </Fragment>
+  );
+}
+
+/* ══════════════════════════════════════════
+   TRANSACTIONS
+══════════════════════════════════════════ */
+function TransactionsPage(props) {
+  var wallets=props.wallets, transactions=props.transactions, categories=props.categories, rT=props.rT, rW=props.rW;
+  var toast = useToast();
+  var _m=useState(null), modal=_m[0], setM=_m[1];
+  var _c=useConfirm(), confirm=_c[0], cEl=_c[1];
+  var _f=useState({type:'expense',wallet_id:'',category_id:'',amount:'',description:'',date:getToday()}), f=_f[0], setF=_f[1];
+  var _ft=useState('all'), fType=_ft[0], setFT=_ft[1];
+  var _fw=useState('all'), fWal=_fw[0], setFW=_fw[1];
+  var _s=useState(''), search=_s[0], setSrch=_s[1];
+
+  var list = useMemo(function() {
+    var l = transactions.slice();
+    if (fType !== 'all') l = l.filter(function(t){return t.type===fType;});
+    if (fWal !== 'all') l = l.filter(function(t){return t.wallet_id===fWal;});
+    if (search.trim()) {
+      var q = search.toLowerCase();
+      l = l.filter(function(t){return (t.description||'').toLowerCase().indexOf(q)>=0 || getCatName(categories,t.category_id).toLowerCase().indexOf(q)>=0;});
+    }
+    return l;
+  }, [transactions, fType, fWal, search, categories]);
+
+  function openA() { setF({type:'expense',wallet_id:wallets.length>0?wallets[0].id:'',category_id:'',amount:'',description:'',date:getToday()}); setM({mode:'add'}); }
+  function openE(t) { setF({type:t.type,wallet_id:t.wallet_id||'',category_id:t.category_id||'',amount:String(t.amount||0),description:t.description||'',date:t.date||getToday()}); setM({mode:'edit',d:t}); }
+
+  function save() {
+    if (!f.amount || Number(f.amount) <= 0) { toast('Jumlah harus > 0','err'); return; }
+    var p = {type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,amount:Number(f.amount),description:f.description.trim(),date:f.date};
+    if (modal.mode === 'add') {
+      sb.from('transactions').insert(p).then(function(r) {
+        if (r.error) { toast(r.error.message,'err'); return; }
+        if (f.wallet_id) {
+          var w = findById(wallets, f.wallet_id);
+          if (w) {
+            var nb = f.type==='income' ? (Number(w.balance)||0)+Number(f.amount) : (Number(w.balance)||0)-Number(f.amount);
+            sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(){rW();});
+          }
+        }
+        toast('Transaksi ditambahkan'); setM(null); rT();
+      });
+    } else {
+      sb.from('transactions').update(p).eq('id',modal.d.id).then(function(r) {
+        if (r.error) { toast(r.error.message,'err'); return; }
+        toast('Transaksi diperbarui'); setM(null); rT(); rW();
+      });
+    }
+  }
+
+  function del(t) {
+    confirm('Hapus transaksi "' + (t.description || fmtIDR(t.amount)) + '"?').then(function(ok) {
+      if (!ok) return;
+      sb.from('transactions').delete().eq('id',t.id).then(function(r) {
+        if (r.error) { toast(r.error.message,'err'); return; }
+        if (t.wallet_id) {
+          var w = findById(wallets, t.wallet_id);
+          if (w) {
+            var nb = t.type==='income' ? (Number(w.balance)||0)-Number(t.amount) : (Number(w.balance)||0)+Number(t.amount);
+            sb.from('wallets').update({balance:nb}).eq('id',t.wallet_id).then(function(){rW();});
+          }
+        }
+        toast('Transaksi dihapus'); rT();
+      });
+    });
+  }
+
+  var relCats = categories.filter(function(c){return c.type===f.type;});
+
+  function uf(key, val) { var n = {}; for(var k in f) n[k]=f[k]; n[key]=val; if(key==='type') n.category_id=''; setF(n); }
+
+  return (
+    <Fragment>
+      <div className="pg-hd"><div><h2>Transaksi</h2><p>Catatan pemasukan &amp; pengeluaran</p></div><button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah</button></div>
+      <div className="fbar">
+        <input className="fi" placeholder="Cari..." value={search} onChange={function(e){setSrch(e.target.value);}} style={{maxWidth:200}}/>
+        <select className="fi" value={fType} onChange={function(e){setFT(e.target.value);}} style={{maxWidth:150}}><option value="all">Semua Tipe</option><option value="income">Pemasukan</option><option value="expense">Pengeluaran</option></select>
+        <select className="fi" value={fWal} onChange={function(e){setFW(e.target.value);}} style={{maxWidth:160}}><option value="all">Semua Dompet</option>{wallets.map(function(w){return <option key={w.id} value={w.id}>{w.name}</option>;})}</select>
+      </div>
+
+      <div className="cd">
+        {list.length === 0 ? <div className="empty"><div className="ei">📋</div><h3>Tidak Ada Transaksi</h3><p>Mulai catat pemasukan dan pengeluaran</p></div> :
+        <div className="tw"><table>
+          <thead><tr><th>Tanggal</th><th>Keterangan</th><th>Kategori</th><th>Dompet</th><th style={{textAlign:'right'}}>Jumlah</th><th></th></tr></thead>
+          <tbody>{list.map(function(t) {
+            return (
+              <tr key={t.id}>
+                <td style={{color:'var(--t3)',fontSize:'.82rem',whiteSpace:'nowrap'}}>{fmtDate(t.date)}</td>
+                <td style={{fontWeight:500,maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.description || '-'}</td>
+                <td><span className="badge" style={{background:t.type==='income'?'var(--accbg)':'var(--redbg)',color:t.type==='income'?'var(--acc)':'var(--red)'}}><span style={{width:6,height:6,borderRadius:'50%',background:getCatColor(categories,t.category_id),display:'inline-block'}}/>{getCatName(categories, t.category_id)}</span></td>
+                <td style={{color:'var(--t2)',fontSize:'.84rem'}}>{getWalletName(wallets, t.wallet_id)}</td>
+                <td className={t.type==='income'?'txi':'txe'} style={{textAlign:'right',fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>{t.type==='income'?'+':'-'}{fmtIDR(t.amount)}</td>
+                <td style={{whiteSpace:'nowrap'}}><button className="bi" onClick={function(){openE(t);}}><Ico name="edit"/></button><button className="bi" onClick={function(){del(t);}} style={{color:'var(--red)'}}><Ico name="trash"/></button></td>
+              </tr>
+            );
+          })}</tbody>
+        </table></div>}
+      </div>
+
+      <Modal open={!!modal} onClose={function(){setM(null);}} title={modal && modal.mode==='add'?'Tambah Transaksi':'Edit Transaksi'} footer={
+        <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal && modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
+      }>
+        <div className="fg"><label>Tipe</label><div className="tabs"><button className={'tab'+(f.type==='expense'?' act':'')} onClick={function(){uf('type','expense');}}>Pengeluaran</button><button className={'tab'+(f.type==='income'?' act':'')} onClick={function(){uf('type','income');}}>Pemasukan</button></div></div>
+        <div className="fr">
+          <div className="fg"><label>Jumlah (Rp)</label><input className="fi" type="number" placeholder="0" value={f.amount} onChange={function(e){uf('amount',e.target.value);}}/></div>
+          <div className="fg"><label>Tanggal</label><input className="fi" type="date" value={f.date} onChange={function(e){uf('date',e.target.value);}}/></div>
+        </div>
+        <div className="fr">
+          <div className="fg"><label>Dompet</label><select className="fi" value={f.wallet_id} onChange={function(e){uf('wallet_id',e.target.value);}}><option value="">Pilih dompet</option>{wallets.map(function(w){return <option key={w.id} value={w.id}>{w.name}</option>;})}</select></div>
+          <div className="fg"><label>Kategori</label><select className="fi" value={f.category_id} onChange={function(e){uf('category_id',e.target.value);}}><option value="">Pilih kategori</option>{relCats.map(function(c){return <option key={c.id} value={c.id}>{c.name}</option>;})}</select></div>
+        </div>
+        <div className="fg"><label>Keterangan</label><input className="fi" placeholder="Deskripsi transaksi..." value={f.description} onChange={function(e){uf('description',e.target.value);}}/></div>
+      </Modal>
+      {cEl}
+    </Fragment>
+  );
+}
+
+/* ══════════════════════════════════════════
+   CATEGORIES
+══════════════════════════════════════════ */
+function CategoriesPage(props) {
+  var categories=props.categories, rC=props.rC;
+  var toast=useToast();
+  var _m=useState(null), modal=_m[0], setM=_m[1];
+  var _c=useConfirm(), confirm=_c[0], cEl=_c[1];
+  var _f=useState({name:'',type:'expense',color:COLORS[0]}), f=_f[0], setF=_f[1];
+  var _t=useState('expense'), tab=_t[0], setTab=_t[1];
+
+  function openA() { setF({name:'',type:tab,color:COLORS[Math.floor(Math.random()*COLORS.length)]}); setM({mode:'add'}); }
+  function openE(c) { setF({name:c.name,type:c.type,color:c.color||COLORS[0]}); setM({mode:'edit',d:c}); }
+  function uf(key,val) { var n={name:f.name,type:f.type,color:f.color}; n[key]=val; setF(n); }
+
+  function save() {
+    if (!f.name.trim()) { toast('Nama kategori wajib diisi','err'); return; }
+    var p = {name:f.name.trim(), type:f.type, color:f.color};
+    if (modal.mode === 'add') {
+      sb.from('categories').insert(p).then(function(r) { if(r.error){toast(r.error.message,'err');return;} toast('Kategori ditambahkan'); setM(null); rC(); });
+    } else {
+      sb.from('categories').update(p).eq('id',modal.d.id).then(function(r) { if(r.error){toast(r.error.message,'err');return;} toast('Kategori diperbarui'); setM(null); rC(); });
+    }
+  }
+
+  function del(c) {
+    confirm('Hapus kategori "'+c.name+'"?').then(function(ok) {
+      if (!ok) return;
+      sb.from('categories').delete().eq('id',c.id).then(function(r) { if(r.error){toast(r.error.message,'err');return;} toast('Kategori dihapus'); rC(); });
+    });
+  }
+
+  var expC = categories.filter(function(c){return c.type==='expense';});
+  var incC = categories.filter(function(c){return c.type==='income';});
+  var shown = tab === 'expense' ? expC : incC;
+
+  return (
+    <Fragment>
+      <div className="pg-hd"><div><h2>Kategori</h2><p>Kelola kategori pemasukan &amp; pengeluaran</p></div><button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah</button></div>
+      <div className="tabs" style={{marginBottom:18}}>
+        <button className={'tab'+(tab==='expense'?' act':'')} onClick={function(){setTab('expense');}}>Pengeluaran ({expC.length})</button>
+        <button className={'tab'+(tab==='income'?' act':'')} onClick={function(){setTab('income');}}>Pemasukan ({incC.length})</button>
+      </div>
+
+      {shown.length === 0 ? <div className="cd"><div className="empty"><div className="ei">🏷️</div><h3>Belum Ada Kategori {tab==='expense'?'Pengeluaran':'Pemasukan'}</h3><p>Tambahkan kategori untuk mengelompokkan transaksi</p></div></div> :
+      <div className="cg">{shown.map(function(c) {
+        return (
+          <div key={c.id} className="cd cc">
+            <div className="cc-dot" style={{background:c.color||'var(--acc)'}}/>
+            <div className="cc-nm">{c.name}</div>
+            <div className="cc-act">
+              <button className="bi" style={{width:30,height:30}} onClick={function(){openE(c);}}><Ico name="edit"/></button>
+              <button className="bi" style={{width:30,height:30,color:'var(--red)'}} onClick={function(){del(c);}}><Ico name="trash"/></button>
+            </div>
+          </div>
+        );
+      })}</div>}
+
+      <div className="cd" style={{marginTop:24,borderColor:'#1e3a5f'}}>
+        <h3 style={{fontSize:'.9rem',color:'var(--blu)',marginBottom:8}}>📌 SQL untuk tabel categories</h3>
+        <p style={{fontSize:'.78rem',color:'var(--t3)',marginBottom:10}}>Jalankan di Supabase SQL Editor jika tabel belum ada:</p>
+        <pre style={{background:'var(--bgi)',padding:14,borderRadius:'var(--rs)',fontSize:'.75rem',color:'var(--cyn)',overflow:'auto',lineHeight:1.6,whiteSpace:'pre-wrap'}}>{
+"CREATE TABLE IF NOT EXISTS categories (\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n  name TEXT NOT NULL,\n  type TEXT NOT NULL CHECK (type IN ('income','expense')),\n  color TEXT DEFAULT '#10b981',\n  created_at TIMESTAMPTZ DEFAULT NOW()\n);\n\nALTER TABLE categories ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Allow all\" ON categories FOR ALL USING (true) WITH CHECK (true);"
+        }</pre>
 
 ```
-{shown.length===0?<div className="cd"><div className="empty"><div className="ei">🏷️</div><h3>Belum Ada Kategori {tab==='expense'?'Pengeluaran':'Pemasukan'}</h3><p>Tambahkan kategori untuk mengelompokkan transaksi</p></div></div>:
-<div className="cg">{shown.map(c=><div key={c.id} className="cd cc">
-  <div className="cc-dot" style={{background:c.color||'var(--accent)'}}/>
-  <div className="cc-nm">{c.name}</div>
-  <div className="cc-act">
-    <button className="btn-i" style={{width:30,height:30}} onClick={()=>openE(c)}>{IC.edit}</button>
-    <button className="btn-i" style={{width:30,height:30,color:'var(--red)'}} onClick={()=>del(c)}>{IC.trash}</button>
   </div>
-</div>)}</div>}
 
-{/* SQL Helper */}
-<div className="cd" style={{marginTop:24,borderColor:'#1e3a5f'}}>
-  <h3 style={{fontSize:'.9rem',color:'var(--blue)',marginBottom:8}}>📌 SQL untuk tabel categories</h3>
-  <p style={{fontSize:'.78rem',color:'var(--t3)',marginBottom:10}}>Jalankan di Supabase SQL Editor jika tabel belum dibuat:</p>
-  <pre style={{background:'var(--bg-input)',padding:14,borderRadius:'var(--rs)',fontSize:'.78rem',color:'var(--cyan)',overflow:'auto',lineHeight:1.6}}>{`CREATE TABLE IF NOT EXISTS categories (
+  <Modal open={!!modal} onClose={function(){setM(null);}} title={modal && modal.mode==='add'?'Tambah Kategori':'Edit Kategori'} footer={
+    <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal && modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
+  }>
+    <div className="fg"><label>Nama Kategori</label><input className="fi" placeholder="cth: Makan, Transport, Gaji..." value={f.name} onChange={function(e){uf('name',e.target.value);}}/></div>
+    <div className="fg"><label>Tipe</label><div className="tabs"><button className={'tab'+(f.type==='expense'?' act':'')} onClick={function(){uf('type','expense');}}>Pengeluaran</button><button className={'tab'+(f.type==='income'?' act':'')} onClick={function(){uf('type','income');}}>Pemasukan</button></div></div>
+    <div className="fg"><label>Warna</label><div className="clr">{COLORS.map(function(cl){return <div key={cl} className={'co'+(f.color===cl?' sel':'')} style={{background:cl}} onClick={function(){uf('color',cl);}}/>;})}</div></div>
+  </Modal>
+  {cEl}
+</Fragment>
 ```
 
-id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-name TEXT NOT NULL,
-type TEXT NOT NULL CHECK (type IN (‘income’,‘expense’)),
-color TEXT DEFAULT ‘#10b981’,
-created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
-– Enable RLS (opsional, disable dulu untuk testing)
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-CREATE POLICY “Allow all” ON categories FOR ALL USING (true) WITH CHECK (true);`}</pre>
-</div>
-
-```
-<Modal open={!!modal} onClose={()=>setM(null)} title={modal?.mode==='add'?'Tambah Kategori':'Edit Kategori'} footer={<><button className="btn btn-s" onClick={()=>setM(null)}>Batal</button><button className="btn btn-p" onClick={save}>{modal?.mode==='add'?'Tambah':'Simpan'}</button></>}>
-  <div className="fg"><label>Nama Kategori</label><input className="fi" placeholder="cth: Makan, Transport, Gaji..." value={f.name} onChange={e=>setF({...f,name:e.target.value})}/></div>
-  <div className="fg"><label>Tipe</label><div className="tabs"><button className={`tab${f.type==='expense'?' act':''}`} onClick={()=>setF({...f,type:'expense'})}>Pengeluaran</button><button className={`tab${f.type==='income'?' act':''}`} onClick={()=>setF({...f,type:'income'})}>Pemasukan</button></div></div>
-  <div className="fg"><label>Warna</label><div className="clr-opts">{COLORS.map(cl=><div key={cl} className={`clr-o${f.color===cl?' sel':''}`} style={{background:cl}} onClick={()=>setF({...f,color:cl})}/>)}</div></div>
-</Modal>
-{cEl}
-```
-
-</>;
 }
 
-/* ═══════════════════════════════════════
+/* ══════════════════════════════════════════
 BUDGETS
-═══════════════════════════════════════ */
-function BudgetsPage({budgets,categories,transactions,rB}){
-const toast=useToast();
-const[modal,setM]=useState(null);
-const[confirm,cEl]=useConfirm();
-const[f,setF]=useState({category_id:’’,amount:’’,period:‘monthly’});
-const expC=categories.filter(c=>c.type===‘expense’);
+══════════════════════════════════════════ */
+function BudgetsPage(props) {
+var budgets=props.budgets, categories=props.categories, transactions=props.transactions, rB=props.rB;
+var toast=useToast();
+var _m=useState(null), modal=_m[0], setM=_m[1];
+var _c=useConfirm(), confirm=_c[0], cEl=_c[1];
+var _f=useState({category_id:’’,amount:’’,period:‘monthly’}), f=_f[0], setF=_f[1];
+var expC = categories.filter(function(c){return c.type===‘expense’;});
 
-const openA=()=>{setF({category_id:expC[0]?.id||’’,amount:’’,period:‘monthly’});setM({mode:‘add’});};
-const openE=b=>{setF({category_id:b.category_id||’’,amount:String(b.amount||0),period:b.period||‘monthly’});setM({mode:‘edit’,d:b});};
+function openA() { setF({category_id:expC.length>0?expC[0].id:’’,amount:’’,period:‘monthly’}); setM({mode:‘add’}); }
+function openE(b) { setF({category_id:b.category_id||’’,amount:String(b.amount||0),period:b.period||‘monthly’}); setM({mode:‘edit’,d:b}); }
+function uf(key,val) { var n={category_id:f.category_id,amount:f.amount,period:f.period}; n[key]=val; setF(n); }
 
-const save=async()=>{
-if(!f.amount||+f.amount<=0){toast(‘Jumlah harus > 0’,‘err’);return;}
-const p={category_id:f.category_id||null,amount:+f.amount,period:f.period};
-if(modal.mode===‘add’){const{error}=await sb.from(‘budgets’).insert(p);if(error){toast(error.message,‘err’);return;}toast(‘Anggaran ditambahkan’);}
-else{const{error}=await sb.from(‘budgets’).update(p).eq(‘id’,modal.d.id);if(error){toast(error.message,‘err’);return;}toast(‘Anggaran diperbarui’);}
-setM(null);rB();
-};
+function save() {
+if (!f.amount||Number(f.amount)<=0) { toast(‘Jumlah harus > 0’,‘err’); return; }
+var p = {category_id:f.category_id||null, amount:Number(f.amount), period:f.period};
+if (modal.mode===‘add’) {
+sb.from(‘budgets’).insert(p).then(function(r){if(r.error){toast(r.error.message,‘err’);return;}toast(‘Anggaran ditambahkan’);setM(null);rB();});
+} else {
+sb.from(‘budgets’).update(p).eq(‘id’,modal.d.id).then(function(r){if(r.error){toast(r.error.message,‘err’);return;}toast(‘Anggaran diperbarui’);setM(null);rB();});
+}
+}
 
-const del=async b=>{
-const nm=categories.find(c=>c.id===b.category_id)?.name||’-’;
-if(!await confirm(`Hapus anggaran untuk "${nm}"?`))return;
-const{error}=await sb.from(‘budgets’).delete().eq(‘id’,b.id);
-if(error){toast(error.message,‘err’);return;}
-toast(‘Anggaran dihapus’);rB();
-};
+function del(b) {
+var nm = getCatName(categories, b.category_id);
+confirm(‘Hapus anggaran untuk “’+nm+’”?’).then(function(ok) {
+if (!ok) return;
+sb.from(‘budgets’).delete().eq(‘id’,b.id).then(function(r){if(r.error){toast(r.error.message,‘err’);return;}toast(‘Anggaran dihapus’);rB();});
+});
+}
 
-return<>
-<div className="pg-hd"><div><h2>Anggaran</h2><p>Atur batas pengeluaran per kategori</p></div><button className="btn btn-p" onClick={openA}>{IC.plus} Tambah</button></div>
-{budgets.length===0?<div className="cd"><div className="empty"><div className="ei">📊</div><h3>Belum Ada Anggaran</h3><p>Tetapkan batas pengeluaran</p></div></div>:
-<div style={{display:‘grid’,gridTemplateColumns:‘repeat(auto-fill,minmax(320px,1fr))’,gap:14}}>{budgets.map(b=>{
-const cat=categories.find(c=>c.id===b.category_id);const nm=cat?.name||’-’;const cl=cat?.color||‘var(–accent)’;
-const sp=transactions.filter(t=>t.type===‘expense’&&t.category_id===b.category_id).reduce((s,t)=>s+(+t.amount||0),0);
-const pct=b.amount>0?Math.min((sp/b.amount)*100,100):0;const ov=sp>b.amount;
-return<div key={b.id} className="cd">
+return (
+<Fragment>
+<div className="pg-hd"><div><h2>Anggaran</h2><p>Atur batas pengeluaran per kategori</p></div><button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah</button></div>
+{budgets.length===0 ? <div className="cd"><div className="empty"><div className="ei">📊</div><h3>Belum Ada Anggaran</h3><p>Tetapkan batas pengeluaran</p></div></div> :
+<div style={{display:‘grid’,gridTemplateColumns:‘repeat(auto-fill,minmax(320px,1fr))’,gap:14}}>
+{budgets.map(function(b) {
+var cat = findById(categories, b.category_id);
+var nm = cat ? cat.name : ‘-’;
+var cl = cat ? (cat.color || ‘var(–acc)’) : ‘var(–acc)’;
+var sp = transactions.filter(function(t){return t.type===‘expense’&&t.category_id===b.category_id;}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
+var pct = b.amount>0 ? Math.min((sp/b.amount)*100,100) : 0;
+var ov = sp > b.amount;
+return (
+<div key={b.id} className="cd">
 <div style={{display:‘flex’,justifyContent:‘space-between’,alignItems:‘flex-start’}}>
 <div><div style={{display:‘flex’,alignItems:‘center’,gap:8,marginBottom:4}}><span style={{width:10,height:10,borderRadius:‘50%’,background:cl}}/><span style={{fontWeight:600,fontSize:’.95rem’}}>{nm}</span></div><div style={{fontSize:’.76rem’,color:‘var(–t3)’,textTransform:‘capitalize’}}>{b.period||‘monthly’}</div></div>
-<div style={{display:‘flex’,gap:4}}><button className=“btn-i” style={{width:30,height:30}} onClick={()=>openE(b)}>{IC.edit}</button><button className=“btn-i” style={{width:30,height:30,color:‘var(–red)’}} onClick={()=>del(b)}>{IC.trash}</button></div>
+<div style={{display:‘flex’,gap:4}}><button className="bi" style={{width:30,height:30}} onClick={function(){openE(b);}}><Ico name="edit"/></button><button className=“bi” style={{width:30,height:30,color:‘var(–red)’}} onClick={function(){del(b);}}><Ico name="trash"/></button></div>
 </div>
 <div style={{marginTop:12,display:‘flex’,justifyContent:‘space-between’,alignItems:‘baseline’}}><span style={{fontFamily:‘Outfit’,fontWeight:700,fontSize:‘1.15rem’,color:ov?‘var(–red)’:’#fff’}}>{fmtIDR(sp)}</span><span style={{fontSize:’.8rem’,color:‘var(–t3)’}}>dari {fmtIDR(b.amount)}</span></div>
-<div className="bb-bg"><div className=“bb-fill” style={{width:pct+’%’,background:ov?‘var(–red)’:pct>70?‘var(–orange)’:cl}}/></div>
+<div className="bbg"><div className=“bfill” style={{width:pct+’%’,background:ov?‘var(–red)’:pct>70?‘var(–org)’:cl}}/></div>
 <div style={{textAlign:‘right’,fontSize:’.73rem’,color:ov?‘var(–red)’:‘var(–t3)’,marginTop:4}}>{Math.round(pct)}%{ov?’ — Over budget!’:’’}</div>
-</div>;
-})}</div>}
+</div>
+);
+})}
+</div>}
 
 ```
-<Modal open={!!modal} onClose={()=>setM(null)} title={modal?.mode==='add'?'Tambah Anggaran':'Edit Anggaran'} footer={<><button className="btn btn-s" onClick={()=>setM(null)}>Batal</button><button className="btn btn-p" onClick={save}>{modal?.mode==='add'?'Tambah':'Simpan'}</button></>}>
-  <div className="fg"><label>Kategori Pengeluaran</label><select className="fi" value={f.category_id} onChange={e=>setF({...f,category_id:e.target.value})}><option value="">Pilih</option>{expC.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-  <div className="fr">
-    <div className="fg"><label>Batas (Rp)</label><input className="fi" type="number" placeholder="0" value={f.amount} onChange={e=>setF({...f,amount:e.target.value})}/></div>
-    <div className="fg"><label>Periode</label><select className="fi" value={f.period} onChange={e=>setF({...f,period:e.target.value})}><option value="monthly">Bulanan</option><option value="weekly">Mingguan</option><option value="yearly">Tahunan</option></select></div>
-  </div>
-</Modal>
-{cEl}
+  <Modal open={!!modal} onClose={function(){setM(null);}} title={modal&&modal.mode==='add'?'Tambah Anggaran':'Edit Anggaran'} footer={
+    <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal&&modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
+  }>
+    <div className="fg"><label>Kategori Pengeluaran</label><select className="fi" value={f.category_id} onChange={function(e){uf('category_id',e.target.value);}}><option value="">Pilih</option>{expC.map(function(c){return <option key={c.id} value={c.id}>{c.name}</option>;})}</select></div>
+    <div className="fr">
+      <div className="fg"><label>Batas (Rp)</label><input className="fi" type="number" placeholder="0" value={f.amount} onChange={function(e){uf('amount',e.target.value);}}/></div>
+      <div className="fg"><label>Periode</label><select className="fi" value={f.period} onChange={function(e){uf('period',e.target.value);}}><option value="monthly">Bulanan</option><option value="weekly">Mingguan</option><option value="yearly">Tahunan</option></select></div>
+    </div>
+  </Modal>
+  {cEl}
+</Fragment>
 ```
 
-</>;
+);
 }
 
-/* ═══════════════════════════════════════
+/* ══════════════════════════════════════════
 INVESTMENTS
-═══════════════════════════════════════ */
-function InvestmentsPage({investments,rI}){
-const toast=useToast();
-const[modal,setM]=useState(null);
-const[confirm,cEl]=useConfirm();
-const[f,setF]=useState({name:’’,type:‘stock’,amount:’’,current_value:’’,purchase_date:today()});
+══════════════════════════════════════════ */
+function InvestmentsPage(props) {
+var investments=props.investments, rI=props.rI;
+var toast=useToast();
+var _m=useState(null), modal=_m[0], setM=_m[1];
+var _c=useConfirm(), confirm=_c[0], cEl=_c[1];
+var _f=useState({name:’’,type:‘stock’,amount:’’,current_value:’’,purchase_date:getToday()}), f=_f[0], setF=_f[1];
 
-const openA=()=>{setF({name:’’,type:‘stock’,amount:’’,current_value:’’,purchase_date:today()});setM({mode:‘add’});};
-const openE=i=>{setF({name:i.name||’’,type:i.type||‘stock’,amount:String(i.amount||0),current_value:String(i.current_value||0),purchase_date:i.purchase_date||today()});setM({mode:‘edit’,d:i});};
+function openA() { setF({name:’’,type:‘stock’,amount:’’,current_value:’’,purchase_date:getToday()}); setM({mode:‘add’}); }
+function openE(i) { setF({name:i.name||’’,type:i.type||‘stock’,amount:String(i.amount||0),current_value:String(i.current_value||0),purchase_date:i.purchase_date||getToday()}); setM({mode:‘edit’,d:i}); }
+function uf(key,val) { var n={name:f.name,type:f.type,amount:f.amount,current_value:f.current_value,purchase_date:f.purchase_date}; n[key]=val; setF(n); }
 
-const save=async()=>{
-if(!f.name.trim()){toast(‘Nama wajib diisi’,‘err’);return;}
-const p={name:f.name.trim(),type:f.type,amount:+f.amount||0,current_value:+f.current_value||0,purchase_date:f.purchase_date};
-if(modal.mode===‘add’){const{error}=await sb.from(‘investments’).insert(p);if(error){toast(error.message,‘err’);return;}toast(‘Investasi ditambahkan’);}
-else{const{error}=await sb.from(‘investments’).update(p).eq(‘id’,modal.d.id);if(error){toast(error.message,‘err’);return;}toast(‘Investasi diperbarui’);}
-setM(null);rI();
-};
+function save() {
+if (!f.name.trim()) { toast(‘Nama wajib diisi’,‘err’); return; }
+var p = {name:f.name.trim(),type:f.type,amount:Number(f.amount)||0,current_value:Number(f.current_value)||0,purchase_date:f.purchase_date};
+if (modal.mode===‘add’) {
+sb.from(‘investments’).insert(p).then(function(r){if(r.error){toast(r.error.message,‘err’);return;}toast(‘Investasi ditambahkan’);setM(null);rI();});
+} else {
+sb.from(‘investments’).update(p).eq(‘id’,modal.d.id).then(function(r){if(r.error){toast(r.error.message,‘err’);return;}toast(‘Investasi diperbarui’);setM(null);rI();});
+}
+}
 
-const del=async i=>{
-if(!await confirm(`Hapus investasi "${i.name}"?`))return;
-const{error}=await sb.from(‘investments’).delete().eq(‘id’,i.id);
-if(error){toast(error.message,‘err’);return;}
-toast(‘Investasi dihapus’);rI();
-};
+function del(inv) {
+confirm(‘Hapus investasi “’+inv.name+’”?’).then(function(ok) {
+if (!ok) return;
+sb.from(‘investments’).delete().eq(‘id’,inv.id).then(function(r){if(r.error){toast(r.error.message,‘err’);return;}toast(‘Investasi dihapus’);rI();});
+});
+}
 
-const tI=investments.reduce((s,i)=>s+(+i.amount||0),0);
-const tC=investments.reduce((s,i)=>s+(+i.current_value||+i.amount||0),0);
-const tGL=tC-tI;
+var tI = investments.reduce(function(s,i){return s+(Number(i.amount)||0);},0);
+var tC = investments.reduce(function(s,i){return s+(Number(i.current_value)||Number(i.amount)||0);},0);
+var tGL = tC - tI;
+var typeLabel = {stock:‘Saham’,crypto:‘Crypto’,mutual_fund:‘Reksa Dana’,bond:‘Obligasi’,gold:‘Emas’,property:‘Properti’,other:‘Lainnya’};
 
-const typeLabel={stock:‘Saham’,crypto:‘Crypto’,mutual_fund:‘Reksa Dana’,bond:‘Obligasi’,gold:‘Emas’,property:‘Properti’,other:‘Lainnya’};
-
-return<>
-<div className="pg-hd"><div><h2>Investasi</h2><p>Pantau portofolio investasi Anda</p></div><button className="btn btn-p" onClick={openA}>{IC.plus} Tambah</button></div>
-<div className="st-grid">
+return (
+<Fragment>
+<div className="pg-hd"><div><h2>Investasi</h2><p>Pantau portofolio investasi Anda</p></div><button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah</button></div>
+<div className="sg">
 <div className="cd st"><div className="lb">Total Investasi</div><div className="vl">{fmtIDR(tI)}</div></div>
-<div className="cd st"><div className="lb">Nilai Saat Ini</div><div className=“vl” style={{color:‘var(–blue)’}}>{fmtIDR(tC)}</div></div>
-<div className="cd st"><div className="lb">Gain/Loss</div><div className="vl" style={{color:tGL>=0?‘var(–accent)’:‘var(–red)’}}>{tGL>=0?’+’:’’}{fmtIDR(tGL)}</div>{tI>0&&<div className="sub">{tGL>=0?’+’:’’}{((tGL/tI)*100).toFixed(1)}%</div>}</div>
+<div className="cd st"><div className="lb">Nilai Saat Ini</div><div className=“vl” style={{color:‘var(–blu)’}}>{fmtIDR(tC)}</div></div>
+<div className="cd st"><div className="lb">Gain/Loss</div><div className="vl" style={{color:tGL>=0?‘var(–acc)’:‘var(–red)’}}>{tGL>=0?’+’:’’}{fmtIDR(tGL)}</div>{tI>0 && <div className="sub">{tGL>=0?’+’:’’}{((tGL/tI)*100).toFixed(1)}%</div>}</div>
 </div>
 
 ```
-{investments.length===0?<div className="cd"><div className="empty"><div className="ei">📈</div><h3>Belum Ada Investasi</h3><p>Mulai catat portofolio Anda</p></div></div>:
-<div className="cd"><div className="tw"><table>
-  <thead><tr><th>Nama</th><th>Tipe</th><th style={{textAlign:'right'}}>Modal</th><th style={{textAlign:'right'}}>Nilai Saat Ini</th><th style={{textAlign:'right'}}>G/L</th><th>Tanggal</th><th></th></tr></thead>
-  <tbody>{investments.map(inv=>{
-    const gl=(+inv.current_value||0)-(+inv.amount||0);const pct=inv.amount>0?((gl/inv.amount)*100).toFixed(1):0;
-    return<tr key={inv.id}>
-      <td style={{fontWeight:600}}>{inv.name}</td>
-      <td><span className="tx-badge" style={{background:'rgba(59,130,246,.08)',color:'var(--blue)'}}>{typeLabel[inv.type]||inv.type||'-'}</span></td>
-      <td style={{textAlign:'right',fontFamily:'Outfit'}}>{fmtIDR(inv.amount)}</td>
-      <td style={{textAlign:'right',fontFamily:'Outfit'}}>{fmtIDR(inv.current_value)}</td>
-      <td style={{textAlign:'right',fontFamily:'Outfit',fontWeight:600,color:gl>=0?'var(--accent)':'var(--red)'}}>{gl>=0?'+':''}{fmtIDR(gl)} <span style={{fontSize:'.73rem',fontWeight:400}}>({gl>=0?'+':''}{pct}%)</span></td>
-      <td style={{color:'var(--t3)',fontSize:'.82rem'}}>{fmtDate(inv.purchase_date)}</td>
-      <td style={{whiteSpace:'nowrap'}}><button className="btn-i" onClick={()=>openE(inv)}>{IC.edit}</button><button className="btn-i" onClick={()=>del(inv)} style={{color:'var(--red)'}}>{IC.trash}</button></td>
-    </tr>;
-  })}</tbody>
-</table></div></div>}
+  {investments.length===0 ? <div className="cd"><div className="empty"><div className="ei">📈</div><h3>Belum Ada Investasi</h3><p>Mulai catat portofolio Anda</p></div></div> :
+  <div className="cd"><div className="tw"><table>
+    <thead><tr><th>Nama</th><th>Tipe</th><th style={{textAlign:'right'}}>Modal</th><th style={{textAlign:'right'}}>Nilai Saat Ini</th><th style={{textAlign:'right'}}>G/L</th><th>Tanggal</th><th></th></tr></thead>
+    <tbody>{investments.map(function(inv) {
+      var gl = (Number(inv.current_value)||0) - (Number(inv.amount)||0);
+      var pct = inv.amount > 0 ? ((gl / inv.amount) * 100).toFixed(1) : 0;
+      return (
+        <tr key={inv.id}>
+          <td style={{fontWeight:600}}>{inv.name}</td>
+          <td><span className="badge" style={{background:'rgba(59,130,246,.08)',color:'var(--blu)'}}>{typeLabel[inv.type]||inv.type||'-'}</span></td>
+          <td style={{textAlign:'right',fontFamily:'Outfit'}}>{fmtIDR(inv.amount)}</td>
+          <td style={{textAlign:'right',fontFamily:'Outfit'}}>{fmtIDR(inv.current_value)}</td>
+          <td style={{textAlign:'right',fontFamily:'Outfit',fontWeight:600,color:gl>=0?'var(--acc)':'var(--red)'}}>{gl>=0?'+':''}{fmtIDR(gl)} <span style={{fontSize:'.73rem',fontWeight:400}}>({gl>=0?'+':''}{pct}%)</span></td>
+          <td style={{color:'var(--t3)',fontSize:'.82rem'}}>{fmtDate(inv.purchase_date)}</td>
+          <td style={{whiteSpace:'nowrap'}}><button className="bi" onClick={function(){openE(inv);}}><Ico name="edit"/></button><button className="bi" onClick={function(){del(inv);}} style={{color:'var(--red)'}}><Ico name="trash"/></button></td>
+        </tr>
+      );
+    })}</tbody>
+  </table></div></div>}
 
-<Modal open={!!modal} onClose={()=>setM(null)} title={modal?.mode==='add'?'Tambah Investasi':'Edit Investasi'} footer={<><button className="btn btn-s" onClick={()=>setM(null)}>Batal</button><button className="btn btn-p" onClick={save}>{modal?.mode==='add'?'Tambah':'Simpan'}</button></>}>
-  <div className="fg"><label>Nama Aset</label><input className="fi" placeholder="cth: BBCA, Bitcoin, Emas..." value={f.name} onChange={e=>setF({...f,name:e.target.value})}/></div>
-  <div className="fr">
-    <div className="fg"><label>Tipe</label><select className="fi" value={f.type} onChange={e=>setF({...f,type:e.target.value})}><option value="stock">Saham</option><option value="crypto">Crypto</option><option value="mutual_fund">Reksa Dana</option><option value="bond">Obligasi</option><option value="gold">Emas</option><option value="property">Properti</option><option value="other">Lainnya</option></select></div>
-    <div className="fg"><label>Tanggal Beli</label><input className="fi" type="date" value={f.purchase_date} onChange={e=>setF({...f,purchase_date:e.target.value})}/></div>
-  </div>
-  <div className="fr">
-    <div className="fg"><label>Modal (Rp)</label><input className="fi" type="number" placeholder="0" value={f.amount} onChange={e=>setF({...f,amount:e.target.value})}/></div>
-    <div className="fg"><label>Nilai Saat Ini (Rp)</label><input className="fi" type="number" placeholder="0" value={f.current_value} onChange={e=>setF({...f,current_value:e.target.value})}/></div>
-  </div>
-</Modal>
-{cEl}
+  <Modal open={!!modal} onClose={function(){setM(null);}} title={modal&&modal.mode==='add'?'Tambah Investasi':'Edit Investasi'} footer={
+    <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal&&modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
+  }>
+    <div className="fg"><label>Nama Aset</label><input className="fi" placeholder="cth: BBCA, Bitcoin, Emas..." value={f.name} onChange={function(e){uf('name',e.target.value);}}/></div>
+    <div className="fr">
+      <div className="fg"><label>Tipe</label><select className="fi" value={f.type} onChange={function(e){uf('type',e.target.value);}}><option value="stock">Saham</option><option value="crypto">Crypto</option><option value="mutual_fund">Reksa Dana</option><option value="bond">Obligasi</option><option value="gold">Emas</option><option value="property">Properti</option><option value="other">Lainnya</option></select></div>
+      <div className="fg"><label>Tanggal Beli</label><input className="fi" type="date" value={f.purchase_date} onChange={function(e){uf('purchase_date',e.target.value);}}/></div>
+    </div>
+    <div className="fr">
+      <div className="fg"><label>Modal (Rp)</label><input className="fi" type="number" placeholder="0" value={f.amount} onChange={function(e){uf('amount',e.target.value);}}/></div>
+      <div className="fg"><label>Nilai Saat Ini (Rp)</label><input className="fi" type="number" placeholder="0" value={f.current_value} onChange={function(e){uf('current_value',e.target.value);}}/></div>
+    </div>
+  </Modal>
+  {cEl}
+</Fragment>
 ```
 
-</>;
+);
 }
 
 /* ═══ RENDER ═══ */
-ReactDOM.createRoot(document.getElementById(‘root’)).render(<ToastProvider><App/></ToastProvider>);
+ReactDOM.createRoot(document.getElementById(‘root’)).render(
+React.createElement(ToastProvider, null, React.createElement(App, null))
+);
 </script>
 
 </body>
