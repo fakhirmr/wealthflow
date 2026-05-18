@@ -6,11 +6,7 @@
 <title>WealthFlow — Personal Finance</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2310b981'/><text x='16' y='22' text-anchor='middle' fill='white' font-size='18' font-weight='bold' font-family='sans-serif'>W</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone@7.24.0/babel.min.js"></script>
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,400&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:15px;scroll-behavior:smooth}
@@ -18,947 +14,545 @@ body{font-family:'DM Sans',sans-serif;background:#0b0f1a;color:#e2e8f0;min-heigh
 h1,h2,h3,h4,h5,h6{font-family:'Outfit',sans-serif;font-weight:600;letter-spacing:-0.02em}
 button{font-family:inherit;cursor:pointer;border:none;outline:none}
 input,select,textarea{font-family:inherit;outline:none}
-::-webkit-scrollbar{width:5px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#2d3748;border-radius:3px}
-
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2d3748;border-radius:3px}
 :root{
-  --bg:#0b0f1a;--bgc:#131a2b;--bgc2:#1a2236;--bgi:#0f1525;
-  --brd:#1e293b;--acc:#10b981;--acc2:#34d399;--accd:#059669;--accbg:rgba(16,185,129,.08);
-  --red:#ef4444;--redbg:rgba(239,68,68,.08);--org:#f59e0b;--blu:#3b82f6;--pur:#8b5cf6;--cyn:#06b6d4;
-  --t1:#e2e8f0;--t2:#94a3b8;--t3:#64748b;
-  --sw:260px;--rad:12px;--rs:8px;
+--bg:#0b0f1a;--bgc:#131a2b;--bgc2:#1a2236;--bgi:#0f1525;
+--brd:#1e293b;--acc:#10b981;--accd:#059669;--accbg:rgba(16,185,129,.08);
+--red:#ef4444;--redbg:rgba(239,68,68,.08);--org:#f59e0b;--blu:#3b82f6;--cyn:#06b6d4;
+--t1:#e2e8f0;--t2:#94a3b8;--t3:#64748b;--sw:260px;--rad:12px;--rs:8px;
 }
-
 #root{display:flex;min-height:100vh;width:100%}
-
-/* SIDEBAR */
 .sb{position:fixed;left:0;top:0;bottom:0;width:var(--sw);background:#0d1220;border-right:1px solid var(--brd);display:flex;flex-direction:column;z-index:100;transition:transform .3s}
 .sb-brand{padding:24px 22px 18px;display:flex;align-items:center;gap:12px}
 .sb-logo{width:38px;height:38px;background:linear-gradient(135deg,var(--acc),var(--cyn));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;font-family:'Outfit',sans-serif}
-.sb-brand h1{font-size:1.25rem;color:#fff;font-weight:700}
-.sb-brand h1 span{color:var(--acc)}
+.sb-brand h1{font-size:1.25rem;color:#fff;font-weight:700}.sb-brand h1 span{color:var(--acc)}
 .sb-nav{flex:1;padding:8px 12px;display:flex;flex-direction:column;gap:2px}
 .nv{display:flex;align-items:center;gap:14px;padding:11px 16px;border-radius:var(--rs);color:var(--t2);font-size:.9rem;font-weight:500;transition:all .2s;background:transparent;width:100%;text-align:left}
-.nv:hover{background:var(--bgc);color:var(--t1)}
-.nv.act{background:var(--accbg);color:var(--acc)}
-.nv svg{width:20px;height:20px;flex-shrink:0}
+.nv:hover{background:var(--bgc);color:var(--t1)}.nv.act{background:var(--accbg);color:var(--acc)}.nv svg{width:20px;height:20px;flex-shrink:0}
 .sb-ft{padding:14px 20px;border-top:1px solid var(--brd);font-size:.72rem;color:var(--t3);text-align:center}
-
-/* MAIN */
 .main{margin-left:var(--sw);flex:1;min-height:100vh;width:calc(100% - var(--sw))}
 .pg{padding:28px 36px;max-width:1600px;width:100%}
 .pg-hd{margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
-.pg-hd h2{font-size:1.55rem;color:#fff}
-.pg-hd p{color:var(--t2);font-size:.85rem;margin-top:2px}
-
-/* CARDS */
-.cd{background:var(--bgc);border:1px solid var(--brd);border-radius:var(--rad);padding:22px;transition:border-color .2s}
-.cd:hover{border-color:#2d3748}
+.pg-hd h2{font-size:1.55rem;color:#fff}.pg-hd p{color:var(--t2);font-size:.85rem;margin-top:2px}
+.cd{background:var(--bgc);border:1px solid var(--brd);border-radius:var(--rad);padding:22px;transition:border-color .2s}.cd:hover{border-color:#2d3748}
 .sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:24px}
-.st .lb{font-size:.8rem;color:var(--t2);margin-bottom:8px}
-.st .vl{font-size:1.45rem;font-weight:700;font-family:'Outfit',sans-serif;color:#fff}
-.st .sub{font-size:.78rem;color:var(--t3);margin-top:4px}
+.st .lb{font-size:.8rem;color:var(--t2);margin-bottom:8px}.st .vl{font-size:1.45rem;font-weight:700;font-family:'Outfit',sans-serif;color:#fff}.st .sub{font-size:.78rem;color:var(--t3);margin-top:4px}
 .si{width:34px;height:34px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px}
-
-/* BUTTONS */
 .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--rs);font-size:.86rem;font-weight:600;transition:all .2s}
 .bp{background:var(--acc);color:#fff}.bp:hover{background:var(--accd);transform:translateY(-1px)}
 .bs{background:var(--bgc);color:var(--t1);border:1px solid var(--brd)}.bs:hover{border-color:var(--t3)}
 .bd{background:var(--redbg);color:var(--red)}.bd:hover{background:rgba(239,68,68,.15)}
-.bi{width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:var(--rs);background:transparent;color:var(--t2);transition:all .15s;border:none}
-.bi:hover{background:var(--bgc);color:var(--t1)}
-
-/* FORMS */
-.fg{margin-bottom:16px}
-.fg label{display:block;font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.bi{width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:var(--rs);background:transparent;color:var(--t2);transition:all .15s;border:none}.bi:hover{background:var(--bgc);color:var(--t1)}
+.fg{margin-bottom:16px}.fg label{display:block;font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
 .fi{width:100%;padding:10px 13px;background:var(--bgi);border:1px solid var(--brd);border-radius:var(--rs);color:var(--t1);font-size:.9rem;transition:border-color .2s}
-.fi:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(16,185,129,.1)}
-.fi::placeholder{color:var(--t3)}
+.fi:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(16,185,129,.1)}.fi::placeholder{color:var(--t3)}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-
-/* MODAL */
-.mo{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s}
-.moc{background:var(--bgc);border:1px solid var(--brd);border-radius:16px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;animation:slideUp .25s}
-.moh{padding:20px 22px 0;display:flex;align-items:center;justify-content:space-between}
-.moh h3{font-size:1.1rem;color:#fff}
-.mob{padding:18px 22px}
-.mof{padding:0 22px 20px;display:flex;gap:10px;justify-content:flex-end}
-
-/* TABLE */
-.tw{overflow-x:auto}
-table{width:100%;border-collapse:collapse}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fi .2s}
+.moc{background:var(--bgc);border:1px solid var(--brd);border-radius:16px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;animation:su .25s}
+.moh{padding:20px 22px 0;display:flex;align-items:center;justify-content:space-between}.moh h3{font-size:1.1rem;color:#fff}
+.mob{padding:18px 22px}.mof{padding:0 22px 20px;display:flex;gap:10px;justify-content:flex-end}
+.tw{overflow-x:auto}table{width:100%;border-collapse:collapse}
 thead th{text-align:left;font-size:.76rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid var(--brd)}
-tbody td{padding:13px 14px;border-bottom:1px solid var(--brd);font-size:.88rem}
-tbody tr:hover{background:var(--bgc2)}
-tbody tr:last-child td{border-bottom:none}
-
-/* WALLET */
+tbody td{padding:13px 14px;border-bottom:1px solid var(--brd);font-size:.88rem}tbody tr:hover{background:var(--bgc2)}tbody tr:last-child td{border-bottom:none}
 .wg{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
-.wc{position:relative;overflow:hidden}
-.wc-nm{font-size:.95rem;font-weight:600;color:#fff;margin-bottom:2px}
+.wc{position:relative;overflow:hidden}.wc-nm{font-size:.95rem;font-weight:600;color:#fff;margin-bottom:2px}
 .wc-bl{font-size:1.5rem;font-weight:700;font-family:'Outfit',sans-serif;color:#fff;margin-top:10px}
 .wc-act{display:flex;gap:4px;position:absolute;top:14px;right:14px}
-
-/* CATEGORY */
 .cg{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:10px}
-.cc{display:flex;align-items:center;gap:11px;padding:13px 14px}
-.cc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.cc-nm{font-size:.9rem;font-weight:500;flex:1}
-.cc-act{display:flex;gap:2px}
-
-/* TXN */
-.txi{color:var(--acc)}.txe{color:var(--red)}
-.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:16px;font-size:.76rem;font-weight:500}
-
-/* EMPTY */
-.empty{text-align:center;padding:50px 20px;color:var(--t3)}
-.empty .ei{font-size:42px;margin-bottom:14px;opacity:.5}
-.empty h3{color:var(--t2);margin-bottom:6px;font-size:1rem}
-.empty p{font-size:.84rem;max-width:280px;margin:0 auto}
-
-/* TABS */
+.cc{display:flex;align-items:center;gap:11px;padding:13px 14px}.cc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}.cc-nm{font-size:.9rem;font-weight:500;flex:1}.cc-act{display:flex;gap:2px}
+.txi{color:var(--acc)}.txe{color:var(--red)}.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:16px;font-size:.76rem;font-weight:500}
+.empty{text-align:center;padding:50px 20px;color:var(--t3)}.empty .ei{font-size:42px;margin-bottom:14px;opacity:.5}.empty h3{color:var(--t2);margin-bottom:6px;font-size:1rem}.empty p{font-size:.84rem;max-width:280px;margin:0 auto}
 .tabs{display:flex;gap:3px;background:var(--bgi);border-radius:var(--rs);padding:3px;width:fit-content}
-.tab{padding:7px 18px;border-radius:6px;font-size:.83rem;font-weight:600;color:var(--t3);background:transparent;transition:all .2s}
-.tab.act{background:var(--bgc);color:var(--acc);box-shadow:0 2px 8px rgba(0,0,0,.12)}
-
-/* TOAST */
+.tab{padding:7px 18px;border-radius:6px;font-size:.83rem;font-weight:600;color:var(--t3);background:transparent;transition:all .2s}.tab.act{background:var(--bgc);color:var(--acc);box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .tc{position:fixed;bottom:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
-.toast{padding:12px 18px;border-radius:var(--rs);font-size:.86rem;font-weight:500;animation:slideUp .3s;display:flex;align-items:center;gap:9px}
-.tok{background:#065f46;color:#a7f3d0;border:1px solid #10b981}
-.terr{background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444}
-
-/* BUDGET BAR */
-.bbg{width:100%;height:7px;background:var(--bgi);border-radius:4px;overflow:hidden;margin-top:8px}
-.bfill{height:100%;border-radius:4px;transition:width .5s}
-
-/* COLOR PICKER */
-.clr{display:flex;gap:7px;flex-wrap:wrap}
-.co{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s}
-.co.sel{border-color:#fff;transform:scale(1.15)}
-
-/* FILTER */
-.fbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
-.fbar .fi{max-width:180px}
-
-/* DASH GRID */
+.toast{padding:12px 18px;border-radius:var(--rs);font-size:.86rem;font-weight:500;animation:su .3s;display:flex;align-items:center;gap:9px}
+.tok{background:#065f46;color:#a7f3d0;border:1px solid #10b981}.terr{background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444}
+.bbg{width:100%;height:7px;background:var(--bgi);border-radius:4px;overflow:hidden;margin-top:8px}.bfill{height:100%;border-radius:4px;transition:width .5s}
+.clr{display:flex;gap:7px;flex-wrap:wrap}.co{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s}.co.sel{border-color:#fff;transform:scale(1.15)}
+.fbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}.fbar .fi{max-width:180px}
 .dg{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
-
-/* MOBILE */
 .mh{display:none;position:fixed;top:0;left:0;right:0;height:54px;background:#0d1220;border-bottom:1px solid var(--brd);z-index:100;padding:0 14px;align-items:center;justify-content:space-between}
 .mn{display:none;position:fixed;bottom:0;left:0;right:0;height:62px;background:#0d1220;border-top:1px solid var(--brd);z-index:100;padding:0 4px;align-items:center;justify-content:space-around}
-.mni{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65rem;color:var(--t3);padding:5px 10px;border-radius:8px;background:transparent;transition:color .2s;border:none}
-.mni.act{color:var(--acc)}
-.mni svg{width:21px;height:21px}
-
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-
+.mni{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65rem;color:var(--t3);padding:5px 10px;border-radius:8px;background:transparent;transition:color .2s;border:none}.mni.act{color:var(--acc)}.mni svg{width:21px;height:21px}
+.ls{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;color:var(--acc);font-weight:600;text-align:center}
+@keyframes fi{from{opacity:0}to{opacity:1}}@keyframes su{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:768px){
-  .sb{transform:translateX(-100%)}.sb.open{transform:translateX(0)}
-  .mh,.mn{display:flex}
-  .main{margin-left:0;padding-bottom:76px;padding-top:54px}
-  .pg{padding:16px 14px}
-  .sg{grid-template-columns:repeat(2,1fr);gap:8px}
-  .st .vl{font-size:1.15rem}
-  .fr{grid-template-columns:1fr}
-  .wg{grid-template-columns:1fr}
-  .cg{grid-template-columns:1fr}
-  .pg-hd h2{font-size:1.2rem}
-  .fbar .fi{max-width:100%;flex:1}
-  .dg{grid-template-columns:1fr}
+.sb{transform:translateX(-100%)}.sb.open{transform:translateX(0)}.mh,.mn{display:flex}
+.main{margin-left:0;padding-bottom:76px;padding-top:54px}.pg{padding:16px 14px}
+.sg{grid-template-columns:repeat(2,1fr);gap:8px}.st .vl{font-size:1.15rem}.fr{grid-template-columns:1fr}
+.wg,.cg{grid-template-columns:1fr}.pg-hd h2{font-size:1.2rem}.fbar .fi{max-width:100%;flex:1}.dg{grid-template-columns:1fr}
 }
-
-/* LOADING */
-.loading-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;color:var(--acc);font-weight:600}
-.loading-screen div{text-align:center}
-.loading-screen .icon{font-size:2.5rem;margin-bottom:14px}
 </style>
 </head>
 <body>
+<div id="root"><div class="ls"><div><div style="font-size:2.5rem;margin-bottom:14px">💰</div>Memuat WealthFlow...</div></div></div>
 
-<div id="root">
-  <div class="loading-screen">
-    <div>
-      <div class="icon">💰</div>
-      Memuat WealthFlow...
-    </div>
-  </div>
-</div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/htm@3/dist/htm.umd.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
-<script type="text/babel" data-presets="env,react">
-var useState = React.useState;
-var useEffect = React.useEffect;
-var useCallback = React.useCallback;
-var useMemo = React.useMemo;
-var createContext = React.createContext;
-var useContext = React.useContext;
-var Fragment = React.Fragment;
+<script>
+// htm bound to React.createElement — no Babel needed!
+var html = htm.bind(React.createElement);
+var useState = React.useState, useEffect = React.useEffect, useCallback = React.useCallback,
+    useMemo = React.useMemo, createContext = React.createContext, useContext = React.useContext, F = React.Fragment;
 
 /* ═══ SUPABASE ═══ */
-var SB_URL = 'https://wkhjxgrjkrakfhwckriu.supabase.co';
-var SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraGp4Z3Jqa3Jha2Zod2Nrcml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjQyOTUsImV4cCI6MjA5NDMwMDI5NX0.Prtzf84zL-MvJuWF6Qk9HrJLzb2wmxxRD_OA094ulck';
-var sb = window.supabase.createClient(SB_URL, SB_KEY);
-
-/* ═══ ICONS ═══ */
-function Ico({name}) {
-  var icons = {
-    dashboard: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>,
-    wallet: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="16" cy="14" r="1"/></svg>,
-    txn: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>,
-    cat: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 000 20 14.5 14.5 0 000-20"/><path d="M2 12h20"/></svg>,
-    budget: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 11-6.22-8.56"/><path d="M21 3v6h-6"/></svg>,
-    invest: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
-    plus: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-    edit: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
-    trash: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>,
-    x: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
-    menu: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
-  };
-  return icons[name] || null;
-}
+var sb = window.supabase.createClient(
+  'https://wkhjxgrjkrakfhwckriu.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraGp4Z3Jqa3Jha2Zod2Nrcml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjQyOTUsImV4cCI6MjA5NDMwMDI5NX0.Prtzf84zL-MvJuWF6Qk9HrJLzb2wmxxRD_OA094ulck'
+);
 
 /* ═══ HELPERS ═══ */
 var COLORS = ['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#6366f1','#84cc16','#e11d48'];
+function fmtIDR(n){return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0,maximumFractionDigits:0}).format(n||0)}
+function fmtDate(d){return d?new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'-'}
+function td(){return new Date().toISOString().split('T')[0]}
+function fid(a,id){if(!a||!id)return null;for(var i=0;i<a.length;i++){if(a[i].id===id)return a[i]}return null}
+function cn(cs,id){var c=fid(cs,id);return c?c.name:'-'}
+function ccol(cs,id){var c=fid(cs,id);return c?(c.color||'#64748b'):'#64748b'}
+function wn(ws,id){var w=fid(ws,id);return w?w.name:'-'}
+function rndColor(){return COLORS[Math.floor(Math.random()*COLORS.length)]}
 
-function fmtIDR(n) {
-  return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0,maximumFractionDigits:0}).format(n||0);
-}
-function fmtDate(d) {
-  return d ? new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}) : '-';
-}
-function getToday() {
-  return new Date().toISOString().split('T')[0];
-}
-function findById(arr, id) {
-  if (!arr || !id) return null;
-  for (var i = 0; i < arr.length; i++) {
-    if (arr[i].id === id) return arr[i];
-  }
-  return null;
-}
-function getCatName(cats, id) {
-  var c = findById(cats, id);
-  return c ? c.name : '-';
-}
-function getCatColor(cats, id) {
-  var c = findById(cats, id);
-  return c ? (c.color || '#64748b') : '#64748b';
-}
-function getWalletName(wallets, id) {
-  var w = findById(wallets, id);
-  return w ? w.name : '-';
-}
-function safeGet(obj, key) {
-  return obj ? obj[key] : undefined;
+/* ═══ SVG ICONS ═══ */
+function Ic(p){
+  var d = {
+    dashboard:'M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z',
+    wallet:'M2 6h20v14H2zM2 10h20M16 14h0',
+    txn:'M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6',
+    cat:'M12 2a10 10 0 100 20 10 10 0 000-20zM2 12h20',
+    budget:'M21 12a9 9 0 11-6.22-8.56M21 3v6h-6',
+    invest:'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6',
+    plus:'M12 5v14M5 12h14',
+    edit:'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
+    trash:'M3 6h18M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2',
+    x:'M18 6L6 18M6 6l12 12',
+    menu:'M3 12h18M3 6h18M3 18h18',
+  }[p.n] || '';
+  return html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d=${d}/></svg>`;
 }
 
 /* ═══ TOAST ═══ */
-var ToastCtx = createContext();
-function ToastProvider(props) {
-  var _s = useState([]);
-  var ts = _s[0], setTs = _s[1];
-  var add = useCallback(function(m, t) {
-    var typ = t || 'ok';
-    var id = Date.now();
-    setTs(function(p) { return p.concat([{id:id,m:m,t:typ}]); });
-    setTimeout(function() { setTs(function(p) { return p.filter(function(x) { return x.id !== id; }); }); }, 3000);
-  }, []);
-  return (
-    <ToastCtx.Provider value={add}>
-      {props.children}
-      <div className="tc">
-        {ts.map(function(t) {
-          return <div key={t.id} className={'toast ' + (t.t === 'ok' ? 'tok' : 'terr')}>{t.t === 'ok' ? '✓' : '✗'} {t.m}</div>;
-        })}
-      </div>
-    </ToastCtx.Provider>
-  );
+var TCtx = createContext(function(){});
+function TP(p){
+  var _s=useState([]),ts=_s[0],sTs=_s[1];
+  var add=useCallback(function(m,t){var id=Date.now();sTs(function(v){return v.concat({id:id,m:m,t:t||'ok'})});setTimeout(function(){sTs(function(v){return v.filter(function(x){return x.id!==id})})},3000)},[]);
+  return html`<${TCtx.Provider} value=${add}>${p.children}<div class="tc">${ts.map(function(t){return html`<div key=${t.id} class=${'toast '+(t.t==='ok'?'tok':'terr')}>${t.t==='ok'?'✓':'✗'} ${t.m}</div>`})}</div><//>`
 }
-function useToast() { return useContext(ToastCtx); }
+function uT(){return useContext(TCtx)}
 
 /* ═══ MODAL ═══ */
-function Modal(props) {
-  if (!props.open) return null;
-  return (
-    <div className="mo" onClick={props.onClose}>
-      <div className="moc" onClick={function(e) { e.stopPropagation(); }}>
-        <div className="moh">
-          <h3>{props.title}</h3>
-          <button className="bi" onClick={props.onClose}><Ico name="x"/></button>
-        </div>
-        <div className="mob">{props.children}</div>
-        {props.footer && <div className="mof">{props.footer}</div>}
-      </div>
-    </div>
-  );
+function Mod(p){
+  if(!p.open)return null;
+  return html`<div class="mo" onClick=${p.onClose}><div class="moc" onClick=${function(e){e.stopPropagation()}}>
+    <div class="moh"><h3>${p.title}</h3><button class="bi" onClick=${p.onClose}><${Ic} n="x"/></button></div>
+    <div class="mob">${p.children}</div>
+    ${p.footer && html`<div class="mof">${p.footer}</div>`}
+  </div></div>`;
 }
 
 /* ═══ CONFIRM ═══ */
-function useConfirm() {
-  var _s = useState(null);
-  var s = _s[0], setS = _s[1];
-  var confirm = useCallback(function(msg) {
-    return new Promise(function(resolve) {
-      setS({msg: msg, resolve: resolve});
-    });
-  }, []);
-  var el = null;
-  if (s) {
-    el = (
-      <div className="mo" onClick={function() { s.resolve(false); setS(null); }}>
-        <div className="moc" onClick={function(e) { e.stopPropagation(); }}>
-          <div className="moh"><h3>Konfirmasi</h3></div>
-          <div className="mob"><p style={{color:'var(--t2)',lineHeight:1.6}}>{s.msg}</p></div>
-          <div className="mof">
-            <button className="btn bs" onClick={function() { s.resolve(false); setS(null); }}>Batal</button>
-            <button className="btn bd" onClick={function() { s.resolve(true); setS(null); }}>Hapus</button>
-          </div>
+function useCf(){
+  var _s=useState(null),s=_s[0],sS=_s[1];
+  var cf=useCallback(function(msg){return new Promise(function(r){sS({msg:msg,r:r})})},[]);
+  var el=null;
+  if(s){
+    el=html`<div class="mo" onClick=${function(){s.r(false);sS(null)}}>
+      <div class="moc" onClick=${function(e){e.stopPropagation()}}>
+        <div class="moh"><h3>Konfirmasi</h3></div>
+        <div class="mob"><p style=${{color:'var(--t2)',lineHeight:1.6}}>${s.msg}</p></div>
+        <div class="mof">
+          <button class="btn bs" onClick=${function(){s.r(false);sS(null)}}>Batal</button>
+          <button class="btn bd" onClick=${function(){s.r(true);sS(null)}}>Hapus</button>
         </div>
       </div>
-    );
+    </div>`;
   }
-  return [confirm, el];
+  return [cf,el];
 }
 
-/* ══════════════════════════════════════════
+/* ═══════════════════════════
+   SAFE LOAD HELPER
+═══════════════════════════ */
+function loadTable(name, order, asc) {
+  return sb.from(name).select('*').order(order, {ascending: asc !== false}).then(function(r) {
+    return {data: r.data || [], err: r.error ? name+': '+r.error.message : null};
+  }).catch(function(e) {
+    return {data: [], err: name+': '+e.message};
+  });
+}
+
+/* ═══════════════════════════
    APP
-══════════════════════════════════════════ */
-function App() {
-  var _page = useState('dashboard'), page = _page[0], setPage = _page[1];
-  var _mob = useState(false), mob = _mob[0], setMob = _mob[1];
-  var _w = useState([]), wallets = _w[0], setW = _w[1];
-  var _t = useState([]), transactions = _t[0], setT = _t[1];
-  var _c = useState([]), categories = _c[0], setC = _c[1];
-  var _b = useState([]), budgets = _b[0], setB = _b[1];
-  var _i = useState([]), investments = _i[0], setI = _i[1];
-  var _l = useState(true), loading = _l[0], setL = _l[1];
-  var _e = useState(''), dbErr = _e[0], setDbErr = _e[1];
-  var toast = useToast();
+═══════════════════════════ */
+function App(){
+  var _p=useState('dashboard'),pg=_p[0],sPg=_p[1];
+  var _mb=useState(false),mob=_mb[0],sMob=_mb[1];
+  var _w=useState([]),W=_w[0],sW=_w[1];
+  var _t=useState([]),T=_t[0],sT=_t[1];
+  var _c=useState([]),C=_c[0],sC=_c[1];
+  var _b=useState([]),B=_b[0],sB=_b[1];
+  var _i=useState([]),I=_i[0],sI=_i[1];
+  var _l=useState(true),ld=_l[0],sL=_l[1];
+  var _e=useState(''),dbE=_e[0],sE=_e[1];
+  var _sl=useState(false),slow=_sl[0],sSl=_sl[1];
+  var toast=uT();
 
-  useEffect(function() {
-    var errors = [];
-    var done = 0;
-    var total = 5;
-    function check() { done++; if (done >= total) { if(errors.length>0) setDbErr(errors.join('; ')); setL(false); } }
+  useEffect(function(){
+    var t1=setTimeout(function(){sSl(true)},3000);
+    var t2=setTimeout(function(){sL(false);sE('Timeout: cek koneksi/RLS Supabase')},10000);
+    var errs=[], done=0;
+    function chk(){done++;if(done>=5){clearTimeout(t2);if(errs.length)sE(errs.join('; '));sL(false)}}
+    loadTable('wallets','created_at',true).then(function(r){if(r.data.length)sW(r.data);if(r.err)errs.push(r.err);chk()});
+    loadTable('transactions','date',false).then(function(r){if(r.data.length)sT(r.data);if(r.err)errs.push(r.err);chk()});
+    loadTable('categories','name',true).then(function(r){if(r.data.length)sC(r.data);if(r.err)errs.push(r.err);chk()});
+    loadTable('budgets','created_at',true).then(function(r){if(r.data.length)sB(r.data);if(r.err)errs.push(r.err);chk()});
+    loadTable('investments','created_at',true).then(function(r){if(r.data.length)sI(r.data);if(r.err)errs.push(r.err);chk()});
+    return function(){clearTimeout(t1);clearTimeout(t2)};
+  },[]);
 
-    // Timeout safety: if Supabase hangs, still show app after 8s
-    var timer = setTimeout(function() { setL(false); setDbErr('Timeout — beberapa data mungkin belum termuat. Cek koneksi atau Supabase RLS.'); }, 8000);
+  var rW=function(){loadTable('wallets','created_at',true).then(function(r){sW(r.data)})};
+  var rT=function(){loadTable('transactions','date',false).then(function(r){sT(r.data)})};
+  var rC=function(){loadTable('categories','name',true).then(function(r){sC(r.data)})};
+  var rB=function(){loadTable('budgets','created_at',true).then(function(r){sB(r.data)})};
+  var rI=function(){loadTable('investments','created_at',true).then(function(r){sI(r.data)})};
 
-    sb.from('wallets').select('*').order('created_at', {ascending: true}).then(function(r) {
-      if (r.data) setW(r.data); else if (r.error) errors.push('wallets: ' + r.error.message); check();
-    }).catch(function(e) { errors.push('wallets: ' + e.message); check(); });
-
-    sb.from('transactions').select('*').order('date', {ascending: false}).then(function(r) {
-      if (r.data) setT(r.data); else if (r.error) errors.push('transactions: ' + r.error.message); check();
-    }).catch(function(e) { errors.push('transactions: ' + e.message); check(); });
-
-    sb.from('categories').select('*').order('name', {ascending: true}).then(function(r) {
-      if (r.data) setC(r.data); else if (r.error) errors.push('categories: ' + r.error.message + ' (buat tabel dulu, lihat halaman Kategori)'); check();
-    }).catch(function(e) { errors.push('categories: ' + e.message); check(); });
-
-    sb.from('budgets').select('*').order('created_at', {ascending: true}).then(function(r) {
-      if (r.data) setB(r.data); else if (r.error) errors.push('budgets: ' + r.error.message); check();
-    }).catch(function(e) { errors.push('budgets: ' + e.message); check(); });
-
-    sb.from('investments').select('*').order('created_at', {ascending: true}).then(function(r) {
-      if (r.data) setI(r.data); else if (r.error) errors.push('investments: ' + r.error.message); check();
-    }).catch(function(e) { errors.push('investments: ' + e.message); check(); });
-
-    return function() { clearTimeout(timer); };
-  }, []);
-
-  var rW = function() { sb.from('wallets').select('*').order('created_at').then(function(r) { if(r.data) setW(r.data); }); };
-  var rT = function() { sb.from('transactions').select('*').order('date',{ascending:false}).then(function(r) { if(r.data) setT(r.data); }); };
-  var rC = function() { sb.from('categories').select('*').order('name').then(function(r) { if(r.data) setC(r.data); }); };
-  var rB = function() { sb.from('budgets').select('*').order('created_at').then(function(r) { if(r.data) setB(r.data); }); };
-  var rI = function() { sb.from('investments').select('*').order('created_at').then(function(r) { if(r.data) setI(r.data); }); };
-
-  var ctx = {wallets:wallets, transactions:transactions, categories:categories, budgets:budgets, investments:investments, rW:rW, rT:rT, rC:rC, rB:rB, rI:rI};
-
-  var nav = [
-    {id:'dashboard', label:'Dashboard', icon:'dashboard'},
-    {id:'wallets', label:'Dompet', icon:'wallet'},
-    {id:'transactions', label:'Transaksi', icon:'txn'},
-    {id:'categories', label:'Kategori', icon:'cat'},
-    {id:'budgets', label:'Anggaran', icon:'budget'},
-    {id:'investments', label:'Investasi', icon:'invest'},
+  var nav=[
+    {id:'dashboard',lb:'Dashboard',ic:'dashboard'},{id:'wallets',lb:'Dompet',ic:'wallet'},
+    {id:'transactions',lb:'Transaksi',ic:'txn'},{id:'categories',lb:'Kategori',ic:'cat'},
+    {id:'budgets',lb:'Anggaran',ic:'budget'},{id:'investments',lb:'Investasi',ic:'invest'}
   ];
+  function go(p){sPg(p);sMob(false)}
 
-  function go(p) { setPage(p); setMob(false); }
+  if(ld) return html`<div class="ls"><div>
+    <div style=${{fontSize:'2.5rem',marginBottom:14}}>💰</div>
+    <div>Memuat WealthFlow...</div>
+    ${slow && html`<div style=${{marginTop:20,fontSize:'.78rem',color:'var(--t3)',maxWidth:320,lineHeight:1.6}}>
+      <p>Loading lama? Kemungkinan:</p>
+      <p style=${{marginTop:6}}>1. Tabel belum ada di Supabase</p>
+      <p>2. RLS aktif tanpa policy</p>
+      <button class="btn bp" style=${{marginTop:14}} onClick=${function(){sL(false)}}>Lewati → Buka App</button>
+    </div>`}
+  </div></div>`;
 
-  var _slow = useState(false), slow = _slow[0], setSlow = _slow[1];
-  useEffect(function() { var t = setTimeout(function() { setSlow(true); }, 3000); return function() { clearTimeout(t); }; }, []);
+  var cx={W:W,T:T,C:C,B:B,I:I,rW:rW,rT:rT,rC:rC,rB:rB,rI:rI};
 
-  if (loading) {
-    return (
-      <div className="loading-screen">
-        <div>
-          <div className="icon">💰</div>
-          <div>Memuat WealthFlow...</div>
-          {slow && <div style={{marginTop:20,fontSize:'.78rem',color:'var(--t3)',maxWidth:320,lineHeight:1.6}}>
-            <p>Loading lama? Kemungkinan:</p>
-            <p style={{marginTop:6}}>1. Tabel belum dibuat di Supabase</p>
-            <p>2. RLS aktif tanpa policy</p>
-            <p>3. Koneksi lambat</p>
-            <button className="btn bp" style={{marginTop:14}} onClick={function() { setL(false); }}>Lewati &amp; Buka App →</button>
-          </div>}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <Fragment>
-      {/* SIDEBAR */}
-      <aside className={'sb' + (mob ? ' open' : '')}>
-        <div className="sb-brand"><div className="sb-logo">W</div><h1>Wealth<span>Flow</span></h1></div>
-        <nav className="sb-nav">
-          {nav.map(function(n) {
-            return <button key={n.id} className={'nv' + (page === n.id ? ' act' : '')} onClick={function() { go(n.id); }}><Ico name={n.icon}/>{n.label}</button>;
-          })}
-        </nav>
-        <div className="sb-ft">WealthFlow v2.0</div>
-      </aside>
-
-      {/* MOBILE HEADER */}
-      <div className="mh">
-        <button className="bi" onClick={function() { setMob(!mob); }}><Ico name="menu"/></button>
-        <h1 style={{fontFamily:'Outfit',fontSize:'1.05rem',fontWeight:700,color:'#fff'}}>Wealth<span style={{color:'var(--acc)'}}>Flow</span></h1>
-        <div style={{width:34}}/>
-      </div>
-      {mob && <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.4)',zIndex:99}} onClick={function() { setMob(false); }}/>}
-
-      {/* MOBILE NAV */}
-      <div className="mn">
-        {nav.slice(0,5).map(function(n) {
-          return <button key={n.id} className={'mni' + (page === n.id ? ' act' : '')} onClick={function() { go(n.id); }}><Ico name={n.icon}/><span>{n.label}</span></button>;
-        })}
-      </div>
-
-      {/* CONTENT */}
-      <main className="main"><div className="pg">
-        {dbErr && <div style={{background:'var(--redbg)',border:'1px solid var(--red)',borderRadius:'var(--rs)',padding:'12px 16px',marginBottom:16,fontSize:'.84rem',color:'#fca5a5'}}>
-          <strong>DB Notice:</strong> {dbErr}
-        </div>}
-        {page === 'dashboard' && <Dashboard {...ctx}/>}
-        {page === 'wallets' && <WalletsPage {...ctx}/>}
-        {page === 'transactions' && <TransactionsPage {...ctx}/>}
-        {page === 'categories' && <CategoriesPage {...ctx}/>}
-        {page === 'budgets' && <BudgetsPage {...ctx}/>}
-        {page === 'investments' && <InvestmentsPage {...ctx}/>}
-      </div></main>
-    </Fragment>
-  );
+  return html`<${F}>
+    <aside class=${'sb'+(mob?' open':'')}>
+      <div class="sb-brand"><div class="sb-logo">W</div><h1>Wealth<span>Flow</span></h1></div>
+      <nav class="sb-nav">${nav.map(function(n){return html`<button key=${n.id} class=${'nv'+(pg===n.id?' act':'')} onClick=${function(){go(n.id)}}><${Ic} n=${n.ic}/>${n.lb}</button>`})}</nav>
+      <div class="sb-ft">WealthFlow v2.0</div>
+    </aside>
+    <div class="mh">
+      <button class="bi" onClick=${function(){sMob(!mob)}}><${Ic} n="menu"/></button>
+      <h1 style=${{fontFamily:'Outfit',fontSize:'1.05rem',fontWeight:700,color:'#fff'}}>Wealth<span style=${{color:'var(--acc)'}}>Flow</span></h1>
+      <div style=${{width:34}}/>
+    </div>
+    ${mob && html`<div style=${{position:'fixed',inset:0,background:'rgba(0,0,0,.4)',zIndex:99}} onClick=${function(){sMob(false)}}/>`}
+    <div class="mn">${nav.slice(0,5).map(function(n){return html`<button key=${n.id} class=${'mni'+(pg===n.id?' act':'')} onClick=${function(){go(n.id)}}><${Ic} n=${n.ic}/><span>${n.lb}</span></button>`})}</div>
+    <main class="main"><div class="pg">
+      ${dbE && html`<div style=${{background:'var(--redbg)',border:'1px solid var(--red)',borderRadius:'var(--rs)',padding:'12px 16px',marginBottom:16,fontSize:'.82rem',color:'#fca5a5'}}><strong>DB: </strong>${dbE}</div>`}
+      ${pg==='dashboard' && html`<${Dash} ...${cx}/>`}
+      ${pg==='wallets' && html`<${Wallets} ...${cx}/>`}
+      ${pg==='transactions' && html`<${Txns} ...${cx}/>`}
+      ${pg==='categories' && html`<${Cats} ...${cx}/>`}
+      ${pg==='budgets' && html`<${Budg} ...${cx}/>`}
+      ${pg==='investments' && html`<${Inv} ...${cx}/>`}
+    </div></main>
+  <//>`;
 }
 
-/* ══════════════════════════════════════════
-   DASHBOARD
-══════════════════════════════════════════ */
-function Dashboard(props) {
-  var wallets = props.wallets, transactions = props.transactions, categories = props.categories, budgets = props.budgets, investments = props.investments;
-  var totalBal = wallets.reduce(function(s,w) { return s + (Number(w.balance)||0); }, 0);
-  var now = new Date();
-  var mo = transactions.filter(function(t) { var d = new Date(t.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
-  var inc = mo.filter(function(t) { return t.type === 'income'; }).reduce(function(s,t) { return s + (Number(t.amount)||0); }, 0);
-  var exp = mo.filter(function(t) { return t.type === 'expense'; }).reduce(function(s,t) { return s + (Number(t.amount)||0); }, 0);
-  var invTot = investments.reduce(function(s,i) { return s + (Number(i.current_value) || Number(i.amount) || 0); }, 0);
-  var recent = transactions.slice(0, 8);
-
-  return (
-    <Fragment>
-      <div className="pg-hd"><div><h2>Dashboard</h2><p>Ringkasan keuangan Anda</p></div></div>
-      <div className="sg">
-        <div className="cd st"><div className="si" style={{background:'var(--accbg)',color:'var(--acc)'}}>💰</div><div className="lb">Total Saldo</div><div className="vl">{fmtIDR(totalBal)}</div><div className="sub">{wallets.length} dompet</div></div>
-        <div className="cd st"><div className="si" style={{background:'var(--accbg)',color:'var(--acc)'}}>📈</div><div className="lb">Pemasukan Bulan Ini</div><div className="vl" style={{color:'var(--acc)'}}>{fmtIDR(inc)}</div></div>
-        <div className="cd st"><div className="si" style={{background:'var(--redbg)',color:'var(--red)'}}>📉</div><div className="lb">Pengeluaran Bulan Ini</div><div className="vl" style={{color:'var(--red)'}}>{fmtIDR(exp)}</div></div>
-        <div className="cd st"><div className="si" style={{background:'rgba(59,130,246,.08)',color:'var(--blu)'}}>📊</div><div className="lb">Investasi</div><div className="vl" style={{color:'var(--blu)'}}>{fmtIDR(invTot)}</div><div className="sub">{investments.length} aset</div></div>
-      </div>
-
-      <div className="dg">
-        <div className="cd">
-          <h3 style={{fontSize:'1rem',marginBottom:14,color:'#fff'}}>Transaksi Terakhir</h3>
-          {recent.length === 0 ? <div className="empty"><div className="ei">📋</div><p>Belum ada transaksi</p></div> :
-          <div>{recent.map(function(t) {
-            return (
-              <div key={t.id} style={{display:'flex',alignItems:'center',gap:12,padding:'9px 0',borderBottom:'1px solid var(--brd)'}}>
-                <div style={{width:34,height:34,borderRadius:8,background:t.type==='income'?'var(--accbg)':'var(--redbg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>
-                  {t.type === 'income' ? '↗' : '↘'}
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:'.84rem',fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{t.description || getCatName(categories, t.category_id)}</div>
-                  <div style={{fontSize:'.72rem',color:'var(--t3)'}}>{fmtDate(t.date)} · {getWalletName(wallets, t.wallet_id)}</div>
-                </div>
-                <div className={t.type === 'income' ? 'txi' : 'txe'} style={{fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>
-                  {t.type === 'income' ? '+' : '-'}{fmtIDR(t.amount)}
-                </div>
-              </div>
-            );
-          })}</div>}
-        </div>
-
-        <div className="cd">
-          <h3 style={{fontSize:'1rem',marginBottom:14,color:'#fff'}}>Dompet</h3>
-          {wallets.length === 0 ? <div className="empty"><div className="ei">👛</div><p>Belum ada dompet</p></div> :
-          <div>{wallets.map(function(w) {
-            return (
-              <div key={w.id} style={{display:'flex',alignItems:'center',gap:12,padding:'9px 0',borderBottom:'1px solid var(--brd)'}}>
-                <div style={{width:34,height:34,borderRadius:8,background:w.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,color:'#fff',fontWeight:700,fontFamily:'Outfit'}}>{(w.name||'W')[0].toUpperCase()}</div>
-                <div style={{flex:1}}><div style={{fontSize:'.86rem',fontWeight:500}}>{w.name}</div></div>
-                <div style={{fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>{fmtIDR(w.balance)}</div>
-              </div>
-            );
-          })}</div>}
-
-          {budgets.length > 0 && (
-            <Fragment>
-              <h3 style={{fontSize:'1rem',marginBottom:12,marginTop:22,color:'#fff'}}>Anggaran</h3>
-              {budgets.map(function(b) {
-                var sp = transactions.filter(function(t) { return t.type==='expense' && t.category_id===b.category_id; }).reduce(function(s,t) { return s+(Number(t.amount)||0); }, 0);
-                var pct = b.amount > 0 ? Math.min((sp / b.amount) * 100, 100) : 0;
-                var nm = getCatName(categories, b.category_id);
-                return (
-                  <div key={b.id} style={{marginBottom:10}}>
-                    <div style={{display:'flex',justifyContent:'space-between',fontSize:'.8rem'}}><span style={{fontWeight:500}}>{nm}</span><span style={{color:'var(--t3)'}}>{fmtIDR(sp)} / {fmtIDR(b.amount)}</span></div>
-                    <div className="bbg"><div className="bfill" style={{width:pct+'%',background:pct>90?'var(--red)':pct>70?'var(--org)':'var(--acc)'}}/></div>
-                  </div>
-                );
-              })}
-            </Fragment>
-          )}
-        </div>
-      </div>
-    </Fragment>
-  );
-}
-
-/* ══════════════════════════════════════════
-   WALLETS
-══════════════════════════════════════════ */
-function WalletsPage(props) {
-  var wallets = props.wallets, rW = props.rW;
-  var toast = useToast();
-  var _m = useState(null), modal = _m[0], setM = _m[1];
-  var _c = useConfirm(), confirm = _c[0], cEl = _c[1];
-  var _f = useState({name:'',balance:'',color:COLORS[0]}), f = _f[0], setF = _f[1];
-
-  function openA() { setF({name:'',balance:'',color:COLORS[Math.floor(Math.random()*COLORS.length)]}); setM({mode:'add'}); }
-  function openE(w) { setF({name:w.name,balance:String(w.balance||0),color:w.color||COLORS[0]}); setM({mode:'edit',d:w}); }
-
-  function save() {
-    if (!f.name.trim()) { toast('Nama dompet wajib diisi','err'); return; }
-    var p = {name:f.name.trim(), balance:Number(f.balance)||0, color:f.color};
-    if (modal.mode === 'add') {
-      sb.from('wallets').insert(p).then(function(r) { if(r.error){toast(r.error.message,'err');return;} toast('Dompet ditambahkan'); setM(null); rW(); });
-    } else {
-      sb.from('wallets').update(p).eq('id',modal.d.id).then(function(r) { if(r.error){toast(r.error.message,'err');return;} toast('Dompet diperbarui'); setM(null); rW(); });
-    }
-  }
-
-  function del(w) {
-    confirm('Hapus dompet "'+w.name+'"?').then(function(ok) {
-      if (!ok) return;
-      sb.from('wallets').delete().eq('id',w.id).then(function(r) { if(r.error){toast(r.error.message,'err');return;} toast('Dompet dihapus'); rW(); });
-    });
-  }
-
-  return (
-    <Fragment>
-      <div className="pg-hd">
-        <div><h2>Dompet</h2><p>Kelola semua dompet keuangan Anda</p></div>
-        <button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah Dompet</button>
-      </div>
-
-      {wallets.length === 0 ? <div className="cd"><div className="empty"><div className="ei">👛</div><h3>Belum Ada Dompet</h3><p>Tambahkan dompet pertama Anda</p></div></div> :
-      <div className="wg">{wallets.map(function(w) {
-        return (
-          <div key={w.id} className="cd wc">
-            <div style={{position:'absolute',top:0,left:0,right:0,height:3,background:w.color||'var(--acc)'}}/>
-            <div className="wc-act">
-              <button className="bi" onClick={function(){openE(w);}}><Ico name="edit"/></button>
-              <button className="bi" onClick={function(){del(w);}} style={{color:'var(--red)'}}><Ico name="trash"/></button>
-            </div>
-            <div style={{width:42,height:42,borderRadius:10,background:w.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,color:'#fff',fontWeight:700,fontFamily:'Outfit',marginBottom:8}}>
-              {(w.name||'W')[0].toUpperCase()}
-            </div>
-            <div className="wc-nm">{w.name}</div>
-            <div className="wc-bl">{fmtIDR(w.balance)}</div>
+/* ═══ DASHBOARD ═══ */
+function Dash(p){
+  var W=p.W,T=p.T,C=p.C,B=p.B,I=p.I;
+  var bal=W.reduce(function(s,w){return s+(Number(w.balance)||0)},0);
+  var now=new Date();
+  var mo=T.filter(function(t){var d=new Date(t.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()});
+  var inc=mo.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+  var exp=mo.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+  var ivt=I.reduce(function(s,i){return s+(Number(i.current_value)||Number(i.amount)||0)},0);
+  var rec=T.slice(0,8);
+  return html`<${F}>
+    <div class="pg-hd"><div><h2>Dashboard</h2><p>Ringkasan keuangan Anda</p></div></div>
+    <div class="sg">
+      <div class="cd st"><div class="si" style=${{background:'var(--accbg)',color:'var(--acc)'}}>💰</div><div class="lb">Total Saldo</div><div class="vl">${fmtIDR(bal)}</div><div class="sub">${W.length} dompet</div></div>
+      <div class="cd st"><div class="si" style=${{background:'var(--accbg)',color:'var(--acc)'}}>📈</div><div class="lb">Pemasukan Bulan Ini</div><div class="vl" style=${{color:'var(--acc)'}}>${fmtIDR(inc)}</div></div>
+      <div class="cd st"><div class="si" style=${{background:'var(--redbg)',color:'var(--red)'}}>📉</div><div class="lb">Pengeluaran Bulan Ini</div><div class="vl" style=${{color:'var(--red)'}}>${fmtIDR(exp)}</div></div>
+      <div class="cd st"><div class="si" style=${{background:'rgba(59,130,246,.08)',color:'var(--blu)'}}>📊</div><div class="lb">Investasi</div><div class="vl" style=${{color:'var(--blu)'}}>${fmtIDR(ivt)}</div><div class="sub">${I.length} aset</div></div>
+    </div>
+    <div class="dg">
+      <div class="cd">
+        <h3 style=${{fontSize:'1rem',marginBottom:14,color:'#fff'}}>Transaksi Terakhir</h3>
+        ${rec.length===0?html`<div class="empty"><div class="ei">📋</div><p>Belum ada transaksi</p></div>`:
+        rec.map(function(t){return html`<div key=${t.id} style=${{display:'flex',alignItems:'center',gap:12,padding:'9px 0',borderBottom:'1px solid var(--brd)'}}>
+          <div style=${{width:34,height:34,borderRadius:8,background:t.type==='income'?'var(--accbg)':'var(--redbg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>${t.type==='income'?'↗':'↘'}</div>
+          <div style=${{flex:1,minWidth:0}}>
+            <div style=${{fontSize:'.84rem',fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>${t.description||cn(C,t.category_id)}</div>
+            <div style=${{fontSize:'.72rem',color:'var(--t3)'}}>${fmtDate(t.date)} · ${wn(W,t.wallet_id)}</div>
           </div>
-        );
-      })}</div>}
-
-      <Modal open={!!modal} onClose={function(){setM(null);}} title={modal && modal.mode === 'add' ? 'Tambah Dompet' : 'Edit Dompet'} footer={
-        <Fragment>
-          <button className="btn bs" onClick={function(){setM(null);}}>Batal</button>
-          <button className="btn bp" onClick={save}>{modal && modal.mode === 'add' ? 'Tambah' : 'Simpan'}</button>
-        </Fragment>
-      }>
-        <div className="fg"><label>Nama Dompet</label><input className="fi" placeholder="cth: BCA, Cash, GoPay..." value={f.name} onChange={function(e){setF({name:e.target.value,balance:f.balance,color:f.color});}}/></div>
-        <div className="fg"><label>Saldo</label><input className="fi" type="number" placeholder="0" value={f.balance} onChange={function(e){setF({name:f.name,balance:e.target.value,color:f.color});}}/></div>
-        <div className="fg"><label>Warna</label>
-          <div className="clr">{COLORS.map(function(c){return <div key={c} className={'co'+(f.color===c?' sel':'')} style={{background:c}} onClick={function(){setF({name:f.name,balance:f.balance,color:c});}}/>;})}</div>
-        </div>
-      </Modal>
-      {cEl}
-    </Fragment>
-  );
+          <div class=${t.type==='income'?'txi':'txe'} style=${{fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>${t.type==='income'?'+':'-'}${fmtIDR(t.amount)}</div>
+        </div>`})}
+      </div>
+      <div class="cd">
+        <h3 style=${{fontSize:'1rem',marginBottom:14,color:'#fff'}}>Dompet</h3>
+        ${W.length===0?html`<div class="empty"><div class="ei">👛</div><p>Belum ada dompet</p></div>`:
+        W.map(function(w){return html`<div key=${w.id} style=${{display:'flex',alignItems:'center',gap:12,padding:'9px 0',borderBottom:'1px solid var(--brd)'}}>
+          <div style=${{width:34,height:34,borderRadius:8,background:w.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,color:'#fff',fontWeight:700,fontFamily:'Outfit'}}>${(w.name||'W')[0].toUpperCase()}</div>
+          <div style=${{flex:1}}><div style=${{fontSize:'.86rem',fontWeight:500}}>${w.name}</div></div>
+          <div style=${{fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>${fmtIDR(w.balance)}</div>
+        </div>`})}
+        ${B.length>0 && html`<${F}>
+          <h3 style=${{fontSize:'1rem',marginBottom:12,marginTop:22,color:'#fff'}}>Anggaran</h3>
+          ${B.map(function(b){
+            var sp=T.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+            var pct=b.amount>0?Math.min((sp/b.amount)*100,100):0;
+            return html`<div key=${b.id} style=${{marginBottom:10}}>
+              <div style=${{display:'flex',justifyContent:'space-between',fontSize:'.8rem'}}><span style=${{fontWeight:500}}>${cn(C,b.category_id)}</span><span style=${{color:'var(--t3)'}}>${fmtIDR(sp)} / ${fmtIDR(b.amount)}</span></div>
+              <div class="bbg"><div class="bfill" style=${{width:pct+'%',background:pct>90?'var(--red)':pct>70?'var(--org)':'var(--acc)'}}/></div>
+            </div>`})}
+        <//>`}
+      </div>
+    </div>
+  <//>`;
 }
 
-/* ══════════════════════════════════════════
-   TRANSACTIONS
-══════════════════════════════════════════ */
-function TransactionsPage(props) {
-  var wallets=props.wallets, transactions=props.transactions, categories=props.categories, rT=props.rT, rW=props.rW;
-  var toast = useToast();
-  var _m=useState(null), modal=_m[0], setM=_m[1];
-  var _c=useConfirm(), confirm=_c[0], cEl=_c[1];
-  var _f=useState({type:'expense',wallet_id:'',category_id:'',amount:'',description:'',date:getToday()}), f=_f[0], setF=_f[1];
-  var _ft=useState('all'), fType=_ft[0], setFT=_ft[1];
-  var _fw=useState('all'), fWal=_fw[0], setFW=_fw[1];
-  var _s=useState(''), search=_s[0], setSrch=_s[1];
+/* ═══ WALLETS ═══ */
+function Wallets(p){
+  var W=p.W,rW=p.rW;var t=uT();
+  var _m=useState(null),mo=_m[0],sM=_m[1];
+  var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
+  var _f=useState({name:'',balance:'',color:COLORS[0]}),f=_f[0],sF=_f[1];
+  function uf(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
+  function oA(){sF({name:'',balance:'',color:rndColor()});sM({m:'add'})}
+  function oE(w){sF({name:w.name,balance:String(w.balance||0),color:w.color||COLORS[0]});sM({m:'edit',d:w})}
+  function save(){
+    if(!f.name.trim()){t('Nama dompet wajib diisi','err');return}
+    var payload={name:f.name.trim(),balance:Number(f.balance)||0,color:f.color};
+    var q=mo.m==='add'?sb.from('wallets').insert(payload):sb.from('wallets').update(payload).eq('id',mo.d.id);
+    q.then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Dompet ditambahkan':'Dompet diperbarui');sM(null);rW()})
+  }
+  function del(w){cf('Hapus dompet "'+w.name+'"?').then(function(ok){if(!ok)return;sb.from('wallets').delete().eq('id',w.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dompet dihapus');rW()})})}
+  return html`<${F}>
+    <div class="pg-hd"><div><h2>Dompet</h2><p>Kelola semua dompet keuangan Anda</p></div><button class="btn bp" onClick=${oA}><${Ic} n="plus"/> Tambah Dompet</button></div>
+    ${W.length===0?html`<div class="cd"><div class="empty"><div class="ei">👛</div><h3>Belum Ada Dompet</h3><p>Tambahkan dompet pertama Anda</p></div></div>`:
+    html`<div class="wg">${W.map(function(w){return html`<div key=${w.id} class="cd wc">
+      <div style=${{position:'absolute',top:0,left:0,right:0,height:3,background:w.color||'var(--acc)'}}/>
+      <div class="wc-act"><button class="bi" onClick=${function(){oE(w)}}><${Ic} n="edit"/></button><button class="bi" style=${{color:'var(--red)'}} onClick=${function(){del(w)}}><${Ic} n="trash"/></button></div>
+      <div style=${{width:42,height:42,borderRadius:10,background:w.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,color:'#fff',fontWeight:700,fontFamily:'Outfit',marginBottom:8}}>${(w.name||'W')[0].toUpperCase()}</div>
+      <div class="wc-nm">${w.name}</div><div class="wc-bl">${fmtIDR(w.balance)}</div>
+    </div>`})}</div>`}
+    <${Mod} open=${!!mo} onClose=${function(){sM(null)}} title=${mo&&mo.m==='add'?'Tambah Dompet':'Edit Dompet'} footer=${html`<${F}><button class="btn bs" onClick=${function(){sM(null)}}>Batal</button><button class="btn bp" onClick=${save}>${mo&&mo.m==='add'?'Tambah':'Simpan'}</button><//>`}>
+      <div class="fg"><label>Nama Dompet</label><input class="fi" placeholder="cth: BCA, Cash, GoPay..." value=${f.name} onInput=${function(e){uf('name',e.target.value)}}/></div>
+      <div class="fg"><label>Saldo</label><input class="fi" type="number" placeholder="0" value=${f.balance} onInput=${function(e){uf('balance',e.target.value)}}/></div>
+      <div class="fg"><label>Warna</label><div class="clr">${COLORS.map(function(c){return html`<div key=${c} class=${'co'+(f.color===c?' sel':'')} style=${{background:c}} onClick=${function(){uf('color',c)}}/>`})}</div></div>
+    <//>
+    ${cfE}
+  <//>`;
+}
 
-  var list = useMemo(function() {
-    var l = transactions.slice();
-    if (fType !== 'all') l = l.filter(function(t){return t.type===fType;});
-    if (fWal !== 'all') l = l.filter(function(t){return t.wallet_id===fWal;});
-    if (search.trim()) {
-      var q = search.toLowerCase();
-      l = l.filter(function(t){return (t.description||'').toLowerCase().indexOf(q)>=0 || getCatName(categories,t.category_id).toLowerCase().indexOf(q)>=0;});
-    }
+/* ═══ TRANSACTIONS ═══ */
+function Txns(p){
+  var W=p.W,T=p.T,C=p.C,rT=p.rT,rW=p.rW;var t=uT();
+  var _m=useState(null),mo=_m[0],sM=_m[1];
+  var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
+  var _f=useState({type:'expense',wallet_id:'',category_id:'',amount:'',description:'',date:td()}),f=_f[0],sF=_f[1];
+  var _ft=useState('all'),fTy=_ft[0],sFT=_ft[1];
+  var _fw=useState('all'),fWl=_fw[0],sFW=_fw[1];
+  var _q=useState(''),q=_q[0],sQ=_q[1];
+  function uf(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;if(k==='type')n.category_id='';sF(n)}
+
+  var list=useMemo(function(){
+    var l=T.slice();
+    if(fTy!=='all')l=l.filter(function(t){return t.type===fTy});
+    if(fWl!=='all')l=l.filter(function(t){return t.wallet_id===fWl});
+    if(q.trim()){var s=q.toLowerCase();l=l.filter(function(t){return(t.description||'').toLowerCase().indexOf(s)>=0||cn(C,t.category_id).toLowerCase().indexOf(s)>=0})}
     return l;
-  }, [transactions, fType, fWal, search, categories]);
+  },[T,fTy,fWl,q,C]);
 
-  function openA() { setF({type:'expense',wallet_id:wallets.length>0?wallets[0].id:'',category_id:'',amount:'',description:'',date:getToday()}); setM({mode:'add'}); }
-  function openE(t) { setF({type:t.type,wallet_id:t.wallet_id||'',category_id:t.category_id||'',amount:String(t.amount||0),description:t.description||'',date:t.date||getToday()}); setM({mode:'edit',d:t}); }
-
-  function save() {
-    if (!f.amount || Number(f.amount) <= 0) { toast('Jumlah harus > 0','err'); return; }
-    var p = {type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,amount:Number(f.amount),description:f.description.trim(),date:f.date};
-    if (modal.mode === 'add') {
-      sb.from('transactions').insert(p).then(function(r) {
-        if (r.error) { toast(r.error.message,'err'); return; }
-        if (f.wallet_id) {
-          var w = findById(wallets, f.wallet_id);
-          if (w) {
-            var nb = f.type==='income' ? (Number(w.balance)||0)+Number(f.amount) : (Number(w.balance)||0)-Number(f.amount);
-            sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(){rW();});
-          }
-        }
-        toast('Transaksi ditambahkan'); setM(null); rT();
-      });
-    } else {
-      sb.from('transactions').update(p).eq('id',modal.d.id).then(function(r) {
-        if (r.error) { toast(r.error.message,'err'); return; }
-        toast('Transaksi diperbarui'); setM(null); rT(); rW();
-      });
+  function oA(){sF({type:'expense',wallet_id:W.length?W[0].id:'',category_id:'',amount:'',description:'',date:td()});sM({m:'add'})}
+  function oE(tx){sF({type:tx.type,wallet_id:tx.wallet_id||'',category_id:tx.category_id||'',amount:String(tx.amount||0),description:tx.description||'',date:tx.date||td()});sM({m:'edit',d:tx})}
+  function save(){
+    if(!f.amount||Number(f.amount)<=0){t('Jumlah harus > 0','err');return}
+    var pay={type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,amount:Number(f.amount),description:f.description.trim(),date:f.date};
+    if(mo.m==='add'){
+      sb.from('transactions').insert(pay).then(function(r){
+        if(r.error){t(r.error.message,'err');return}
+        if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(){rW()})}}
+        t('Transaksi ditambahkan');sM(null);rT()})
+    }else{
+      sb.from('transactions').update(pay).eq('id',mo.d.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Transaksi diperbarui');sM(null);rT();rW()})
     }
   }
-
-  function del(t) {
-    confirm('Hapus transaksi "' + (t.description || fmtIDR(t.amount)) + '"?').then(function(ok) {
-      if (!ok) return;
-      sb.from('transactions').delete().eq('id',t.id).then(function(r) {
-        if (r.error) { toast(r.error.message,'err'); return; }
-        if (t.wallet_id) {
-          var w = findById(wallets, t.wallet_id);
-          if (w) {
-            var nb = t.type==='income' ? (Number(w.balance)||0)-Number(t.amount) : (Number(w.balance)||0)+Number(t.amount);
-            sb.from('wallets').update({balance:nb}).eq('id',t.wallet_id).then(function(){rW();});
-          }
-        }
-        toast('Transaksi dihapus'); rT();
-      });
-    });
+  function del(tx){
+    cf('Hapus transaksi "'+(tx.description||fmtIDR(tx.amount))+'"?').then(function(ok){if(!ok)return;
+      sb.from('transactions').delete().eq('id',tx.id).then(function(r){if(r.error){t(r.error.message,'err');return}
+        if(tx.wallet_id){var w=fid(W,tx.wallet_id);if(w){var nb=tx.type==='income'?(Number(w.balance)||0)-Number(tx.amount):(Number(w.balance)||0)+Number(tx.amount);sb.from('wallets').update({balance:nb}).eq('id',tx.wallet_id).then(function(){rW()})}}
+        t('Transaksi dihapus');rT()})})
   }
-
-  var relCats = categories.filter(function(c){return c.type===f.type;});
-
-  function uf(key, val) { var n = {}; for(var k in f) n[k]=f[k]; n[key]=val; if(key==='type') n.category_id=''; setF(n); }
-
-  return (
-    <Fragment>
-      <div className="pg-hd"><div><h2>Transaksi</h2><p>Catatan pemasukan &amp; pengeluaran</p></div><button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah</button></div>
-      <div className="fbar">
-        <input className="fi" placeholder="Cari..." value={search} onChange={function(e){setSrch(e.target.value);}} style={{maxWidth:200}}/>
-        <select className="fi" value={fType} onChange={function(e){setFT(e.target.value);}} style={{maxWidth:150}}><option value="all">Semua Tipe</option><option value="income">Pemasukan</option><option value="expense">Pengeluaran</option></select>
-        <select className="fi" value={fWal} onChange={function(e){setFW(e.target.value);}} style={{maxWidth:160}}><option value="all">Semua Dompet</option>{wallets.map(function(w){return <option key={w.id} value={w.id}>{w.name}</option>;})}</select>
-      </div>
-
-      <div className="cd">
-        {list.length === 0 ? <div className="empty"><div className="ei">📋</div><h3>Tidak Ada Transaksi</h3><p>Mulai catat pemasukan dan pengeluaran</p></div> :
-        <div className="tw"><table>
-          <thead><tr><th>Tanggal</th><th>Keterangan</th><th>Kategori</th><th>Dompet</th><th style={{textAlign:'right'}}>Jumlah</th><th></th></tr></thead>
-          <tbody>{list.map(function(t) {
-            return (
-              <tr key={t.id}>
-                <td style={{color:'var(--t3)',fontSize:'.82rem',whiteSpace:'nowrap'}}>{fmtDate(t.date)}</td>
-                <td style={{fontWeight:500,maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.description || '-'}</td>
-                <td><span className="badge" style={{background:t.type==='income'?'var(--accbg)':'var(--redbg)',color:t.type==='income'?'var(--acc)':'var(--red)'}}><span style={{width:6,height:6,borderRadius:'50%',background:getCatColor(categories,t.category_id),display:'inline-block'}}/>{getCatName(categories, t.category_id)}</span></td>
-                <td style={{color:'var(--t2)',fontSize:'.84rem'}}>{getWalletName(wallets, t.wallet_id)}</td>
-                <td className={t.type==='income'?'txi':'txe'} style={{textAlign:'right',fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>{t.type==='income'?'+':'-'}{fmtIDR(t.amount)}</td>
-                <td style={{whiteSpace:'nowrap'}}><button className="bi" onClick={function(){openE(t);}}><Ico name="edit"/></button><button className="bi" onClick={function(){del(t);}} style={{color:'var(--red)'}}><Ico name="trash"/></button></td>
-              </tr>
-            );
-          })}</tbody>
-        </table></div>}
-      </div>
-
-      <Modal open={!!modal} onClose={function(){setM(null);}} title={modal && modal.mode==='add'?'Tambah Transaksi':'Edit Transaksi'} footer={
-        <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal && modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
-      }>
-        <div className="fg"><label>Tipe</label><div className="tabs"><button className={'tab'+(f.type==='expense'?' act':'')} onClick={function(){uf('type','expense');}}>Pengeluaran</button><button className={'tab'+(f.type==='income'?' act':'')} onClick={function(){uf('type','income');}}>Pemasukan</button></div></div>
-        <div className="fr">
-          <div className="fg"><label>Jumlah (Rp)</label><input className="fi" type="number" placeholder="0" value={f.amount} onChange={function(e){uf('amount',e.target.value);}}/></div>
-          <div className="fg"><label>Tanggal</label><input className="fi" type="date" value={f.date} onChange={function(e){uf('date',e.target.value);}}/></div>
-        </div>
-        <div className="fr">
-          <div className="fg"><label>Dompet</label><select className="fi" value={f.wallet_id} onChange={function(e){uf('wallet_id',e.target.value);}}><option value="">Pilih dompet</option>{wallets.map(function(w){return <option key={w.id} value={w.id}>{w.name}</option>;})}</select></div>
-          <div className="fg"><label>Kategori</label><select className="fi" value={f.category_id} onChange={function(e){uf('category_id',e.target.value);}}><option value="">Pilih kategori</option>{relCats.map(function(c){return <option key={c.id} value={c.id}>{c.name}</option>;})}</select></div>
-        </div>
-        <div className="fg"><label>Keterangan</label><input className="fi" placeholder="Deskripsi transaksi..." value={f.description} onChange={function(e){uf('description',e.target.value);}}/></div>
-      </Modal>
-      {cEl}
-    </Fragment>
-  );
+  var rc=C.filter(function(c){return c.type===f.type});
+  return html`<${F}>
+    <div class="pg-hd"><div><h2>Transaksi</h2><p>Catatan pemasukan & pengeluaran</p></div><button class="btn bp" onClick=${oA}><${Ic} n="plus"/> Tambah</button></div>
+    <div class="fbar">
+      <input class="fi" placeholder="Cari..." value=${q} onInput=${function(e){sQ(e.target.value)}} style=${{maxWidth:200}}/>
+      <select class="fi" value=${fTy} onChange=${function(e){sFT(e.target.value)}} style=${{maxWidth:150}}><option value="all">Semua Tipe</option><option value="income">Pemasukan</option><option value="expense">Pengeluaran</option></select>
+      <select class="fi" value=${fWl} onChange=${function(e){sFW(e.target.value)}} style=${{maxWidth:160}}><option value="all">Semua Dompet</option>${W.map(function(w){return html`<option key=${w.id} value=${w.id}>${w.name}</option>`})}</select>
+    </div>
+    <div class="cd">${list.length===0?html`<div class="empty"><div class="ei">📋</div><h3>Tidak Ada Transaksi</h3><p>Mulai catat pemasukan dan pengeluaran</p></div>`:
+    html`<div class="tw"><table><thead><tr><th>Tanggal</th><th>Keterangan</th><th>Kategori</th><th>Dompet</th><th style=${{textAlign:'right'}}>Jumlah</th><th></th></tr></thead>
+    <tbody>${list.map(function(tx){return html`<tr key=${tx.id}>
+      <td style=${{color:'var(--t3)',fontSize:'.82rem',whiteSpace:'nowrap'}}>${fmtDate(tx.date)}</td>
+      <td style=${{fontWeight:500,maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>${tx.description||'-'}</td>
+      <td><span class="badge" style=${{background:tx.type==='income'?'var(--accbg)':'var(--redbg)',color:tx.type==='income'?'var(--acc)':'var(--red)'}}><span style=${{width:6,height:6,borderRadius:'50%',background:ccol(C,tx.category_id),display:'inline-block'}}/> ${cn(C,tx.category_id)}</span></td>
+      <td style=${{color:'var(--t2)',fontSize:'.84rem'}}>${wn(W,tx.wallet_id)}</td>
+      <td class=${tx.type==='income'?'txi':'txe'} style=${{textAlign:'right',fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>${tx.type==='income'?'+':'-'}${fmtIDR(tx.amount)}</td>
+      <td style=${{whiteSpace:'nowrap'}}><button class="bi" onClick=${function(){oE(tx)}}><${Ic} n="edit"/></button><button class="bi" style=${{color:'var(--red)'}} onClick=${function(){del(tx)}}><${Ic} n="trash"/></button></td>
+    </tr>`})}</tbody></table></div>`}</div>
+    <${Mod} open=${!!mo} onClose=${function(){sM(null)}} title=${mo&&mo.m==='add'?'Tambah Transaksi':'Edit Transaksi'} footer=${html`<${F}><button class="btn bs" onClick=${function(){sM(null)}}>Batal</button><button class="btn bp" onClick=${save}>${mo&&mo.m==='add'?'Tambah':'Simpan'}</button><//>`}>
+      <div class="fg"><label>Tipe</label><div class="tabs"><button class=${'tab'+(f.type==='expense'?' act':'')} onClick=${function(){uf('type','expense')}}>Pengeluaran</button><button class=${'tab'+(f.type==='income'?' act':'')} onClick=${function(){uf('type','income')}}>Pemasukan</button></div></div>
+      <div class="fr"><div class="fg"><label>Jumlah (Rp)</label><input class="fi" type="number" placeholder="0" value=${f.amount} onInput=${function(e){uf('amount',e.target.value)}}/></div><div class="fg"><label>Tanggal</label><input class="fi" type="date" value=${f.date} onInput=${function(e){uf('date',e.target.value)}}/></div></div>
+      <div class="fr"><div class="fg"><label>Dompet</label><select class="fi" value=${f.wallet_id} onChange=${function(e){uf('wallet_id',e.target.value)}}><option value="">Pilih dompet</option>${W.map(function(w){return html`<option key=${w.id} value=${w.id}>${w.name}</option>`})}</select></div><div class="fg"><label>Kategori</label><select class="fi" value=${f.category_id} onChange=${function(e){uf('category_id',e.target.value)}}><option value="">Pilih kategori</option>${rc.map(function(c){return html`<option key=${c.id} value=${c.id}>${c.name}</option>`})}</select></div></div>
+      <div class="fg"><label>Keterangan</label><input class="fi" placeholder="Deskripsi..." value=${f.description} onInput=${function(e){uf('description',e.target.value)}}/></div>
+    <//>
+    ${cfE}
+  <//>`;
 }
 
-/* ══════════════════════════════════════════
-   CATEGORIES
-══════════════════════════════════════════ */
-function CategoriesPage(props) {
-  var categories=props.categories, rC=props.rC;
-  var toast=useToast();
-  var _m=useState(null), modal=_m[0], setM=_m[1];
-  var _c=useConfirm(), confirm=_c[0], cEl=_c[1];
-  var _f=useState({name:'',type:'expense',color:COLORS[0]}), f=_f[0], setF=_f[1];
-  var _t=useState('expense'), tab=_t[0], setTab=_t[1];
-
-  function openA() { setF({name:'',type:tab,color:COLORS[Math.floor(Math.random()*COLORS.length)]}); setM({mode:'add'}); }
-  function openE(c) { setF({name:c.name,type:c.type,color:c.color||COLORS[0]}); setM({mode:'edit',d:c}); }
-  function uf(key,val) { var n={name:f.name,type:f.type,color:f.color}; n[key]=val; setF(n); }
-
-  function save() {
-    if (!f.name.trim()) { toast('Nama kategori wajib diisi','err'); return; }
-    var p = {name:f.name.trim(), type:f.type, color:f.color};
-    if (modal.mode === 'add') {
-      sb.from('categories').insert(p).then(function(r) { if(r.error){toast(r.error.message,'err');return;} toast('Kategori ditambahkan'); setM(null); rC(); });
-    } else {
-      sb.from('categories').update(p).eq('id',modal.d.id).then(function(r) { if(r.error){toast(r.error.message,'err');return;} toast('Kategori diperbarui'); setM(null); rC(); });
-    }
+/* ═══ CATEGORIES ═══ */
+function Cats(p){
+  var C=p.C,rC=p.rC;var t=uT();
+  var _m=useState(null),mo=_m[0],sM=_m[1];
+  var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
+  var _f=useState({name:'',type:'expense',color:COLORS[0]}),f=_f[0],sF=_f[1];
+  var _tb=useState('expense'),tab=_tb[0],sTb=_tb[1];
+  function uf(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
+  function oA(){sF({name:'',type:tab,color:rndColor()});sM({m:'add'})}
+  function oE(c){sF({name:c.name,type:c.type,color:c.color||COLORS[0]});sM({m:'edit',d:c})}
+  function save(){
+    if(!f.name.trim()){t('Nama wajib diisi','err');return}
+    var pay={name:f.name.trim(),type:f.type,color:f.color};
+    var q=mo.m==='add'?sb.from('categories').insert(pay):sb.from('categories').update(pay).eq('id',mo.d.id);
+    q.then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Kategori ditambahkan':'Kategori diperbarui');sM(null);rC()})
   }
-
-  function del(c) {
-    confirm('Hapus kategori "'+c.name+'"?').then(function(ok) {
-      if (!ok) return;
-      sb.from('categories').delete().eq('id',c.id).then(function(r) { if(r.error){toast(r.error.message,'err');return;} toast('Kategori dihapus'); rC(); });
-    });
-  }
-
-  var expC = categories.filter(function(c){return c.type==='expense';});
-  var incC = categories.filter(function(c){return c.type==='income';});
-  var shown = tab === 'expense' ? expC : incC;
-
-  return (
-    <Fragment>
-      <div className="pg-hd"><div><h2>Kategori</h2><p>Kelola kategori pemasukan &amp; pengeluaran</p></div><button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah</button></div>
-      <div className="tabs" style={{marginBottom:18}}>
-        <button className={'tab'+(tab==='expense'?' act':'')} onClick={function(){setTab('expense');}}>Pengeluaran ({expC.length})</button>
-        <button className={'tab'+(tab==='income'?' act':'')} onClick={function(){setTab('income');}}>Pemasukan ({incC.length})</button>
-      </div>
-
-      {shown.length === 0 ? <div className="cd"><div className="empty"><div className="ei">🏷️</div><h3>Belum Ada Kategori {tab==='expense'?'Pengeluaran':'Pemasukan'}</h3><p>Tambahkan kategori untuk mengelompokkan transaksi</p></div></div> :
-      <div className="cg">{shown.map(function(c) {
-        return (
-          <div key={c.id} className="cd cc">
-            <div className="cc-dot" style={{background:c.color||'var(--acc)'}}/>
-            <div className="cc-nm">{c.name}</div>
-            <div className="cc-act">
-              <button className="bi" style={{width:30,height:30}} onClick={function(){openE(c);}}><Ico name="edit"/></button>
-              <button className="bi" style={{width:30,height:30,color:'var(--red)'}} onClick={function(){del(c);}}><Ico name="trash"/></button>
-            </div>
-          </div>
-        );
-      })}</div>}
-
-      <div className="cd" style={{marginTop:24,borderColor:'#1e3a5f'}}>
-        <h3 style={{fontSize:'.9rem',color:'var(--blu)',marginBottom:8}}>📌 SQL untuk tabel categories</h3>
-        <p style={{fontSize:'.78rem',color:'var(--t3)',marginBottom:10}}>Jalankan di Supabase SQL Editor jika tabel belum ada:</p>
-        <pre style={{background:'var(--bgi)',padding:14,borderRadius:'var(--rs)',fontSize:'.75rem',color:'var(--cyn)',overflow:'auto',lineHeight:1.6,whiteSpace:'pre-wrap'}}>{
-"CREATE TABLE IF NOT EXISTS categories (\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n  name TEXT NOT NULL,\n  type TEXT NOT NULL CHECK (type IN ('income','expense')),\n  color TEXT DEFAULT '#10b981',\n  created_at TIMESTAMPTZ DEFAULT NOW()\n);\n\nALTER TABLE categories ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Allow all\" ON categories FOR ALL USING (true) WITH CHECK (true);"
-        }</pre>
-      </div>
-
-      <Modal open={!!modal} onClose={function(){setM(null);}} title={modal && modal.mode==='add'?'Tambah Kategori':'Edit Kategori'} footer={
-        <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal && modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
-      }>
-        <div className="fg"><label>Nama Kategori</label><input className="fi" placeholder="cth: Makan, Transport, Gaji..." value={f.name} onChange={function(e){uf('name',e.target.value);}}/></div>
-        <div className="fg"><label>Tipe</label><div className="tabs"><button className={'tab'+(f.type==='expense'?' act':'')} onClick={function(){uf('type','expense');}}>Pengeluaran</button><button className={'tab'+(f.type==='income'?' act':'')} onClick={function(){uf('type','income');}}>Pemasukan</button></div></div>
-        <div className="fg"><label>Warna</label><div className="clr">{COLORS.map(function(cl){return <div key={cl} className={'co'+(f.color===cl?' sel':'')} style={{background:cl}} onClick={function(){uf('color',cl);}}/>;})}</div></div>
-      </Modal>
-      {cEl}
-    </Fragment>
-  );
+  function del(c){cf('Hapus kategori "'+c.name+'"?').then(function(ok){if(!ok)return;sb.from('categories').delete().eq('id',c.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Kategori dihapus');rC()})})}
+  var eC=C.filter(function(c){return c.type==='expense'}),iC=C.filter(function(c){return c.type==='income'});
+  var sh=tab==='expense'?eC:iC;
+  return html`<${F}>
+    <div class="pg-hd"><div><h2>Kategori</h2><p>Kelola kategori pemasukan & pengeluaran</p></div><button class="btn bp" onClick=${oA}><${Ic} n="plus"/> Tambah</button></div>
+    <div class="tabs" style=${{marginBottom:18}}><button class=${'tab'+(tab==='expense'?' act':'')} onClick=${function(){sTb('expense')}}>Pengeluaran (${eC.length})</button><button class=${'tab'+(tab==='income'?' act':'')} onClick=${function(){sTb('income')}}>Pemasukan (${iC.length})</button></div>
+    ${sh.length===0?html`<div class="cd"><div class="empty"><div class="ei">🏷️</div><h3>Belum Ada Kategori ${tab==='expense'?'Pengeluaran':'Pemasukan'}</h3><p>Tambahkan kategori untuk mengelompokkan transaksi</p></div></div>`:
+    html`<div class="cg">${sh.map(function(c){return html`<div key=${c.id} class="cd cc">
+      <div class="cc-dot" style=${{background:c.color||'var(--acc)'}}/>
+      <div class="cc-nm">${c.name}</div>
+      <div class="cc-act"><button class="bi" style=${{width:30,height:30}} onClick=${function(){oE(c)}}><${Ic} n="edit"/></button><button class="bi" style=${{width:30,height:30,color:'var(--red)'}} onClick=${function(){del(c)}}><${Ic} n="trash"/></button></div>
+    </div>`})}</div>`}
+    <div class="cd" style=${{marginTop:24,borderColor:'#1e3a5f'}}>
+      <h3 style=${{fontSize:'.9rem',color:'var(--blu)',marginBottom:8}}>📌 SQL untuk tabel categories</h3>
+      <p style=${{fontSize:'.78rem',color:'var(--t3)',marginBottom:10}}>Jalankan di Supabase SQL Editor jika tabel belum ada:</p>
+      <pre style=${{background:'var(--bgi)',padding:14,borderRadius:'var(--rs)',fontSize:'.72rem',color:'var(--cyn)',overflow:'auto',lineHeight:1.6,whiteSpace:'pre-wrap'}}>${"CREATE TABLE IF NOT EXISTS categories (\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n  name TEXT NOT NULL,\n  type TEXT NOT NULL CHECK (type IN ('income','expense')),\n  color TEXT DEFAULT '#10b981',\n  created_at TIMESTAMPTZ DEFAULT NOW()\n);\n\nALTER TABLE categories ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Allow all\" ON categories FOR ALL USING (true) WITH CHECK (true);"}</pre>
+    </div>
+    <${Mod} open=${!!mo} onClose=${function(){sM(null)}} title=${mo&&mo.m==='add'?'Tambah Kategori':'Edit Kategori'} footer=${html`<${F}><button class="btn bs" onClick=${function(){sM(null)}}>Batal</button><button class="btn bp" onClick=${save}>${mo&&mo.m==='add'?'Tambah':'Simpan'}</button><//>`}>
+      <div class="fg"><label>Nama Kategori</label><input class="fi" placeholder="cth: Makan, Transport, Gaji..." value=${f.name} onInput=${function(e){uf('name',e.target.value)}}/></div>
+      <div class="fg"><label>Tipe</label><div class="tabs"><button class=${'tab'+(f.type==='expense'?' act':'')} onClick=${function(){uf('type','expense')}}>Pengeluaran</button><button class=${'tab'+(f.type==='income'?' act':'')} onClick=${function(){uf('type','income')}}>Pemasukan</button></div></div>
+      <div class="fg"><label>Warna</label><div class="clr">${COLORS.map(function(c){return html`<div key=${c} class=${'co'+(f.color===c?' sel':'')} style=${{background:c}} onClick=${function(){uf('color',c)}}/>`})}</div></div>
+    <//>
+    ${cfE}
+  <//>`;
 }
 
-/* ══════════════════════════════════════════
-   BUDGETS
-══════════════════════════════════════════ */
-function BudgetsPage(props) {
-  var budgets=props.budgets, categories=props.categories, transactions=props.transactions, rB=props.rB;
-  var toast=useToast();
-  var _m=useState(null), modal=_m[0], setM=_m[1];
-  var _c=useConfirm(), confirm=_c[0], cEl=_c[1];
-  var _f=useState({category_id:'',amount:'',period:'monthly'}), f=_f[0], setF=_f[1];
-  var expC = categories.filter(function(c){return c.type==='expense';});
-
-  function openA() { setF({category_id:expC.length>0?expC[0].id:'',amount:'',period:'monthly'}); setM({mode:'add'}); }
-  function openE(b) { setF({category_id:b.category_id||'',amount:String(b.amount||0),period:b.period||'monthly'}); setM({mode:'edit',d:b}); }
-  function uf(key,val) { var n={category_id:f.category_id,amount:f.amount,period:f.period}; n[key]=val; setF(n); }
-
-  function save() {
-    if (!f.amount||Number(f.amount)<=0) { toast('Jumlah harus > 0','err'); return; }
-    var p = {category_id:f.category_id||null, amount:Number(f.amount), period:f.period};
-    if (modal.mode==='add') {
-      sb.from('budgets').insert(p).then(function(r){if(r.error){toast(r.error.message,'err');return;}toast('Anggaran ditambahkan');setM(null);rB();});
-    } else {
-      sb.from('budgets').update(p).eq('id',modal.d.id).then(function(r){if(r.error){toast(r.error.message,'err');return;}toast('Anggaran diperbarui');setM(null);rB();});
-    }
+/* ═══ BUDGETS ═══ */
+function Budg(p){
+  var B=p.B,C=p.C,T=p.T,rB=p.rB;var t=uT();
+  var _m=useState(null),mo=_m[0],sM=_m[1];
+  var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
+  var _f=useState({category_id:'',amount:'',period:'monthly'}),f=_f[0],sF=_f[1];
+  var eC=C.filter(function(c){return c.type==='expense'});
+  function uf(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
+  function oA(){sF({category_id:eC.length?eC[0].id:'',amount:'',period:'monthly'});sM({m:'add'})}
+  function oE(b){sF({category_id:b.category_id||'',amount:String(b.amount||0),period:b.period||'monthly'});sM({m:'edit',d:b})}
+  function save(){
+    if(!f.amount||Number(f.amount)<=0){t('Jumlah harus > 0','err');return}
+    var pay={category_id:f.category_id||null,amount:Number(f.amount),period:f.period};
+    var q=mo.m==='add'?sb.from('budgets').insert(pay):sb.from('budgets').update(pay).eq('id',mo.d.id);
+    q.then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Anggaran ditambahkan':'Anggaran diperbarui');sM(null);rB()})
   }
-
-  function del(b) {
-    var nm = getCatName(categories, b.category_id);
-    confirm('Hapus anggaran untuk "'+nm+'"?').then(function(ok) {
-      if (!ok) return;
-      sb.from('budgets').delete().eq('id',b.id).then(function(r){if(r.error){toast(r.error.message,'err');return;}toast('Anggaran dihapus');rB();});
-    });
-  }
-
-  return (
-    <Fragment>
-      <div className="pg-hd"><div><h2>Anggaran</h2><p>Atur batas pengeluaran per kategori</p></div><button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah</button></div>
-      {budgets.length===0 ? <div className="cd"><div className="empty"><div className="ei">📊</div><h3>Belum Ada Anggaran</h3><p>Tetapkan batas pengeluaran</p></div></div> :
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:14}}>
-        {budgets.map(function(b) {
-          var cat = findById(categories, b.category_id);
-          var nm = cat ? cat.name : '-';
-          var cl = cat ? (cat.color || 'var(--acc)') : 'var(--acc)';
-          var sp = transactions.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id;}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
-          var pct = b.amount>0 ? Math.min((sp/b.amount)*100,100) : 0;
-          var ov = sp > b.amount;
-          return (
-            <div key={b.id} className="cd">
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                <div><div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}><span style={{width:10,height:10,borderRadius:'50%',background:cl}}/><span style={{fontWeight:600,fontSize:'.95rem'}}>{nm}</span></div><div style={{fontSize:'.76rem',color:'var(--t3)',textTransform:'capitalize'}}>{b.period||'monthly'}</div></div>
-                <div style={{display:'flex',gap:4}}><button className="bi" style={{width:30,height:30}} onClick={function(){openE(b);}}><Ico name="edit"/></button><button className="bi" style={{width:30,height:30,color:'var(--red)'}} onClick={function(){del(b);}}><Ico name="trash"/></button></div>
-              </div>
-              <div style={{marginTop:12,display:'flex',justifyContent:'space-between',alignItems:'baseline'}}><span style={{fontFamily:'Outfit',fontWeight:700,fontSize:'1.15rem',color:ov?'var(--red)':'#fff'}}>{fmtIDR(sp)}</span><span style={{fontSize:'.8rem',color:'var(--t3)'}}>dari {fmtIDR(b.amount)}</span></div>
-              <div className="bbg"><div className="bfill" style={{width:pct+'%',background:ov?'var(--red)':pct>70?'var(--org)':cl}}/></div>
-              <div style={{textAlign:'right',fontSize:'.73rem',color:ov?'var(--red)':'var(--t3)',marginTop:4}}>{Math.round(pct)}%{ov?' — Over budget!':''}</div>
-            </div>
-          );
-        })}
-      </div>}
-
-      <Modal open={!!modal} onClose={function(){setM(null);}} title={modal&&modal.mode==='add'?'Tambah Anggaran':'Edit Anggaran'} footer={
-        <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal&&modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
-      }>
-        <div className="fg"><label>Kategori Pengeluaran</label><select className="fi" value={f.category_id} onChange={function(e){uf('category_id',e.target.value);}}><option value="">Pilih</option>{expC.map(function(c){return <option key={c.id} value={c.id}>{c.name}</option>;})}</select></div>
-        <div className="fr">
-          <div className="fg"><label>Batas (Rp)</label><input className="fi" type="number" placeholder="0" value={f.amount} onChange={function(e){uf('amount',e.target.value);}}/></div>
-          <div className="fg"><label>Periode</label><select className="fi" value={f.period} onChange={function(e){uf('period',e.target.value);}}><option value="monthly">Bulanan</option><option value="weekly">Mingguan</option><option value="yearly">Tahunan</option></select></div>
+  function del(b){cf('Hapus anggaran "'+cn(C,b.category_id)+'"?').then(function(ok){if(!ok)return;sb.from('budgets').delete().eq('id',b.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Anggaran dihapus');rB()})})}
+  return html`<${F}>
+    <div class="pg-hd"><div><h2>Anggaran</h2><p>Atur batas pengeluaran per kategori</p></div><button class="btn bp" onClick=${oA}><${Ic} n="plus"/> Tambah</button></div>
+    ${B.length===0?html`<div class="cd"><div class="empty"><div class="ei">📊</div><h3>Belum Ada Anggaran</h3><p>Tetapkan batas pengeluaran</p></div></div>`:
+    html`<div style=${{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:14}}>${B.map(function(b){
+      var cat=fid(C,b.category_id),nm=cat?cat.name:'-',cl=cat?(cat.color||'var(--acc)'):'var(--acc)';
+      var sp=T.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+      var pct=b.amount>0?Math.min((sp/b.amount)*100,100):0,ov=sp>b.amount;
+      return html`<div key=${b.id} class="cd">
+        <div style=${{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+          <div><div style=${{display:'flex',alignItems:'center',gap:8,marginBottom:4}}><span style=${{width:10,height:10,borderRadius:'50%',background:cl}}/><span style=${{fontWeight:600,fontSize:'.95rem'}}>${nm}</span></div><div style=${{fontSize:'.76rem',color:'var(--t3)',textTransform:'capitalize'}}>${b.period||'monthly'}</div></div>
+          <div style=${{display:'flex',gap:4}}><button class="bi" style=${{width:30,height:30}} onClick=${function(){oE(b)}}><${Ic} n="edit"/></button><button class="bi" style=${{width:30,height:30,color:'var(--red)'}} onClick=${function(){del(b)}}><${Ic} n="trash"/></button></div>
         </div>
-      </Modal>
-      {cEl}
-    </Fragment>
-  );
+        <div style=${{marginTop:12,display:'flex',justifyContent:'space-between',alignItems:'baseline'}}><span style=${{fontFamily:'Outfit',fontWeight:700,fontSize:'1.15rem',color:ov?'var(--red)':'#fff'}}>${fmtIDR(sp)}</span><span style=${{fontSize:'.8rem',color:'var(--t3)'}}>dari ${fmtIDR(b.amount)}</span></div>
+        <div class="bbg"><div class="bfill" style=${{width:pct+'%',background:ov?'var(--red)':pct>70?'var(--org)':cl}}/></div>
+        <div style=${{textAlign:'right',fontSize:'.73rem',color:ov?'var(--red)':'var(--t3)',marginTop:4}}>${Math.round(pct)}%${ov?' — Over budget!':''}</div>
+      </div>`})}</div>`}
+    <${Mod} open=${!!mo} onClose=${function(){sM(null)}} title=${mo&&mo.m==='add'?'Tambah Anggaran':'Edit Anggaran'} footer=${html`<${F}><button class="btn bs" onClick=${function(){sM(null)}}>Batal</button><button class="btn bp" onClick=${save}>${mo&&mo.m==='add'?'Tambah':'Simpan'}</button><//>`}>
+      <div class="fg"><label>Kategori Pengeluaran</label><select class="fi" value=${f.category_id} onChange=${function(e){uf('category_id',e.target.value)}}><option value="">Pilih</option>${eC.map(function(c){return html`<option key=${c.id} value=${c.id}>${c.name}</option>`})}</select></div>
+      <div class="fr"><div class="fg"><label>Batas (Rp)</label><input class="fi" type="number" placeholder="0" value=${f.amount} onInput=${function(e){uf('amount',e.target.value)}}/></div><div class="fg"><label>Periode</label><select class="fi" value=${f.period} onChange=${function(e){uf('period',e.target.value)}}><option value="monthly">Bulanan</option><option value="weekly">Mingguan</option><option value="yearly">Tahunan</option></select></div></div>
+    <//>
+    ${cfE}
+  <//>`;
 }
 
-/* ══════════════════════════════════════════
-   INVESTMENTS
-══════════════════════════════════════════ */
-function InvestmentsPage(props) {
-  var investments=props.investments, rI=props.rI;
-  var toast=useToast();
-  var _m=useState(null), modal=_m[0], setM=_m[1];
-  var _c=useConfirm(), confirm=_c[0], cEl=_c[1];
-  var _f=useState({name:'',type:'stock',amount:'',current_value:'',purchase_date:getToday()}), f=_f[0], setF=_f[1];
-
-  function openA() { setF({name:'',type:'stock',amount:'',current_value:'',purchase_date:getToday()}); setM({mode:'add'}); }
-  function openE(i) { setF({name:i.name||'',type:i.type||'stock',amount:String(i.amount||0),current_value:String(i.current_value||0),purchase_date:i.purchase_date||getToday()}); setM({mode:'edit',d:i}); }
-  function uf(key,val) { var n={name:f.name,type:f.type,amount:f.amount,current_value:f.current_value,purchase_date:f.purchase_date}; n[key]=val; setF(n); }
-
-  function save() {
-    if (!f.name.trim()) { toast('Nama wajib diisi','err'); return; }
-    var p = {name:f.name.trim(),type:f.type,amount:Number(f.amount)||0,current_value:Number(f.current_value)||0,purchase_date:f.purchase_date};
-    if (modal.mode==='add') {
-      sb.from('investments').insert(p).then(function(r){if(r.error){toast(r.error.message,'err');return;}toast('Investasi ditambahkan');setM(null);rI();});
-    } else {
-      sb.from('investments').update(p).eq('id',modal.d.id).then(function(r){if(r.error){toast(r.error.message,'err');return;}toast('Investasi diperbarui');setM(null);rI();});
-    }
+/* ═══ INVESTMENTS ═══ */
+function Inv(p){
+  var I=p.I,rI=p.rI;var t=uT();
+  var _m=useState(null),mo=_m[0],sM=_m[1];
+  var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
+  var _f=useState({name:'',type:'stock',amount:'',current_value:'',purchase_date:td()}),f=_f[0],sF=_f[1];
+  function uf(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
+  function oA(){sF({name:'',type:'stock',amount:'',current_value:'',purchase_date:td()});sM({m:'add'})}
+  function oE(i){sF({name:i.name||'',type:i.type||'stock',amount:String(i.amount||0),current_value:String(i.current_value||0),purchase_date:i.purchase_date||td()});sM({m:'edit',d:i})}
+  function save(){
+    if(!f.name.trim()){t('Nama wajib diisi','err');return}
+    var pay={name:f.name.trim(),type:f.type,amount:Number(f.amount)||0,current_value:Number(f.current_value)||0,purchase_date:f.purchase_date};
+    var q=mo.m==='add'?sb.from('investments').insert(pay):sb.from('investments').update(pay).eq('id',mo.d.id);
+    q.then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Investasi ditambahkan':'Investasi diperbarui');sM(null);rI()})
   }
-
-  function del(inv) {
-    confirm('Hapus investasi "'+inv.name+'"?').then(function(ok) {
-      if (!ok) return;
-      sb.from('investments').delete().eq('id',inv.id).then(function(r){if(r.error){toast(r.error.message,'err');return;}toast('Investasi dihapus');rI();});
-    });
-  }
-
-  var tI = investments.reduce(function(s,i){return s+(Number(i.amount)||0);},0);
-  var tC = investments.reduce(function(s,i){return s+(Number(i.current_value)||Number(i.amount)||0);},0);
-  var tGL = tC - tI;
-  var typeLabel = {stock:'Saham',crypto:'Crypto',mutual_fund:'Reksa Dana',bond:'Obligasi',gold:'Emas',property:'Properti',other:'Lainnya'};
-
-  return (
-    <Fragment>
-      <div className="pg-hd"><div><h2>Investasi</h2><p>Pantau portofolio investasi Anda</p></div><button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah</button></div>
-      <div className="sg">
-        <div className="cd st"><div className="lb">Total Investasi</div><div className="vl">{fmtIDR(tI)}</div></div>
-        <div className="cd st"><div className="lb">Nilai Saat Ini</div><div className="vl" style={{color:'var(--blu)'}}>{fmtIDR(tC)}</div></div>
-        <div className="cd st"><div className="lb">Gain/Loss</div><div className="vl" style={{color:tGL>=0?'var(--acc)':'var(--red)'}}>{tGL>=0?'+':''}{fmtIDR(tGL)}</div>{tI>0 && <div className="sub">{tGL>=0?'+':''}{((tGL/tI)*100).toFixed(1)}%</div>}</div>
-      </div>
-
-      {investments.length===0 ? <div className="cd"><div className="empty"><div className="ei">📈</div><h3>Belum Ada Investasi</h3><p>Mulai catat portofolio Anda</p></div></div> :
-      <div className="cd"><div className="tw"><table>
-        <thead><tr><th>Nama</th><th>Tipe</th><th style={{textAlign:'right'}}>Modal</th><th style={{textAlign:'right'}}>Nilai Saat Ini</th><th style={{textAlign:'right'}}>G/L</th><th>Tanggal</th><th></th></tr></thead>
-        <tbody>{investments.map(function(inv) {
-          var gl = (Number(inv.current_value)||0) - (Number(inv.amount)||0);
-          var pct = inv.amount > 0 ? ((gl / inv.amount) * 100).toFixed(1) : 0;
-          return (
-            <tr key={inv.id}>
-              <td style={{fontWeight:600}}>{inv.name}</td>
-              <td><span className="badge" style={{background:'rgba(59,130,246,.08)',color:'var(--blu)'}}>{typeLabel[inv.type]||inv.type||'-'}</span></td>
-              <td style={{textAlign:'right',fontFamily:'Outfit'}}>{fmtIDR(inv.amount)}</td>
-              <td style={{textAlign:'right',fontFamily:'Outfit'}}>{fmtIDR(inv.current_value)}</td>
-              <td style={{textAlign:'right',fontFamily:'Outfit',fontWeight:600,color:gl>=0?'var(--acc)':'var(--red)'}}>{gl>=0?'+':''}{fmtIDR(gl)} <span style={{fontSize:'.73rem',fontWeight:400}}>({gl>=0?'+':''}{pct}%)</span></td>
-              <td style={{color:'var(--t3)',fontSize:'.82rem'}}>{fmtDate(inv.purchase_date)}</td>
-              <td style={{whiteSpace:'nowrap'}}><button className="bi" onClick={function(){openE(inv);}}><Ico name="edit"/></button><button className="bi" onClick={function(){del(inv);}} style={{color:'var(--red)'}}><Ico name="trash"/></button></td>
-            </tr>
-          );
-        })}</tbody>
-      </table></div></div>}
-
-      <Modal open={!!modal} onClose={function(){setM(null);}} title={modal&&modal.mode==='add'?'Tambah Investasi':'Edit Investasi'} footer={
-        <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal&&modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
-      }>
-        <div className="fg"><label>Nama Aset</label><input className="fi" placeholder="cth: BBCA, Bitcoin, Emas..." value={f.name} onChange={function(e){uf('name',e.target.value);}}/></div>
-        <div className="fr">
-          <div className="fg"><label>Tipe</label><select className="fi" value={f.type} onChange={function(e){uf('type',e.target.value);}}><option value="stock">Saham</option><option value="crypto">Crypto</option><option value="mutual_fund">Reksa Dana</option><option value="bond">Obligasi</option><option value="gold">Emas</option><option value="property">Properti</option><option value="other">Lainnya</option></select></div>
-          <div className="fg"><label>Tanggal Beli</label><input className="fi" type="date" value={f.purchase_date} onChange={function(e){uf('purchase_date',e.target.value);}}/></div>
-        </div>
-        <div className="fr">
-          <div className="fg"><label>Modal (Rp)</label><input className="fi" type="number" placeholder="0" value={f.amount} onChange={function(e){uf('amount',e.target.value);}}/></div>
-          <div className="fg"><label>Nilai Saat Ini (Rp)</label><input className="fi" type="number" placeholder="0" value={f.current_value} onChange={function(e){uf('current_value',e.target.value);}}/></div>
-        </div>
-      </Modal>
-      {cEl}
-    </Fragment>
-  );
+  function del(i){cf('Hapus "'+i.name+'"?').then(function(ok){if(!ok)return;sb.from('investments').delete().eq('id',i.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Investasi dihapus');rI()})})}
+  var tI=I.reduce(function(s,i){return s+(Number(i.amount)||0)},0);
+  var tC=I.reduce(function(s,i){return s+(Number(i.current_value)||Number(i.amount)||0)},0);
+  var tGL=tC-tI;
+  var tl={stock:'Saham',crypto:'Crypto',mutual_fund:'Reksa Dana',bond:'Obligasi',gold:'Emas',property:'Properti',other:'Lainnya'};
+  return html`<${F}>
+    <div class="pg-hd"><div><h2>Investasi</h2><p>Pantau portofolio investasi Anda</p></div><button class="btn bp" onClick=${oA}><${Ic} n="plus"/> Tambah</button></div>
+    <div class="sg">
+      <div class="cd st"><div class="lb">Total Investasi</div><div class="vl">${fmtIDR(tI)}</div></div>
+      <div class="cd st"><div class="lb">Nilai Saat Ini</div><div class="vl" style=${{color:'var(--blu)'}}>${fmtIDR(tC)}</div></div>
+      <div class="cd st"><div class="lb">Gain/Loss</div><div class="vl" style=${{color:tGL>=0?'var(--acc)':'var(--red)'}}>${tGL>=0?'+':''}${fmtIDR(tGL)}</div>${tI>0&&html`<div class="sub">${tGL>=0?'+':''}${((tGL/tI)*100).toFixed(1)}%</div>`}</div>
+    </div>
+    ${I.length===0?html`<div class="cd"><div class="empty"><div class="ei">📈</div><h3>Belum Ada Investasi</h3><p>Mulai catat portofolio Anda</p></div></div>`:
+    html`<div class="cd"><div class="tw"><table><thead><tr><th>Nama</th><th>Tipe</th><th style=${{textAlign:'right'}}>Modal</th><th style=${{textAlign:'right'}}>Nilai</th><th style=${{textAlign:'right'}}>G/L</th><th>Tanggal</th><th></th></tr></thead>
+    <tbody>${I.map(function(i){
+      var gl=(Number(i.current_value)||0)-(Number(i.amount)||0);var pc=i.amount>0?((gl/i.amount)*100).toFixed(1):0;
+      return html`<tr key=${i.id}>
+        <td style=${{fontWeight:600}}>${i.name}</td>
+        <td><span class="badge" style=${{background:'rgba(59,130,246,.08)',color:'var(--blu)'}}>${tl[i.type]||i.type||'-'}</span></td>
+        <td style=${{textAlign:'right',fontFamily:'Outfit'}}>${fmtIDR(i.amount)}</td>
+        <td style=${{textAlign:'right',fontFamily:'Outfit'}}>${fmtIDR(i.current_value)}</td>
+        <td style=${{textAlign:'right',fontFamily:'Outfit',fontWeight:600,color:gl>=0?'var(--acc)':'var(--red)'}}>${gl>=0?'+':''}${fmtIDR(gl)} <span style=${{fontSize:'.73rem',fontWeight:400}}>(${gl>=0?'+':''}${pc}%)</span></td>
+        <td style=${{color:'var(--t3)',fontSize:'.82rem'}}>${fmtDate(i.purchase_date)}</td>
+        <td style=${{whiteSpace:'nowrap'}}><button class="bi" onClick=${function(){oE(i)}}><${Ic} n="edit"/></button><button class="bi" style=${{color:'var(--red)'}} onClick=${function(){del(i)}}><${Ic} n="trash"/></button></td>
+      </tr>`})}</tbody></table></div></div>`}
+    <${Mod} open=${!!mo} onClose=${function(){sM(null)}} title=${mo&&mo.m==='add'?'Tambah Investasi':'Edit Investasi'} footer=${html`<${F}><button class="btn bs" onClick=${function(){sM(null)}}>Batal</button><button class="btn bp" onClick=${save}>${mo&&mo.m==='add'?'Tambah':'Simpan'}</button><//>`}>
+      <div class="fg"><label>Nama Aset</label><input class="fi" placeholder="cth: BBCA, Bitcoin, Emas..." value=${f.name} onInput=${function(e){uf('name',e.target.value)}}/></div>
+      <div class="fr"><div class="fg"><label>Tipe</label><select class="fi" value=${f.type} onChange=${function(e){uf('type',e.target.value)}}><option value="stock">Saham</option><option value="crypto">Crypto</option><option value="mutual_fund">Reksa Dana</option><option value="bond">Obligasi</option><option value="gold">Emas</option><option value="property">Properti</option><option value="other">Lainnya</option></select></div><div class="fg"><label>Tanggal Beli</label><input class="fi" type="date" value=${f.purchase_date} onInput=${function(e){uf('purchase_date',e.target.value)}}/></div></div>
+      <div class="fr"><div class="fg"><label>Modal (Rp)</label><input class="fi" type="number" placeholder="0" value=${f.amount} onInput=${function(e){uf('amount',e.target.value)}}/></div><div class="fg"><label>Nilai Saat Ini (Rp)</label><input class="fi" type="number" placeholder="0" value=${f.current_value} onInput=${function(e){uf('current_value',e.target.value)}}/></div></div>
+    <//>
+    ${cfE}
+  <//>`;
 }
 
-/* ═══ RENDER ═══ */
+/* ═══ MOUNT ═══ */
 ReactDOM.createRoot(document.getElementById('root')).render(
-  React.createElement(ToastProvider, null, React.createElement(App, null))
+  React.createElement(TP, null, React.createElement(App, null))
 );
 </script>
 </body>
