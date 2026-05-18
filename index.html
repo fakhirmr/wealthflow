@@ -8,23 +8,17 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,400&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{font-size:15px;scroll-behavior:smooth}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html{font-size:15px}
 body{font-family:'DM Sans',sans-serif;background:#0b0f1a;color:#e2e8f0;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
-h1,h2,h3,h4,h5,h6{font-family:'Outfit',sans-serif;font-weight:600;letter-spacing:-0.02em}
+h1,h2,h3{font-family:'Outfit',sans-serif;font-weight:600;letter-spacing:-0.02em}
 button{font-family:inherit;cursor:pointer;border:none;outline:none}
-input,select,textarea{font-family:inherit;outline:none}
-::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#2d3748;border-radius:3px}
-:root{
---bg:#0b0f1a;--bgc:#131a2b;--bgc2:#1a2236;--bgi:#0f1525;
---brd:#1e293b;--acc:#10b981;--accd:#059669;--accbg:rgba(16,185,129,.08);
---red:#ef4444;--redbg:rgba(239,68,68,.08);--org:#f59e0b;--blu:#3b82f6;--cyn:#06b6d4;
---t1:#e2e8f0;--t2:#94a3b8;--t3:#64748b;--sw:260px;--rad:12px;--rs:8px;
-}
+input,select{font-family:inherit;outline:none}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#2d3748;border-radius:3px}
+:root{--bgc:#131a2b;--bgc2:#1a2236;--bgi:#0f1525;--brd:#1e293b;--acc:#10b981;--accd:#059669;--accbg:rgba(16,185,129,.08);--red:#ef4444;--redbg:rgba(239,68,68,.08);--org:#f59e0b;--blu:#3b82f6;--cyn:#06b6d4;--t1:#e2e8f0;--t2:#94a3b8;--t3:#64748b;--sw:260px;--rs:8px}
 #root{display:flex;min-height:100vh;width:100%}
 .sb{position:fixed;left:0;top:0;bottom:0;width:var(--sw);background:#0d1220;border-right:1px solid var(--brd);display:flex;flex-direction:column;z-index:100;transition:transform .3s}
 .sb-brand{padding:24px 22px 18px;display:flex;align-items:center;gap:12px}
-.sb-logo{width:38px;height:38px;background:linear-gradient(135deg,var(--acc),var(--cyn));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;font-family:'Outfit',sans-serif}
+.sb-logo{width:38px;height:38px;background:linear-gradient(135deg,var(--acc),var(--cyn));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;font-family:'Outfit'}
 .sb-brand h1{font-size:1.25rem;color:#fff;font-weight:700}.sb-brand h1 span{color:var(--acc)}
 .sb-nav{flex:1;padding:8px 12px;display:flex;flex-direction:column;gap:2px}
 .nv{display:flex;align-items:center;gap:14px;padding:11px 16px;border-radius:var(--rs);color:var(--t2);font-size:.9rem;font-weight:500;transition:all .2s;background:transparent;width:100%;text-align:left}
@@ -34,233 +28,180 @@ input,select,textarea{font-family:inherit;outline:none}
 .pg{padding:28px 36px;max-width:1600px;width:100%}
 .pg-hd{margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
 .pg-hd h2{font-size:1.55rem;color:#fff}.pg-hd p{color:var(--t2);font-size:.85rem;margin-top:2px}
-.cd{background:var(--bgc);border:1px solid var(--brd);border-radius:var(--rad);padding:22px;transition:border-color .2s}.cd:hover{border-color:#2d3748}
+.cd{background:var(--bgc);border:1px solid var(--brd);border-radius:12px;padding:22px;transition:border-color .2s}.cd:hover{border-color:#2d3748}
 .sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:24px}
-.st .lb{font-size:.8rem;color:var(--t2);margin-bottom:8px}.st .vl{font-size:1.45rem;font-weight:700;font-family:'Outfit',sans-serif;color:#fff}.st .sub{font-size:.78rem;color:var(--t3);margin-top:4px}
+.st .lb{font-size:.8rem;color:var(--t2);margin-bottom:8px}.st .vl{font-size:1.45rem;font-weight:700;font-family:'Outfit';color:#fff}.st .sub{font-size:.78rem;color:var(--t3);margin-top:4px}
 .si{width:34px;height:34px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px}
 .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--rs);font-size:.86rem;font-weight:600;transition:all .2s}
-.bp{background:var(--acc);color:#fff}.bp:hover{background:var(--accd);transform:translateY(-1px)}
-.bs{background:var(--bgc);color:var(--t1);border:1px solid var(--brd)}.bs:hover{border-color:var(--t3)}
-.bd{background:var(--redbg);color:var(--red)}.bd:hover{background:rgba(239,68,68,.15)}
+.bp{background:var(--acc);color:#fff}.bp:hover{background:var(--accd)}.bs{background:var(--bgc);color:var(--t1);border:1px solid var(--brd)}.bd{background:var(--redbg);color:var(--red)}
 .bi{width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:var(--rs);background:transparent;color:var(--t2);transition:all .15s;border:none}.bi:hover{background:var(--bgc);color:var(--t1)}
 .fg{margin-bottom:16px}.fg label{display:block;font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
-.fi{width:100%;padding:10px 13px;background:var(--bgi);border:1px solid var(--brd);border-radius:var(--rs);color:var(--t1);font-size:.9rem;transition:border-color .2s}
-.fi:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(16,185,129,.1)}.fi::placeholder{color:var(--t3)}
+.fi{width:100%;padding:10px 13px;background:var(--bgi);border:1px solid var(--brd);border-radius:var(--rs);color:var(--t1);font-size:.9rem;transition:border-color .2s}.fi:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(16,185,129,.1)}.fi::placeholder{color:var(--t3)}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.mo{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fi .2s}
-.moc{background:var(--bgc);border:1px solid var(--brd);border-radius:16px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;animation:su .25s}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.moc{background:var(--bgc);border:1px solid var(--brd);border-radius:16px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto}
 .moh{padding:20px 22px 0;display:flex;align-items:center;justify-content:space-between}.moh h3{font-size:1.1rem;color:#fff}
 .mob{padding:18px 22px}.mof{padding:0 22px 20px;display:flex;gap:10px;justify-content:flex-end}
 .tw{overflow-x:auto}table{width:100%;border-collapse:collapse}
 thead th{text-align:left;font-size:.76rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid var(--brd)}
 tbody td{padding:13px 14px;border-bottom:1px solid var(--brd);font-size:.88rem}tbody tr:hover{background:var(--bgc2)}tbody tr:last-child td{border-bottom:none}
 .wg{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
-.wc{position:relative;overflow:hidden}.wc-nm{font-size:.95rem;font-weight:600;color:#fff;margin-bottom:2px}
-.wc-bl{font-size:1.5rem;font-weight:700;font-family:'Outfit',sans-serif;color:#fff;margin-top:10px}
-.wc-act{display:flex;gap:4px;position:absolute;top:14px;right:14px}
+.wc{position:relative;overflow:hidden}.wc-nm{font-size:.95rem;font-weight:600;color:#fff;margin-bottom:2px}.wc-bl{font-size:1.5rem;font-weight:700;font-family:'Outfit';color:#fff;margin-top:10px}.wc-act{display:flex;gap:4px;position:absolute;top:14px;right:14px}
 .cg{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:10px}
 .cc{display:flex;align-items:center;gap:11px;padding:13px 14px}.cc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}.cc-nm{font-size:.9rem;font-weight:500;flex:1}.cc-act{display:flex;gap:2px}
 .txi{color:var(--acc)}.txe{color:var(--red)}.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:16px;font-size:.76rem;font-weight:500}
 .empty{text-align:center;padding:50px 20px;color:var(--t3)}.empty .ei{font-size:42px;margin-bottom:14px;opacity:.5}.empty h3{color:var(--t2);margin-bottom:6px;font-size:1rem}.empty p{font-size:.84rem;max-width:280px;margin:0 auto}
-.tabs{display:flex;gap:3px;background:var(--bgi);border-radius:var(--rs);padding:3px;width:fit-content}
-.tab{padding:7px 18px;border-radius:6px;font-size:.83rem;font-weight:600;color:var(--t3);background:transparent;transition:all .2s}.tab.act{background:var(--bgc);color:var(--acc);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.tabs{display:flex;gap:3px;background:var(--bgi);border-radius:var(--rs);padding:3px;width:fit-content}.tab{padding:7px 18px;border-radius:6px;font-size:.83rem;font-weight:600;color:var(--t3);background:transparent;transition:all .2s}.tab.act{background:var(--bgc);color:var(--acc)}
 .tc{position:fixed;bottom:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
-.toast{padding:12px 18px;border-radius:var(--rs);font-size:.86rem;font-weight:500;animation:su .3s;display:flex;align-items:center;gap:9px}
-.tok{background:#065f46;color:#a7f3d0;border:1px solid #10b981}.terr{background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444}
+.toast{padding:12px 18px;border-radius:var(--rs);font-size:.86rem;font-weight:500;display:flex;align-items:center;gap:9px}.tok{background:#065f46;color:#a7f3d0;border:1px solid #10b981}.terr{background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444}
 .bbg{width:100%;height:7px;background:var(--bgi);border-radius:4px;overflow:hidden;margin-top:8px}.bfill{height:100%;border-radius:4px;transition:width .5s}
 .clr{display:flex;gap:7px;flex-wrap:wrap}.co{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s}.co.sel{border-color:#fff;transform:scale(1.15)}
 .fbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}.fbar .fi{max-width:180px}
 .dg{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
 .mh{display:none;position:fixed;top:0;left:0;right:0;height:54px;background:#0d1220;border-bottom:1px solid var(--brd);z-index:100;padding:0 14px;align-items:center;justify-content:space-between}
 .mn{display:none;position:fixed;bottom:0;left:0;right:0;height:62px;background:#0d1220;border-top:1px solid var(--brd);z-index:100;padding:0 4px;align-items:center;justify-content:space-around}
-.mni{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65rem;color:var(--t3);padding:5px 10px;border-radius:8px;background:transparent;transition:color .2s;border:none}.mni.act{color:var(--acc)}.mni svg{width:21px;height:21px}
+.mni{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65rem;color:var(--t3);padding:5px 10px;border-radius:8px;background:transparent;border:none}.mni.act{color:var(--acc)}.mni svg{width:21px;height:21px}
 .ls{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;color:var(--acc);font-weight:600;text-align:center}
-@keyframes fi{from{opacity:0}to{opacity:1}}@keyframes su{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-@media(max-width:768px){
-.sb{transform:translateX(-100%)}.sb.open{transform:translateX(0)}.mh,.mn{display:flex}
-.main{margin-left:0;padding-bottom:76px;padding-top:54px}.pg{padding:16px 14px}
-.sg{grid-template-columns:repeat(2,1fr);gap:8px}.st .vl{font-size:1.15rem}.fr{grid-template-columns:1fr}
-.wg,.cg{grid-template-columns:1fr}.pg-hd h2{font-size:1.2rem}.fbar .fi{max-width:100%;flex:1}.dg{grid-template-columns:1fr}
-}
+@media(max-width:768px){.sb{transform:translateX(-100%)}.sb.open{transform:translateX(0)}.mh,.mn{display:flex}.main{margin-left:0;padding-bottom:76px;padding-top:54px}.pg{padding:16px 14px}.sg{grid-template-columns:repeat(2,1fr);gap:8px}.st .vl{font-size:1.15rem}.fr{grid-template-columns:1fr}.wg,.cg{grid-template-columns:1fr}.pg-hd h2{font-size:1.2rem}.fbar .fi{max-width:100%;flex:1}.dg{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div id="root"><div class="ls"><div><div style="font-size:2.5rem;margin-bottom:14px">💰</div>Memuat WealthFlow...</div></div></div>
-
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/htm@3/dist/htm.umd.js"></script>
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-
+<script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script>if(!window.React)document.write('<scr'+'ipt src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></scr'+'ipt>')</script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script>if(!window.ReactDOM)document.write('<scr'+'ipt src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></scr'+'ipt>')</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js" crossorigin></script>
+<script>if(!window.supabase)document.write('<scr'+'ipt src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></scr'+'ipt>')</script>
 <script>
-// htm bound to React.createElement — no Babel needed!
-var html = htm.bind(React.createElement);
-var useState = React.useState, useEffect = React.useEffect, useCallback = React.useCallback,
-    useMemo = React.useMemo, createContext = React.createContext, useContext = React.useContext, F = React.Fragment;
+/* ═══ GUARD: Check libraries loaded ═══ */
+if (!window.React || !window.ReactDOM || !window.supabase) {
+  document.getElementById('root').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;text-align:center;color:#ef4444;font-size:.9rem;padding:20px"><div><div style="font-size:2rem;margin-bottom:14px">⚠️</div><p><b>Library gagal dimuat</b></p><p style="color:#94a3b8;margin-top:8px;font-size:.8rem">React: '+(window.React?'✓':'✗')+' | ReactDOM: '+(window.ReactDOM?'✓':'✗')+' | Supabase: '+(window.supabase?'✓':'✗')+'</p><p style="color:#94a3b8;margin-top:8px;font-size:.8rem">Coba refresh atau cek koneksi internet.</p></div></div>';
+} else {
+/* ═══ CORE - Pure React.createElement, ZERO extra deps ═══ */
+var h=React.createElement,F=React.Fragment,
+useState=React.useState,useEffect=React.useEffect,useCallback=React.useCallback,
+useMemo=React.useMemo,createContext=React.createContext,useContext=React.useContext;
 
-/* ═══ SUPABASE ═══ */
-var sb = window.supabase.createClient(
-  'https://wkhjxgrjkrakfhwckriu.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraGp4Z3Jqa3Jha2Zod2Nrcml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjQyOTUsImV4cCI6MjA5NDMwMDI5NX0.Prtzf84zL-MvJuWF6Qk9HrJLzb2wmxxRD_OA094ulck'
-);
+var sb=window.supabase.createClient('https://wkhjxgrjkrakfhwckriu.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraGp4Z3Jqa3Jha2Zod2Nrcml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjQyOTUsImV4cCI6MjA5NDMwMDI5NX0.Prtzf84zL-MvJuWF6Qk9HrJLzb2wmxxRD_OA094ulck');
 
 /* ═══ HELPERS ═══ */
-var COLORS = ['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#6366f1','#84cc16','#e11d48'];
-function fmtIDR(n){return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0,maximumFractionDigits:0}).format(n||0)}
-function fmtDate(d){return d?new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'-'}
+var COLORS=['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#6366f1','#84cc16','#e11d48'];
+function fmt(n){return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0,maximumFractionDigits:0}).format(n||0)}
+function fdt(d){return d?new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'-'}
 function td(){return new Date().toISOString().split('T')[0]}
-function fid(a,id){if(!a||!id)return null;for(var i=0;i<a.length;i++){if(a[i].id===id)return a[i]}return null}
+function fid(a,id){if(!a||!id)return null;for(var i=0;i<a.length;i++)if(a[i].id===id)return a[i];return null}
 function cn(cs,id){var c=fid(cs,id);return c?c.name:'-'}
-function ccol(cs,id){var c=fid(cs,id);return c?(c.color||'#64748b'):'#64748b'}
+function ccl(cs,id){var c=fid(cs,id);return c?(c.color||'#64748b'):'#64748b'}
 function wn(ws,id){var w=fid(ws,id);return w?w.name:'-'}
-function rndColor(){return COLORS[Math.floor(Math.random()*COLORS.length)]}
+function rc(){return COLORS[Math.floor(Math.random()*COLORS.length)]}
+function uf(f,k,v,sF){var n={};for(var x in f)n[x]=f[x];n[k]=v;if(k==='type')n.category_id='';sF(n)}
 
-/* ═══ SVG ICONS ═══ */
-function Ic(p){
-  var d = {
-    dashboard:'M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z',
-    wallet:'M2 6h20v14H2zM2 10h20M16 14h0',
-    txn:'M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6',
-    cat:'M12 2a10 10 0 100 20 10 10 0 000-20zM2 12h20',
-    budget:'M21 12a9 9 0 11-6.22-8.56M21 3v6h-6',
-    invest:'M22 7l-8.5 8.5-5-5L2 17M16 7h6v6',
-    plus:'M12 5v14M5 12h14',
-    edit:'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
-    trash:'M3 6h18M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2',
-    x:'M18 6L6 18M6 6l12 12',
-    menu:'M3 12h18M3 6h18M3 18h18',
-  }[p.n] || '';
-  return html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d=${d}/></svg>`;
-}
+/* ═══ SVG ICON ═══ */
+function Ic(p){return h('svg',{viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round',dangerouslySetInnerHTML:{__html:({
+dashboard:'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+wallet:'<rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="16" cy="14" r="1"/>',
+txn:'<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',
+cat:'<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/>',
+budget:'<path d="M21 12a9 9 0 11-6.22-8.56M21 3v6h-6"/>',
+invest:'<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+edit:'<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>',
+trash:'<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>',
+x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+menu:'<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>'
+})[p.n]||''}})}
 
 /* ═══ TOAST ═══ */
-var TCtx = createContext(function(){});
+var TCtx=createContext(function(){});
 function TP(p){
-  var _s=useState([]),ts=_s[0],sTs=_s[1];
-  var add=useCallback(function(m,t){var id=Date.now();sTs(function(v){return v.concat({id:id,m:m,t:t||'ok'})});setTimeout(function(){sTs(function(v){return v.filter(function(x){return x.id!==id})})},3000)},[]);
-  return html`<${TCtx.Provider} value=${add}>${p.children}<div class="tc">${ts.map(function(t){return html`<div key=${t.id} class=${'toast '+(t.t==='ok'?'tok':'terr')}>${t.t==='ok'?'✓':'✗'} ${t.m}</div>`})}</div><//>`
+  var s=useState([]),ts=s[0],sTs=s[1];
+  var add=useCallback(function(m,t){var id=Date.now();sTs(function(v){return v.concat({id:id,m:m,t:t||'ok'})});setTimeout(function(){sTs(function(v){return v.filter(function(x){return x.id!==id})})},3e3)},[]);
+  return h(TCtx.Provider,{value:add},p.children,h('div',{className:'tc'},ts.map(function(t){return h('div',{key:t.id,className:'toast '+(t.t==='ok'?'tok':'terr')},t.t==='ok'?'✓':'✗',' ',t.m)})))
 }
-function uT(){return useContext(TCtx)}
 
 /* ═══ MODAL ═══ */
 function Mod(p){
   if(!p.open)return null;
-  return html`<div class="mo" onClick=${p.onClose}><div class="moc" onClick=${function(e){e.stopPropagation()}}>
-    <div class="moh"><h3>${p.title}</h3><button class="bi" onClick=${p.onClose}><${Ic} n="x"/></button></div>
-    <div class="mob">${p.children}</div>
-    ${p.footer && html`<div class="mof">${p.footer}</div>`}
-  </div></div>`;
+  return h('div',{className:'mo',onClick:p.onClose},h('div',{className:'moc',onClick:function(e){e.stopPropagation()}},
+    h('div',{className:'moh'},h('h3',null,p.title),h('button',{className:'bi',onClick:p.onClose},h(Ic,{n:'x'}))),
+    h('div',{className:'mob'},p.children),
+    p.footer?h('div',{className:'mof'},p.footer):null))
 }
 
 /* ═══ CONFIRM ═══ */
 function useCf(){
-  var _s=useState(null),s=_s[0],sS=_s[1];
+  var s=useState(null),st=s[0],sS=s[1];
   var cf=useCallback(function(msg){return new Promise(function(r){sS({msg:msg,r:r})})},[]);
-  var el=null;
-  if(s){
-    el=html`<div class="mo" onClick=${function(){s.r(false);sS(null)}}>
-      <div class="moc" onClick=${function(e){e.stopPropagation()}}>
-        <div class="moh"><h3>Konfirmasi</h3></div>
-        <div class="mob"><p style=${{color:'var(--t2)',lineHeight:1.6}}>${s.msg}</p></div>
-        <div class="mof">
-          <button class="btn bs" onClick=${function(){s.r(false);sS(null)}}>Batal</button>
-          <button class="btn bd" onClick=${function(){s.r(true);sS(null)}}>Hapus</button>
-        </div>
-      </div>
-    </div>`;
-  }
-  return [cf,el];
+  var el=st?h('div',{className:'mo',onClick:function(){st.r(false);sS(null)}},h('div',{className:'moc',onClick:function(e){e.stopPropagation()}},
+    h('div',{className:'moh'},h('h3',null,'Konfirmasi')),
+    h('div',{className:'mob'},h('p',{style:{color:'var(--t2)',lineHeight:1.6}},st.msg)),
+    h('div',{className:'mof'},h('button',{className:'btn bs',onClick:function(){st.r(false);sS(null)}},'Batal'),h('button',{className:'btn bd',onClick:function(){st.r(true);sS(null)}},'Hapus')))):null;
+  return[cf,el]
 }
 
-/* ═══════════════════════════
-   SAFE LOAD HELPER
-═══════════════════════════ */
-function loadTable(name, order, asc) {
-  return sb.from(name).select('*').order(order, {ascending: asc !== false}).then(function(r) {
-    return {data: r.data || [], err: r.error ? name+': '+r.error.message : null};
-  }).catch(function(e) {
-    return {data: [], err: name+': '+e.message};
-  });
-}
+/* ═══ LOAD HELPER ═══ */
+function lt(name,ord,asc){return sb.from(name).select('*').order(ord,{ascending:asc!==false}).then(function(r){return{d:r.data||[],e:r.error?name+': '+r.error.message:null}}).catch(function(e){return{d:[],e:name+': '+e.message}})}
 
-/* ═══════════════════════════
-   APP
-═══════════════════════════ */
+/* ═══════════ APP ═══════════ */
 function App(){
   var _p=useState('dashboard'),pg=_p[0],sPg=_p[1];
-  var _mb=useState(false),mob=_mb[0],sMob=_mb[1];
-  var _w=useState([]),W=_w[0],sW=_w[1];
-  var _t=useState([]),T=_t[0],sT=_t[1];
-  var _c=useState([]),C=_c[0],sC=_c[1];
-  var _b=useState([]),B=_b[0],sB=_b[1];
-  var _i=useState([]),I=_i[0],sI=_i[1];
+  var _mb=useState(false),mob=_mb[0],sMb=_mb[1];
+  var _W=useState([]),W=_W[0],sW=_W[1];
+  var _T=useState([]),T=_T[0],sT=_T[1];
+  var _C=useState([]),C=_C[0],sC=_C[1];
+  var _B=useState([]),B=_B[0],sB=_B[1];
+  var _I=useState([]),I=_I[0],sI=_I[1];
   var _l=useState(true),ld=_l[0],sL=_l[1];
   var _e=useState(''),dbE=_e[0],sE=_e[1];
   var _sl=useState(false),slow=_sl[0],sSl=_sl[1];
-  var toast=uT();
 
   useEffect(function(){
-    var t1=setTimeout(function(){sSl(true)},3000);
-    var t2=setTimeout(function(){sL(false);sE('Timeout: cek koneksi/RLS Supabase')},10000);
-    var errs=[], done=0;
+    var t1=setTimeout(function(){sSl(true)},3e3);
+    var t2=setTimeout(function(){sL(false)},10e3);
+    var errs=[],done=0;
     function chk(){done++;if(done>=5){clearTimeout(t2);if(errs.length)sE(errs.join('; '));sL(false)}}
-    loadTable('wallets','created_at',true).then(function(r){if(r.data.length)sW(r.data);if(r.err)errs.push(r.err);chk()});
-    loadTable('transactions','date',false).then(function(r){if(r.data.length)sT(r.data);if(r.err)errs.push(r.err);chk()});
-    loadTable('categories','name',true).then(function(r){if(r.data.length)sC(r.data);if(r.err)errs.push(r.err);chk()});
-    loadTable('budgets','created_at',true).then(function(r){if(r.data.length)sB(r.data);if(r.err)errs.push(r.err);chk()});
-    loadTable('investments','created_at',true).then(function(r){if(r.data.length)sI(r.data);if(r.err)errs.push(r.err);chk()});
-    return function(){clearTimeout(t1);clearTimeout(t2)};
+    lt('wallets','created_at',true).then(function(r){sW(r.d);if(r.e)errs.push(r.e);chk()});
+    lt('transactions','date',false).then(function(r){sT(r.d);if(r.e)errs.push(r.e);chk()});
+    lt('categories','name',true).then(function(r){sC(r.d);if(r.e)errs.push(r.e);chk()});
+    lt('budgets','created_at',true).then(function(r){sB(r.d);if(r.e)errs.push(r.e);chk()});
+    lt('investments','created_at',true).then(function(r){sI(r.d);if(r.e)errs.push(r.e);chk()});
+    return function(){clearTimeout(t1);clearTimeout(t2)}
   },[]);
 
-  var rW=function(){loadTable('wallets','created_at',true).then(function(r){sW(r.data)})};
-  var rT=function(){loadTable('transactions','date',false).then(function(r){sT(r.data)})};
-  var rC=function(){loadTable('categories','name',true).then(function(r){sC(r.data)})};
-  var rB=function(){loadTable('budgets','created_at',true).then(function(r){sB(r.data)})};
-  var rI=function(){loadTable('investments','created_at',true).then(function(r){sI(r.data)})};
+  function rW(){lt('wallets','created_at',true).then(function(r){sW(r.d)})}
+  function rT(){lt('transactions','date',false).then(function(r){sT(r.d)})}
+  function rC(){lt('categories','name',true).then(function(r){sC(r.d)})}
+  function rB(){lt('budgets','created_at',true).then(function(r){sB(r.d)})}
+  function rI(){lt('investments','created_at',true).then(function(r){sI(r.d)})}
 
-  var nav=[
-    {id:'dashboard',lb:'Dashboard',ic:'dashboard'},{id:'wallets',lb:'Dompet',ic:'wallet'},
-    {id:'transactions',lb:'Transaksi',ic:'txn'},{id:'categories',lb:'Kategori',ic:'cat'},
-    {id:'budgets',lb:'Anggaran',ic:'budget'},{id:'investments',lb:'Investasi',ic:'invest'}
-  ];
-  function go(p){sPg(p);sMob(false)}
+  var nav=[{id:'dashboard',lb:'Dashboard',ic:'dashboard'},{id:'wallets',lb:'Dompet',ic:'wallet'},{id:'transactions',lb:'Transaksi',ic:'txn'},{id:'categories',lb:'Kategori',ic:'cat'},{id:'budgets',lb:'Anggaran',ic:'budget'},{id:'investments',lb:'Investasi',ic:'invest'}];
+  function go(p){sPg(p);sMb(false)}
 
-  if(ld) return html`<div class="ls"><div>
-    <div style=${{fontSize:'2.5rem',marginBottom:14}}>💰</div>
-    <div>Memuat WealthFlow...</div>
-    ${slow && html`<div style=${{marginTop:20,fontSize:'.78rem',color:'var(--t3)',maxWidth:320,lineHeight:1.6}}>
-      <p>Loading lama? Kemungkinan:</p>
-      <p style=${{marginTop:6}}>1. Tabel belum ada di Supabase</p>
-      <p>2. RLS aktif tanpa policy</p>
-      <button class="btn bp" style=${{marginTop:14}} onClick=${function(){sL(false)}}>Lewati → Buka App</button>
-    </div>`}
-  </div></div>`;
+  if(ld)return h('div',{className:'ls'},h('div',null,
+    h('div',{style:{fontSize:'2.5rem',marginBottom:14}},'💰'),
+    h('div',null,'Memuat WealthFlow...'),
+    slow?h('div',{style:{marginTop:20,fontSize:'.78rem',color:'var(--t3)',maxWidth:320,lineHeight:1.6}},
+      h('p',null,'Loading lama? Kemungkinan:'),h('p',{style:{marginTop:6}},'1. Tabel belum ada di Supabase'),h('p',null,'2. RLS aktif tanpa policy'),
+      h('button',{className:'btn bp',style:{marginTop:14},onClick:function(){sL(false)}},'Lewati → Buka App')):null));
 
   var cx={W:W,T:T,C:C,B:B,I:I,rW:rW,rT:rT,rC:rC,rB:rB,rI:rI};
-
-  return html`<${F}>
-    <aside class=${'sb'+(mob?' open':'')}>
-      <div class="sb-brand"><div class="sb-logo">W</div><h1>Wealth<span>Flow</span></h1></div>
-      <nav class="sb-nav">${nav.map(function(n){return html`<button key=${n.id} class=${'nv'+(pg===n.id?' act':'')} onClick=${function(){go(n.id)}}><${Ic} n=${n.ic}/>${n.lb}</button>`})}</nav>
-      <div class="sb-ft">WealthFlow v2.0</div>
-    </aside>
-    <div class="mh">
-      <button class="bi" onClick=${function(){sMob(!mob)}}><${Ic} n="menu"/></button>
-      <h1 style=${{fontFamily:'Outfit',fontSize:'1.05rem',fontWeight:700,color:'#fff'}}>Wealth<span style=${{color:'var(--acc)'}}>Flow</span></h1>
-      <div style=${{width:34}}/>
-    </div>
-    ${mob && html`<div style=${{position:'fixed',inset:0,background:'rgba(0,0,0,.4)',zIndex:99}} onClick=${function(){sMob(false)}}/>`}
-    <div class="mn">${nav.slice(0,5).map(function(n){return html`<button key=${n.id} class=${'mni'+(pg===n.id?' act':'')} onClick=${function(){go(n.id)}}><${Ic} n=${n.ic}/><span>${n.lb}</span></button>`})}</div>
-    <main class="main"><div class="pg">
-      ${dbE && html`<div style=${{background:'var(--redbg)',border:'1px solid var(--red)',borderRadius:'var(--rs)',padding:'12px 16px',marginBottom:16,fontSize:'.82rem',color:'#fca5a5'}}><strong>DB: </strong>${dbE}</div>`}
-      ${pg==='dashboard' && html`<${Dash} ...${cx}/>`}
-      ${pg==='wallets' && html`<${Wallets} ...${cx}/>`}
-      ${pg==='transactions' && html`<${Txns} ...${cx}/>`}
-      ${pg==='categories' && html`<${Cats} ...${cx}/>`}
-      ${pg==='budgets' && html`<${Budg} ...${cx}/>`}
-      ${pg==='investments' && html`<${Inv} ...${cx}/>`}
-    </div></main>
-  <//>`;
+  return h(F,null,
+    h('aside',{className:'sb'+(mob?' open':'')},
+      h('div',{className:'sb-brand'},h('div',{className:'sb-logo'},'W'),h('h1',null,'Wealth',h('span',null,'Flow'))),
+      h('nav',{className:'sb-nav'},nav.map(function(n){return h('button',{key:n.id,className:'nv'+(pg===n.id?' act':''),onClick:function(){go(n.id)}},h(Ic,{n:n.ic}),n.lb)})),
+      h('div',{className:'sb-ft'},'WealthFlow v2.0')),
+    h('div',{className:'mh'},h('button',{className:'bi',onClick:function(){sMb(!mob)}},h(Ic,{n:'menu'})),h('h1',{style:{fontFamily:'Outfit',fontSize:'1.05rem',fontWeight:700,color:'#fff'}},'Wealth',h('span',{style:{color:'var(--acc)'}},'Flow')),h('div',{style:{width:34}})),
+    mob?h('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.4)',zIndex:99},onClick:function(){sMb(false)}}):null,
+    h('div',{className:'mn'},nav.slice(0,5).map(function(n){return h('button',{key:n.id,className:'mni'+(pg===n.id?' act':''),onClick:function(){go(n.id)}},h(Ic,{n:n.ic}),h('span',null,n.lb))})),
+    h('main',{className:'main'},h('div',{className:'pg'},
+      dbE?h('div',{style:{background:'var(--redbg)',border:'1px solid var(--red)',borderRadius:'var(--rs)',padding:'12px 16px',marginBottom:16,fontSize:'.82rem',color:'#fca5a5'}},h('strong',null,'DB: '),dbE):null,
+      pg==='dashboard'?h(Dash,cx):null,
+      pg==='wallets'?h(WalletsP,cx):null,
+      pg==='transactions'?h(TxnsP,cx):null,
+      pg==='categories'?h(CatsP,cx):null,
+      pg==='budgets'?h(BudgP,cx):null,
+      pg==='investments'?h(InvP,cx):null)))
 }
 
 /* ═══ DASHBOARD ═══ */
@@ -273,287 +214,145 @@ function Dash(p){
   var exp=mo.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
   var ivt=I.reduce(function(s,i){return s+(Number(i.current_value)||Number(i.amount)||0)},0);
   var rec=T.slice(0,8);
-  return html`<${F}>
-    <div class="pg-hd"><div><h2>Dashboard</h2><p>Ringkasan keuangan Anda</p></div></div>
-    <div class="sg">
-      <div class="cd st"><div class="si" style=${{background:'var(--accbg)',color:'var(--acc)'}}>💰</div><div class="lb">Total Saldo</div><div class="vl">${fmtIDR(bal)}</div><div class="sub">${W.length} dompet</div></div>
-      <div class="cd st"><div class="si" style=${{background:'var(--accbg)',color:'var(--acc)'}}>📈</div><div class="lb">Pemasukan Bulan Ini</div><div class="vl" style=${{color:'var(--acc)'}}>${fmtIDR(inc)}</div></div>
-      <div class="cd st"><div class="si" style=${{background:'var(--redbg)',color:'var(--red)'}}>📉</div><div class="lb">Pengeluaran Bulan Ini</div><div class="vl" style=${{color:'var(--red)'}}>${fmtIDR(exp)}</div></div>
-      <div class="cd st"><div class="si" style=${{background:'rgba(59,130,246,.08)',color:'var(--blu)'}}>📊</div><div class="lb">Investasi</div><div class="vl" style=${{color:'var(--blu)'}}>${fmtIDR(ivt)}</div><div class="sub">${I.length} aset</div></div>
-    </div>
-    <div class="dg">
-      <div class="cd">
-        <h3 style=${{fontSize:'1rem',marginBottom:14,color:'#fff'}}>Transaksi Terakhir</h3>
-        ${rec.length===0?html`<div class="empty"><div class="ei">📋</div><p>Belum ada transaksi</p></div>`:
-        rec.map(function(t){return html`<div key=${t.id} style=${{display:'flex',alignItems:'center',gap:12,padding:'9px 0',borderBottom:'1px solid var(--brd)'}}>
-          <div style=${{width:34,height:34,borderRadius:8,background:t.type==='income'?'var(--accbg)':'var(--redbg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>${t.type==='income'?'↗':'↘'}</div>
-          <div style=${{flex:1,minWidth:0}}>
-            <div style=${{fontSize:'.84rem',fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>${t.description||cn(C,t.category_id)}</div>
-            <div style=${{fontSize:'.72rem',color:'var(--t3)'}}>${fmtDate(t.date)} · ${wn(W,t.wallet_id)}</div>
-          </div>
-          <div class=${t.type==='income'?'txi':'txe'} style=${{fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>${t.type==='income'?'+':'-'}${fmtIDR(t.amount)}</div>
-        </div>`})}
-      </div>
-      <div class="cd">
-        <h3 style=${{fontSize:'1rem',marginBottom:14,color:'#fff'}}>Dompet</h3>
-        ${W.length===0?html`<div class="empty"><div class="ei">👛</div><p>Belum ada dompet</p></div>`:
-        W.map(function(w){return html`<div key=${w.id} style=${{display:'flex',alignItems:'center',gap:12,padding:'9px 0',borderBottom:'1px solid var(--brd)'}}>
-          <div style=${{width:34,height:34,borderRadius:8,background:w.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,color:'#fff',fontWeight:700,fontFamily:'Outfit'}}>${(w.name||'W')[0].toUpperCase()}</div>
-          <div style=${{flex:1}}><div style=${{fontSize:'.86rem',fontWeight:500}}>${w.name}</div></div>
-          <div style=${{fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>${fmtIDR(w.balance)}</div>
-        </div>`})}
-        ${B.length>0 && html`<${F}>
-          <h3 style=${{fontSize:'1rem',marginBottom:12,marginTop:22,color:'#fff'}}>Anggaran</h3>
-          ${B.map(function(b){
-            var sp=T.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
-            var pct=b.amount>0?Math.min((sp/b.amount)*100,100):0;
-            return html`<div key=${b.id} style=${{marginBottom:10}}>
-              <div style=${{display:'flex',justifyContent:'space-between',fontSize:'.8rem'}}><span style=${{fontWeight:500}}>${cn(C,b.category_id)}</span><span style=${{color:'var(--t3)'}}>${fmtIDR(sp)} / ${fmtIDR(b.amount)}</span></div>
-              <div class="bbg"><div class="bfill" style=${{width:pct+'%',background:pct>90?'var(--red)':pct>70?'var(--org)':'var(--acc)'}}/></div>
-            </div>`})}
-        <//>`}
-      </div>
-    </div>
-  <//>`;
+  function sc(icon,bg,col,lb,vl,sub){return h('div',{className:'cd st'},h('div',{className:'si',style:{background:bg,color:col}},icon),h('div',{className:'lb'},lb),h('div',{className:'vl',style:col!=='var(--acc)'&&col?{color:col}:null},vl),sub?h('div',{className:'sub'},sub):null)}
+  return h(F,null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Dashboard'),h('p',null,'Ringkasan keuangan Anda'))),
+    h('div',{className:'sg'},sc('💰','var(--accbg)','var(--acc)','Total Saldo',fmt(bal),W.length+' dompet'),sc('📈','var(--accbg)','var(--acc)','Pemasukan Bulan Ini',fmt(inc)),sc('📉','var(--redbg)','var(--red)','Pengeluaran Bulan Ini',fmt(exp)),sc('📊','rgba(59,130,246,.08)','var(--blu)','Investasi',fmt(ivt),I.length+' aset')),
+    h('div',{className:'dg'},
+      h('div',{className:'cd'},h('h3',{style:{fontSize:'1rem',marginBottom:14,color:'#fff'}},'Transaksi Terakhir'),
+        rec.length===0?h('div',{className:'empty'},h('div',{className:'ei'},'📋'),h('p',null,'Belum ada transaksi')):
+        rec.map(function(t){return h('div',{key:t.id,style:{display:'flex',alignItems:'center',gap:12,padding:'9px 0',borderBottom:'1px solid var(--brd)'}},
+          h('div',{style:{width:34,height:34,borderRadius:8,background:t.type==='income'?'var(--accbg)':'var(--redbg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}},t.type==='income'?'↗':'↘'),
+          h('div',{style:{flex:1,minWidth:0}},h('div',{style:{fontSize:'.84rem',fontWeight:500,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},t.description||cn(C,t.category_id)),h('div',{style:{fontSize:'.72rem',color:'var(--t3)'}},fdt(t.date),' · ',wn(W,t.wallet_id))),
+          h('div',{className:t.type==='income'?'txi':'txe',style:{fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}},t.type==='income'?'+':'-',fmt(t.amount)))})),
+      h('div',{className:'cd'},h('h3',{style:{fontSize:'1rem',marginBottom:14,color:'#fff'}},'Dompet'),
+        W.length===0?h('div',{className:'empty'},h('div',{className:'ei'},'👛'),h('p',null,'Belum ada dompet')):
+        W.map(function(w){return h('div',{key:w.id,style:{display:'flex',alignItems:'center',gap:12,padding:'9px 0',borderBottom:'1px solid var(--brd)'}},
+          h('div',{style:{width:34,height:34,borderRadius:8,background:w.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,color:'#fff',fontWeight:700,fontFamily:'Outfit'}},(w.name||'W')[0].toUpperCase()),
+          h('div',{style:{flex:1}},h('div',{style:{fontSize:'.86rem',fontWeight:500}},w.name)),
+          h('div',{style:{fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}},fmt(w.balance)))}),
+        B.length>0?h(F,null,h('h3',{style:{fontSize:'1rem',marginBottom:12,marginTop:22,color:'#fff'}},'Anggaran'),B.map(function(b){var sp=T.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);var pct=b.amount>0?Math.min((sp/b.amount)*100,100):0;return h('div',{key:b.id,style:{marginBottom:10}},h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.8rem'}},h('span',{style:{fontWeight:500}},cn(C,b.category_id)),h('span',{style:{color:'var(--t3)'}},fmt(sp),' / ',fmt(b.amount))),h('div',{className:'bbg'},h('div',{className:'bfill',style:{width:pct+'%',background:pct>90?'var(--red)':pct>70?'var(--org)':'var(--acc)'}})))})):null)))
 }
 
 /* ═══ WALLETS ═══ */
-function Wallets(p){
-  var W=p.W,rW=p.rW;var t=uT();
-  var _m=useState(null),mo=_m[0],sM=_m[1];
-  var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
+function WalletsP(p){
+  var W=p.W,rW=p.rW;var t=useContext(TCtx);
+  var _m=useState(null),mo=_m[0],sM=_m[1];var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
   var _f=useState({name:'',balance:'',color:COLORS[0]}),f=_f[0],sF=_f[1];
-  function uf(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
-  function oA(){sF({name:'',balance:'',color:rndColor()});sM({m:'add'})}
+  function oA(){sF({name:'',balance:'',color:rc()});sM({m:'add'})}
   function oE(w){sF({name:w.name,balance:String(w.balance||0),color:w.color||COLORS[0]});sM({m:'edit',d:w})}
-  function save(){
-    if(!f.name.trim()){t('Nama dompet wajib diisi','err');return}
-    var payload={name:f.name.trim(),balance:Number(f.balance)||0,color:f.color};
-    var q=mo.m==='add'?sb.from('wallets').insert(payload):sb.from('wallets').update(payload).eq('id',mo.d.id);
-    q.then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Dompet ditambahkan':'Dompet diperbarui');sM(null);rW()})
-  }
+  function save(){if(!f.name.trim()){t('Nama wajib diisi','err');return}var pay={name:f.name.trim(),balance:Number(f.balance)||0,color:f.color};(mo.m==='add'?sb.from('wallets').insert(pay):sb.from('wallets').update(pay).eq('id',mo.d.id)).then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Dompet ditambahkan':'Dompet diperbarui');sM(null);rW()})}
   function del(w){cf('Hapus dompet "'+w.name+'"?').then(function(ok){if(!ok)return;sb.from('wallets').delete().eq('id',w.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dompet dihapus');rW()})})}
-  return html`<${F}>
-    <div class="pg-hd"><div><h2>Dompet</h2><p>Kelola semua dompet keuangan Anda</p></div><button class="btn bp" onClick=${oA}><${Ic} n="plus"/> Tambah Dompet</button></div>
-    ${W.length===0?html`<div class="cd"><div class="empty"><div class="ei">👛</div><h3>Belum Ada Dompet</h3><p>Tambahkan dompet pertama Anda</p></div></div>`:
-    html`<div class="wg">${W.map(function(w){return html`<div key=${w.id} class="cd wc">
-      <div style=${{position:'absolute',top:0,left:0,right:0,height:3,background:w.color||'var(--acc)'}}/>
-      <div class="wc-act"><button class="bi" onClick=${function(){oE(w)}}><${Ic} n="edit"/></button><button class="bi" style=${{color:'var(--red)'}} onClick=${function(){del(w)}}><${Ic} n="trash"/></button></div>
-      <div style=${{width:42,height:42,borderRadius:10,background:w.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,color:'#fff',fontWeight:700,fontFamily:'Outfit',marginBottom:8}}>${(w.name||'W')[0].toUpperCase()}</div>
-      <div class="wc-nm">${w.name}</div><div class="wc-bl">${fmtIDR(w.balance)}</div>
-    </div>`})}</div>`}
-    <${Mod} open=${!!mo} onClose=${function(){sM(null)}} title=${mo&&mo.m==='add'?'Tambah Dompet':'Edit Dompet'} footer=${html`<${F}><button class="btn bs" onClick=${function(){sM(null)}}>Batal</button><button class="btn bp" onClick=${save}>${mo&&mo.m==='add'?'Tambah':'Simpan'}</button><//>`}>
-      <div class="fg"><label>Nama Dompet</label><input class="fi" placeholder="cth: BCA, Cash, GoPay..." value=${f.name} onInput=${function(e){uf('name',e.target.value)}}/></div>
-      <div class="fg"><label>Saldo</label><input class="fi" type="number" placeholder="0" value=${f.balance} onInput=${function(e){uf('balance',e.target.value)}}/></div>
-      <div class="fg"><label>Warna</label><div class="clr">${COLORS.map(function(c){return html`<div key=${c} class=${'co'+(f.color===c?' sel':'')} style=${{background:c}} onClick=${function(){uf('color',c)}}/>`})}</div></div>
-    <//>
-    ${cfE}
-  <//>`;
+  return h(F,null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Dompet'),h('p',null,'Kelola dompet keuangan Anda')),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah')),
+    W.length===0?h('div',{className:'cd'},h('div',{className:'empty'},h('div',{className:'ei'},'👛'),h('h3',null,'Belum Ada Dompet'),h('p',null,'Tambahkan dompet pertama Anda'))):
+    h('div',{className:'wg'},W.map(function(w){return h('div',{key:w.id,className:'cd wc'},
+      h('div',{style:{position:'absolute',top:0,left:0,right:0,height:3,background:w.color||'var(--acc)'}}),
+      h('div',{className:'wc-act'},h('button',{className:'bi',onClick:function(){oE(w)}},h(Ic,{n:'edit'})),h('button',{className:'bi',style:{color:'var(--red)'},onClick:function(){del(w)}},h(Ic,{n:'trash'}))),
+      h('div',{style:{width:42,height:42,borderRadius:10,background:w.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,color:'#fff',fontWeight:700,fontFamily:'Outfit',marginBottom:8}},(w.name||'W')[0].toUpperCase()),
+      h('div',{className:'wc-nm'},w.name),h('div',{className:'wc-bl'},fmt(w.balance)))})),
+    h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah Dompet':'Edit Dompet',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},mo&&mo.m==='add'?'Tambah':'Simpan'))},
+      h('div',{className:'fg'},h('label',null,'Nama Dompet'),h('input',{className:'fi',placeholder:'cth: BCA, Cash, GoPay...',value:f.name,onInput:function(e){uf(f,'name',e.target.value,sF)}})),
+      h('div',{className:'fg'},h('label',null,'Saldo'),h('input',{className:'fi',type:'number',placeholder:'0',value:f.balance,onInput:function(e){uf(f,'balance',e.target.value,sF)}})),
+      h('div',{className:'fg'},h('label',null,'Warna'),h('div',{className:'clr'},COLORS.map(function(c){return h('div',{key:c,className:'co'+(f.color===c?' sel':''),style:{background:c},onClick:function(){uf(f,'color',c,sF)}})})))),
+    cfE)
 }
 
 /* ═══ TRANSACTIONS ═══ */
-function Txns(p){
-  var W=p.W,T=p.T,C=p.C,rT=p.rT,rW=p.rW;var t=uT();
-  var _m=useState(null),mo=_m[0],sM=_m[1];
-  var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
+function TxnsP(p){
+  var W=p.W,T=p.T,C=p.C,rT=p.rT,rW=p.rW;var t=useContext(TCtx);
+  var _m=useState(null),mo=_m[0],sM=_m[1];var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
   var _f=useState({type:'expense',wallet_id:'',category_id:'',amount:'',description:'',date:td()}),f=_f[0],sF=_f[1];
-  var _ft=useState('all'),fTy=_ft[0],sFT=_ft[1];
-  var _fw=useState('all'),fWl=_fw[0],sFW=_fw[1];
-  var _q=useState(''),q=_q[0],sQ=_q[1];
-  function uf(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;if(k==='type')n.category_id='';sF(n)}
-
-  var list=useMemo(function(){
-    var l=T.slice();
-    if(fTy!=='all')l=l.filter(function(t){return t.type===fTy});
-    if(fWl!=='all')l=l.filter(function(t){return t.wallet_id===fWl});
-    if(q.trim()){var s=q.toLowerCase();l=l.filter(function(t){return(t.description||'').toLowerCase().indexOf(s)>=0||cn(C,t.category_id).toLowerCase().indexOf(s)>=0})}
-    return l;
-  },[T,fTy,fWl,q,C]);
-
+  var _ft=useState('all'),fTy=_ft[0],sFT=_ft[1];var _fw=useState('all'),fWl=_fw[0],sFW=_fw[1];var _q=useState(''),q=_q[0],sQ=_q[1];
+  var list=useMemo(function(){var l=T.slice();if(fTy!=='all')l=l.filter(function(t){return t.type===fTy});if(fWl!=='all')l=l.filter(function(t){return t.wallet_id===fWl});if(q.trim()){var s=q.toLowerCase();l=l.filter(function(t){return(t.description||'').toLowerCase().indexOf(s)>=0||cn(C,t.category_id).toLowerCase().indexOf(s)>=0})}return l},[T,fTy,fWl,q,C]);
   function oA(){sF({type:'expense',wallet_id:W.length?W[0].id:'',category_id:'',amount:'',description:'',date:td()});sM({m:'add'})}
   function oE(tx){sF({type:tx.type,wallet_id:tx.wallet_id||'',category_id:tx.category_id||'',amount:String(tx.amount||0),description:tx.description||'',date:tx.date||td()});sM({m:'edit',d:tx})}
-  function save(){
-    if(!f.amount||Number(f.amount)<=0){t('Jumlah harus > 0','err');return}
-    var pay={type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,amount:Number(f.amount),description:f.description.trim(),date:f.date};
-    if(mo.m==='add'){
-      sb.from('transactions').insert(pay).then(function(r){
-        if(r.error){t(r.error.message,'err');return}
-        if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(){rW()})}}
-        t('Transaksi ditambahkan');sM(null);rT()})
-    }else{
-      sb.from('transactions').update(pay).eq('id',mo.d.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Transaksi diperbarui');sM(null);rT();rW()})
-    }
-  }
-  function del(tx){
-    cf('Hapus transaksi "'+(tx.description||fmtIDR(tx.amount))+'"?').then(function(ok){if(!ok)return;
-      sb.from('transactions').delete().eq('id',tx.id).then(function(r){if(r.error){t(r.error.message,'err');return}
-        if(tx.wallet_id){var w=fid(W,tx.wallet_id);if(w){var nb=tx.type==='income'?(Number(w.balance)||0)-Number(tx.amount):(Number(w.balance)||0)+Number(tx.amount);sb.from('wallets').update({balance:nb}).eq('id',tx.wallet_id).then(function(){rW()})}}
-        t('Transaksi dihapus');rT()})})
-  }
-  var rc=C.filter(function(c){return c.type===f.type});
-  return html`<${F}>
-    <div class="pg-hd"><div><h2>Transaksi</h2><p>Catatan pemasukan & pengeluaran</p></div><button class="btn bp" onClick=${oA}><${Ic} n="plus"/> Tambah</button></div>
-    <div class="fbar">
-      <input class="fi" placeholder="Cari..." value=${q} onInput=${function(e){sQ(e.target.value)}} style=${{maxWidth:200}}/>
-      <select class="fi" value=${fTy} onChange=${function(e){sFT(e.target.value)}} style=${{maxWidth:150}}><option value="all">Semua Tipe</option><option value="income">Pemasukan</option><option value="expense">Pengeluaran</option></select>
-      <select class="fi" value=${fWl} onChange=${function(e){sFW(e.target.value)}} style=${{maxWidth:160}}><option value="all">Semua Dompet</option>${W.map(function(w){return html`<option key=${w.id} value=${w.id}>${w.name}</option>`})}</select>
-    </div>
-    <div class="cd">${list.length===0?html`<div class="empty"><div class="ei">📋</div><h3>Tidak Ada Transaksi</h3><p>Mulai catat pemasukan dan pengeluaran</p></div>`:
-    html`<div class="tw"><table><thead><tr><th>Tanggal</th><th>Keterangan</th><th>Kategori</th><th>Dompet</th><th style=${{textAlign:'right'}}>Jumlah</th><th></th></tr></thead>
-    <tbody>${list.map(function(tx){return html`<tr key=${tx.id}>
-      <td style=${{color:'var(--t3)',fontSize:'.82rem',whiteSpace:'nowrap'}}>${fmtDate(tx.date)}</td>
-      <td style=${{fontWeight:500,maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>${tx.description||'-'}</td>
-      <td><span class="badge" style=${{background:tx.type==='income'?'var(--accbg)':'var(--redbg)',color:tx.type==='income'?'var(--acc)':'var(--red)'}}><span style=${{width:6,height:6,borderRadius:'50%',background:ccol(C,tx.category_id),display:'inline-block'}}/> ${cn(C,tx.category_id)}</span></td>
-      <td style=${{color:'var(--t2)',fontSize:'.84rem'}}>${wn(W,tx.wallet_id)}</td>
-      <td class=${tx.type==='income'?'txi':'txe'} style=${{textAlign:'right',fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}}>${tx.type==='income'?'+':'-'}${fmtIDR(tx.amount)}</td>
-      <td style=${{whiteSpace:'nowrap'}}><button class="bi" onClick=${function(){oE(tx)}}><${Ic} n="edit"/></button><button class="bi" style=${{color:'var(--red)'}} onClick=${function(){del(tx)}}><${Ic} n="trash"/></button></td>
-    </tr>`})}</tbody></table></div>`}</div>
-    <${Mod} open=${!!mo} onClose=${function(){sM(null)}} title=${mo&&mo.m==='add'?'Tambah Transaksi':'Edit Transaksi'} footer=${html`<${F}><button class="btn bs" onClick=${function(){sM(null)}}>Batal</button><button class="btn bp" onClick=${save}>${mo&&mo.m==='add'?'Tambah':'Simpan'}</button><//>`}>
-      <div class="fg"><label>Tipe</label><div class="tabs"><button class=${'tab'+(f.type==='expense'?' act':'')} onClick=${function(){uf('type','expense')}}>Pengeluaran</button><button class=${'tab'+(f.type==='income'?' act':'')} onClick=${function(){uf('type','income')}}>Pemasukan</button></div></div>
-      <div class="fr"><div class="fg"><label>Jumlah (Rp)</label><input class="fi" type="number" placeholder="0" value=${f.amount} onInput=${function(e){uf('amount',e.target.value)}}/></div><div class="fg"><label>Tanggal</label><input class="fi" type="date" value=${f.date} onInput=${function(e){uf('date',e.target.value)}}/></div></div>
-      <div class="fr"><div class="fg"><label>Dompet</label><select class="fi" value=${f.wallet_id} onChange=${function(e){uf('wallet_id',e.target.value)}}><option value="">Pilih dompet</option>${W.map(function(w){return html`<option key=${w.id} value=${w.id}>${w.name}</option>`})}</select></div><div class="fg"><label>Kategori</label><select class="fi" value=${f.category_id} onChange=${function(e){uf('category_id',e.target.value)}}><option value="">Pilih kategori</option>${rc.map(function(c){return html`<option key=${c.id} value=${c.id}>${c.name}</option>`})}</select></div></div>
-      <div class="fg"><label>Keterangan</label><input class="fi" placeholder="Deskripsi..." value=${f.description} onInput=${function(e){uf('description',e.target.value)}}/></div>
-    <//>
-    ${cfE}
-  <//>`;
+  function save(){if(!f.amount||Number(f.amount)<=0){t('Jumlah harus > 0','err');return}var pay={type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,amount:Number(f.amount),description:f.description.trim(),date:f.date};if(mo.m==='add'){sb.from('transactions').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(){rW()})}}t('Transaksi ditambahkan');sM(null);rT()})}else{sb.from('transactions').update(pay).eq('id',mo.d.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Transaksi diperbarui');sM(null);rT();rW()})}}
+  function del(tx){cf('Hapus "'+(tx.description||fmt(tx.amount))+'"?').then(function(ok){if(!ok)return;sb.from('transactions').delete().eq('id',tx.id).then(function(r){if(r.error){t(r.error.message,'err');return}if(tx.wallet_id){var w=fid(W,tx.wallet_id);if(w){var nb=tx.type==='income'?(Number(w.balance)||0)-Number(tx.amount):(Number(w.balance)||0)+Number(tx.amount);sb.from('wallets').update({balance:nb}).eq('id',tx.wallet_id).then(function(){rW()})}}t('Transaksi dihapus');rT()})})}
+  var relC=C.filter(function(c){return c.type===f.type});
+  return h(F,null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Transaksi'),h('p',null,'Catatan pemasukan & pengeluaran')),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah')),
+    h('div',{className:'fbar'},h('input',{className:'fi',placeholder:'Cari...',value:q,onInput:function(e){sQ(e.target.value)},style:{maxWidth:200}}),h('select',{className:'fi',value:fTy,onChange:function(e){sFT(e.target.value)},style:{maxWidth:150}},h('option',{value:'all'},'Semua Tipe'),h('option',{value:'income'},'Pemasukan'),h('option',{value:'expense'},'Pengeluaran')),h('select',{className:'fi',value:fWl,onChange:function(e){sFW(e.target.value)},style:{maxWidth:160}},h('option',{value:'all'},'Semua Dompet'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name)}))),
+    h('div',{className:'cd'},list.length===0?h('div',{className:'empty'},h('div',{className:'ei'},'📋'),h('h3',null,'Tidak Ada Transaksi'),h('p',null,'Mulai catat keuangan Anda')):
+    h('div',{className:'tw'},h('table',null,h('thead',null,h('tr',null,h('th',null,'Tanggal'),h('th',null,'Keterangan'),h('th',null,'Kategori'),h('th',null,'Dompet'),h('th',{style:{textAlign:'right'}},'Jumlah'),h('th'))),h('tbody',null,list.map(function(tx){return h('tr',{key:tx.id},h('td',{style:{color:'var(--t3)',fontSize:'.82rem',whiteSpace:'nowrap'}},fdt(tx.date)),h('td',{style:{fontWeight:500,maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},tx.description||'-'),h('td',null,h('span',{className:'badge',style:{background:tx.type==='income'?'var(--accbg)':'var(--redbg)',color:tx.type==='income'?'var(--acc)':'var(--red)'}},h('span',{style:{width:6,height:6,borderRadius:'50%',background:ccl(C,tx.category_id),display:'inline-block'}}),' ',cn(C,tx.category_id))),h('td',{style:{color:'var(--t2)',fontSize:'.84rem'}},wn(W,tx.wallet_id)),h('td',{className:tx.type==='income'?'txi':'txe',style:{textAlign:'right',fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem'}},tx.type==='income'?'+':'-',fmt(tx.amount)),h('td',{style:{whiteSpace:'nowrap'}},h('button',{className:'bi',onClick:function(){oE(tx)}},h(Ic,{n:'edit'})),h('button',{className:'bi',style:{color:'var(--red)'},onClick:function(){del(tx)}},h(Ic,{n:'trash'}))))}))))),
+    h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah Transaksi':'Edit Transaksi',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},mo&&mo.m==='add'?'Tambah':'Simpan'))},
+      h('div',{className:'fg'},h('label',null,'Tipe'),h('div',{className:'tabs'},h('button',{className:'tab'+(f.type==='expense'?' act':''),onClick:function(){uf(f,'type','expense',sF)}},'Pengeluaran'),h('button',{className:'tab'+(f.type==='income'?' act':''),onClick:function(){uf(f,'type','income',sF)}},'Pemasukan'))),
+      h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Jumlah (Rp)'),h('input',{className:'fi',type:'number',placeholder:'0',value:f.amount,onInput:function(e){uf(f,'amount',e.target.value,sF)}})),h('div',{className:'fg'},h('label',null,'Tanggal'),h('input',{className:'fi',type:'date',value:f.date,onInput:function(e){uf(f,'date',e.target.value,sF)}}))),
+      h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Dompet'),h('select',{className:'fi',value:f.wallet_id,onChange:function(e){uf(f,'wallet_id',e.target.value,sF)}},h('option',{value:''},'Pilih'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name)}))),h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category_id,onChange:function(e){uf(f,'category_id',e.target.value,sF)}},h('option',{value:''},'Pilih'),relC.map(function(c){return h('option',{key:c.id,value:c.id},c.name)})))),
+      h('div',{className:'fg'},h('label',null,'Keterangan'),h('input',{className:'fi',placeholder:'Deskripsi...',value:f.description,onInput:function(e){uf(f,'description',e.target.value,sF)}}))),
+    cfE)
 }
 
 /* ═══ CATEGORIES ═══ */
-function Cats(p){
-  var C=p.C,rC=p.rC;var t=uT();
-  var _m=useState(null),mo=_m[0],sM=_m[1];
-  var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
+function CatsP(p){
+  var C=p.C,rC=p.rC;var t=useContext(TCtx);
+  var _m=useState(null),mo=_m[0],sM=_m[1];var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
   var _f=useState({name:'',type:'expense',color:COLORS[0]}),f=_f[0],sF=_f[1];
   var _tb=useState('expense'),tab=_tb[0],sTb=_tb[1];
-  function uf(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
-  function oA(){sF({name:'',type:tab,color:rndColor()});sM({m:'add'})}
+  function oA(){sF({name:'',type:tab,color:rc()});sM({m:'add'})}
   function oE(c){sF({name:c.name,type:c.type,color:c.color||COLORS[0]});sM({m:'edit',d:c})}
-  function save(){
-    if(!f.name.trim()){t('Nama wajib diisi','err');return}
-    var pay={name:f.name.trim(),type:f.type,color:f.color};
-    var q=mo.m==='add'?sb.from('categories').insert(pay):sb.from('categories').update(pay).eq('id',mo.d.id);
-    q.then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Kategori ditambahkan':'Kategori diperbarui');sM(null);rC()})
-  }
-  function del(c){cf('Hapus kategori "'+c.name+'"?').then(function(ok){if(!ok)return;sb.from('categories').delete().eq('id',c.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Kategori dihapus');rC()})})}
-  var eC=C.filter(function(c){return c.type==='expense'}),iC=C.filter(function(c){return c.type==='income'});
-  var sh=tab==='expense'?eC:iC;
-  return html`<${F}>
-    <div class="pg-hd"><div><h2>Kategori</h2><p>Kelola kategori pemasukan & pengeluaran</p></div><button class="btn bp" onClick=${oA}><${Ic} n="plus"/> Tambah</button></div>
-    <div class="tabs" style=${{marginBottom:18}}><button class=${'tab'+(tab==='expense'?' act':'')} onClick=${function(){sTb('expense')}}>Pengeluaran (${eC.length})</button><button class=${'tab'+(tab==='income'?' act':'')} onClick=${function(){sTb('income')}}>Pemasukan (${iC.length})</button></div>
-    ${sh.length===0?html`<div class="cd"><div class="empty"><div class="ei">🏷️</div><h3>Belum Ada Kategori ${tab==='expense'?'Pengeluaran':'Pemasukan'}</h3><p>Tambahkan kategori untuk mengelompokkan transaksi</p></div></div>`:
-    html`<div class="cg">${sh.map(function(c){return html`<div key=${c.id} class="cd cc">
-      <div class="cc-dot" style=${{background:c.color||'var(--acc)'}}/>
-      <div class="cc-nm">${c.name}</div>
-      <div class="cc-act"><button class="bi" style=${{width:30,height:30}} onClick=${function(){oE(c)}}><${Ic} n="edit"/></button><button class="bi" style=${{width:30,height:30,color:'var(--red)'}} onClick=${function(){del(c)}}><${Ic} n="trash"/></button></div>
-    </div>`})}</div>`}
-    <div class="cd" style=${{marginTop:24,borderColor:'#1e3a5f'}}>
-      <h3 style=${{fontSize:'.9rem',color:'var(--blu)',marginBottom:8}}>📌 SQL untuk tabel categories</h3>
-      <p style=${{fontSize:'.78rem',color:'var(--t3)',marginBottom:10}}>Jalankan di Supabase SQL Editor jika tabel belum ada:</p>
-      <pre style=${{background:'var(--bgi)',padding:14,borderRadius:'var(--rs)',fontSize:'.72rem',color:'var(--cyn)',overflow:'auto',lineHeight:1.6,whiteSpace:'pre-wrap'}}>${"CREATE TABLE IF NOT EXISTS categories (\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n  name TEXT NOT NULL,\n  type TEXT NOT NULL CHECK (type IN ('income','expense')),\n  color TEXT DEFAULT '#10b981',\n  created_at TIMESTAMPTZ DEFAULT NOW()\n);\n\nALTER TABLE categories ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Allow all\" ON categories FOR ALL USING (true) WITH CHECK (true);"}</pre>
-    </div>
-    <${Mod} open=${!!mo} onClose=${function(){sM(null)}} title=${mo&&mo.m==='add'?'Tambah Kategori':'Edit Kategori'} footer=${html`<${F}><button class="btn bs" onClick=${function(){sM(null)}}>Batal</button><button class="btn bp" onClick=${save}>${mo&&mo.m==='add'?'Tambah':'Simpan'}</button><//>`}>
-      <div class="fg"><label>Nama Kategori</label><input class="fi" placeholder="cth: Makan, Transport, Gaji..." value=${f.name} onInput=${function(e){uf('name',e.target.value)}}/></div>
-      <div class="fg"><label>Tipe</label><div class="tabs"><button class=${'tab'+(f.type==='expense'?' act':'')} onClick=${function(){uf('type','expense')}}>Pengeluaran</button><button class=${'tab'+(f.type==='income'?' act':'')} onClick=${function(){uf('type','income')}}>Pemasukan</button></div></div>
-      <div class="fg"><label>Warna</label><div class="clr">${COLORS.map(function(c){return html`<div key=${c} class=${'co'+(f.color===c?' sel':'')} style=${{background:c}} onClick=${function(){uf('color',c)}}/>`})}</div></div>
-    <//>
-    ${cfE}
-  <//>`;
+  function save(){if(!f.name.trim()){t('Nama wajib diisi','err');return}var pay={name:f.name.trim(),type:f.type,color:f.color};(mo.m==='add'?sb.from('categories').insert(pay):sb.from('categories').update(pay).eq('id',mo.d.id)).then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Kategori ditambahkan':'Kategori diperbarui');sM(null);rC()})}
+  function del(c){cf('Hapus "'+c.name+'"?').then(function(ok){if(!ok)return;sb.from('categories').delete().eq('id',c.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Kategori dihapus');rC()})})}
+  var eC=C.filter(function(c){return c.type==='expense'}),iC=C.filter(function(c){return c.type==='income'}),sh=tab==='expense'?eC:iC;
+  return h(F,null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Kategori'),h('p',null,'Kelola kategori pemasukan & pengeluaran')),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah')),
+    h('div',{className:'tabs',style:{marginBottom:18}},h('button',{className:'tab'+(tab==='expense'?' act':''),onClick:function(){sTb('expense')}},'Pengeluaran (',eC.length,')'),h('button',{className:'tab'+(tab==='income'?' act':''),onClick:function(){sTb('income')}},'Pemasukan (',iC.length,')')),
+    sh.length===0?h('div',{className:'cd'},h('div',{className:'empty'},h('div',{className:'ei'},'🏷️'),h('h3',null,'Belum Ada Kategori ',tab==='expense'?'Pengeluaran':'Pemasukan'),h('p',null,'Tambahkan kategori'))):
+    h('div',{className:'cg'},sh.map(function(c){return h('div',{key:c.id,className:'cd cc'},h('div',{className:'cc-dot',style:{background:c.color||'var(--acc)'}}),h('div',{className:'cc-nm'},c.name),h('div',{className:'cc-act'},h('button',{className:'bi',style:{width:30,height:30},onClick:function(){oE(c)}},h(Ic,{n:'edit'})),h('button',{className:'bi',style:{width:30,height:30,color:'var(--red)'},onClick:function(){del(c)}},h(Ic,{n:'trash'}))))})),
+    h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah Kategori':'Edit Kategori',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},mo&&mo.m==='add'?'Tambah':'Simpan'))},
+      h('div',{className:'fg'},h('label',null,'Nama'),h('input',{className:'fi',placeholder:'cth: Makan, Gaji...',value:f.name,onInput:function(e){uf(f,'name',e.target.value,sF)}})),
+      h('div',{className:'fg'},h('label',null,'Tipe'),h('div',{className:'tabs'},h('button',{className:'tab'+(f.type==='expense'?' act':''),onClick:function(){uf(f,'type','expense',sF)}},'Pengeluaran'),h('button',{className:'tab'+(f.type==='income'?' act':''),onClick:function(){uf(f,'type','income',sF)}},'Pemasukan'))),
+      h('div',{className:'fg'},h('label',null,'Warna'),h('div',{className:'clr'},COLORS.map(function(c){return h('div',{key:c,className:'co'+(f.color===c?' sel':''),style:{background:c},onClick:function(){uf(f,'color',c,sF)}})})))),
+    cfE)
 }
 
 /* ═══ BUDGETS ═══ */
-function Budg(p){
-  var B=p.B,C=p.C,T=p.T,rB=p.rB;var t=uT();
-  var _m=useState(null),mo=_m[0],sM=_m[1];
-  var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
+function BudgP(p){
+  var B=p.B,C=p.C,T=p.T,rB=p.rB;var t=useContext(TCtx);
+  var _m=useState(null),mo=_m[0],sM=_m[1];var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
   var _f=useState({category_id:'',amount:'',period:'monthly'}),f=_f[0],sF=_f[1];
   var eC=C.filter(function(c){return c.type==='expense'});
-  function uf(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
   function oA(){sF({category_id:eC.length?eC[0].id:'',amount:'',period:'monthly'});sM({m:'add'})}
   function oE(b){sF({category_id:b.category_id||'',amount:String(b.amount||0),period:b.period||'monthly'});sM({m:'edit',d:b})}
-  function save(){
-    if(!f.amount||Number(f.amount)<=0){t('Jumlah harus > 0','err');return}
-    var pay={category_id:f.category_id||null,amount:Number(f.amount),period:f.period};
-    var q=mo.m==='add'?sb.from('budgets').insert(pay):sb.from('budgets').update(pay).eq('id',mo.d.id);
-    q.then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Anggaran ditambahkan':'Anggaran diperbarui');sM(null);rB()})
-  }
-  function del(b){cf('Hapus anggaran "'+cn(C,b.category_id)+'"?').then(function(ok){if(!ok)return;sb.from('budgets').delete().eq('id',b.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Anggaran dihapus');rB()})})}
-  return html`<${F}>
-    <div class="pg-hd"><div><h2>Anggaran</h2><p>Atur batas pengeluaran per kategori</p></div><button class="btn bp" onClick=${oA}><${Ic} n="plus"/> Tambah</button></div>
-    ${B.length===0?html`<div class="cd"><div class="empty"><div class="ei">📊</div><h3>Belum Ada Anggaran</h3><p>Tetapkan batas pengeluaran</p></div></div>`:
-    html`<div style=${{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:14}}>${B.map(function(b){
-      var cat=fid(C,b.category_id),nm=cat?cat.name:'-',cl=cat?(cat.color||'var(--acc)'):'var(--acc)';
-      var sp=T.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
-      var pct=b.amount>0?Math.min((sp/b.amount)*100,100):0,ov=sp>b.amount;
-      return html`<div key=${b.id} class="cd">
-        <div style=${{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-          <div><div style=${{display:'flex',alignItems:'center',gap:8,marginBottom:4}}><span style=${{width:10,height:10,borderRadius:'50%',background:cl}}/><span style=${{fontWeight:600,fontSize:'.95rem'}}>${nm}</span></div><div style=${{fontSize:'.76rem',color:'var(--t3)',textTransform:'capitalize'}}>${b.period||'monthly'}</div></div>
-          <div style=${{display:'flex',gap:4}}><button class="bi" style=${{width:30,height:30}} onClick=${function(){oE(b)}}><${Ic} n="edit"/></button><button class="bi" style=${{width:30,height:30,color:'var(--red)'}} onClick=${function(){del(b)}}><${Ic} n="trash"/></button></div>
-        </div>
-        <div style=${{marginTop:12,display:'flex',justifyContent:'space-between',alignItems:'baseline'}}><span style=${{fontFamily:'Outfit',fontWeight:700,fontSize:'1.15rem',color:ov?'var(--red)':'#fff'}}>${fmtIDR(sp)}</span><span style=${{fontSize:'.8rem',color:'var(--t3)'}}>dari ${fmtIDR(b.amount)}</span></div>
-        <div class="bbg"><div class="bfill" style=${{width:pct+'%',background:ov?'var(--red)':pct>70?'var(--org)':cl}}/></div>
-        <div style=${{textAlign:'right',fontSize:'.73rem',color:ov?'var(--red)':'var(--t3)',marginTop:4}}>${Math.round(pct)}%${ov?' — Over budget!':''}</div>
-      </div>`})}</div>`}
-    <${Mod} open=${!!mo} onClose=${function(){sM(null)}} title=${mo&&mo.m==='add'?'Tambah Anggaran':'Edit Anggaran'} footer=${html`<${F}><button class="btn bs" onClick=${function(){sM(null)}}>Batal</button><button class="btn bp" onClick=${save}>${mo&&mo.m==='add'?'Tambah':'Simpan'}</button><//>`}>
-      <div class="fg"><label>Kategori Pengeluaran</label><select class="fi" value=${f.category_id} onChange=${function(e){uf('category_id',e.target.value)}}><option value="">Pilih</option>${eC.map(function(c){return html`<option key=${c.id} value=${c.id}>${c.name}</option>`})}</select></div>
-      <div class="fr"><div class="fg"><label>Batas (Rp)</label><input class="fi" type="number" placeholder="0" value=${f.amount} onInput=${function(e){uf('amount',e.target.value)}}/></div><div class="fg"><label>Periode</label><select class="fi" value=${f.period} onChange=${function(e){uf('period',e.target.value)}}><option value="monthly">Bulanan</option><option value="weekly">Mingguan</option><option value="yearly">Tahunan</option></select></div></div>
-    <//>
-    ${cfE}
-  <//>`;
+  function save(){if(!f.amount||Number(f.amount)<=0){t('Jumlah > 0','err');return}var pay={category_id:f.category_id||null,amount:Number(f.amount),period:f.period};(mo.m==='add'?sb.from('budgets').insert(pay):sb.from('budgets').update(pay).eq('id',mo.d.id)).then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Ditambahkan':'Diperbarui');sM(null);rB()})}
+  function del(b){cf('Hapus anggaran "'+cn(C,b.category_id)+'"?').then(function(ok){if(!ok)return;sb.from('budgets').delete().eq('id',b.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dihapus');rB()})})}
+  return h(F,null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Anggaran'),h('p',null,'Batas pengeluaran per kategori')),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah')),
+    B.length===0?h('div',{className:'cd'},h('div',{className:'empty'},h('div',{className:'ei'},'📊'),h('h3',null,'Belum Ada Anggaran'))):
+    h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:14}},B.map(function(b){var cat=fid(C,b.category_id),nm=cat?cat.name:'-',cl=cat?(cat.color||'var(--acc)'):'var(--acc)';var sp=T.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);var pct=b.amount>0?Math.min((sp/b.amount)*100,100):0,ov=sp>b.amount;
+    return h('div',{key:b.id,className:'cd'},h('div',{style:{display:'flex',justifyContent:'space-between'}},h('div',null,h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:4}},h('span',{style:{width:10,height:10,borderRadius:'50%',background:cl}}),h('span',{style:{fontWeight:600}},nm)),h('div',{style:{fontSize:'.76rem',color:'var(--t3)',textTransform:'capitalize'}},b.period||'monthly')),h('div',{style:{display:'flex',gap:4}},h('button',{className:'bi',style:{width:30,height:30},onClick:function(){oE(b)}},h(Ic,{n:'edit'})),h('button',{className:'bi',style:{width:30,height:30,color:'var(--red)'},onClick:function(){del(b)}},h(Ic,{n:'trash'})))),h('div',{style:{marginTop:12,display:'flex',justifyContent:'space-between',alignItems:'baseline'}},h('span',{style:{fontFamily:'Outfit',fontWeight:700,fontSize:'1.15rem',color:ov?'var(--red)':'#fff'}},fmt(sp)),h('span',{style:{fontSize:'.8rem',color:'var(--t3)'}},'dari ',fmt(b.amount))),h('div',{className:'bbg'},h('div',{className:'bfill',style:{width:pct+'%',background:ov?'var(--red)':pct>70?'var(--org)':cl}})))})),
+    h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah Anggaran':'Edit Anggaran',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},mo&&mo.m==='add'?'Tambah':'Simpan'))},
+      h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category_id,onChange:function(e){uf(f,'category_id',e.target.value,sF)}},h('option',{value:''},'Pilih'),eC.map(function(c){return h('option',{key:c.id,value:c.id},c.name)}))),
+      h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Batas (Rp)'),h('input',{className:'fi',type:'number',placeholder:'0',value:f.amount,onInput:function(e){uf(f,'amount',e.target.value,sF)}})),h('div',{className:'fg'},h('label',null,'Periode'),h('select',{className:'fi',value:f.period,onChange:function(e){uf(f,'period',e.target.value,sF)}},h('option',{value:'monthly'},'Bulanan'),h('option',{value:'weekly'},'Mingguan'),h('option',{value:'yearly'},'Tahunan'))))),
+    cfE)
 }
 
 /* ═══ INVESTMENTS ═══ */
-function Inv(p){
-  var I=p.I,rI=p.rI;var t=uT();
-  var _m=useState(null),mo=_m[0],sM=_m[1];
-  var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
+function InvP(p){
+  var I=p.I,rI=p.rI;var t=useContext(TCtx);
+  var _m=useState(null),mo=_m[0],sM=_m[1];var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
   var _f=useState({name:'',type:'stock',amount:'',current_value:'',purchase_date:td()}),f=_f[0],sF=_f[1];
-  function uf(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
   function oA(){sF({name:'',type:'stock',amount:'',current_value:'',purchase_date:td()});sM({m:'add'})}
   function oE(i){sF({name:i.name||'',type:i.type||'stock',amount:String(i.amount||0),current_value:String(i.current_value||0),purchase_date:i.purchase_date||td()});sM({m:'edit',d:i})}
-  function save(){
-    if(!f.name.trim()){t('Nama wajib diisi','err');return}
-    var pay={name:f.name.trim(),type:f.type,amount:Number(f.amount)||0,current_value:Number(f.current_value)||0,purchase_date:f.purchase_date};
-    var q=mo.m==='add'?sb.from('investments').insert(pay):sb.from('investments').update(pay).eq('id',mo.d.id);
-    q.then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Investasi ditambahkan':'Investasi diperbarui');sM(null);rI()})
-  }
-  function del(i){cf('Hapus "'+i.name+'"?').then(function(ok){if(!ok)return;sb.from('investments').delete().eq('id',i.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Investasi dihapus');rI()})})}
-  var tI=I.reduce(function(s,i){return s+(Number(i.amount)||0)},0);
-  var tC=I.reduce(function(s,i){return s+(Number(i.current_value)||Number(i.amount)||0)},0);
-  var tGL=tC-tI;
+  function save(){if(!f.name.trim()){t('Nama wajib','err');return}var pay={name:f.name.trim(),type:f.type,amount:Number(f.amount)||0,current_value:Number(f.current_value)||0,purchase_date:f.purchase_date};(mo.m==='add'?sb.from('investments').insert(pay):sb.from('investments').update(pay).eq('id',mo.d.id)).then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Ditambahkan':'Diperbarui');sM(null);rI()})}
+  function del(i){cf('Hapus "'+i.name+'"?').then(function(ok){if(!ok)return;sb.from('investments').delete().eq('id',i.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dihapus');rI()})})}
+  var tI=I.reduce(function(s,i){return s+(Number(i.amount)||0)},0),tC=I.reduce(function(s,i){return s+(Number(i.current_value)||Number(i.amount)||0)},0),tGL=tC-tI;
   var tl={stock:'Saham',crypto:'Crypto',mutual_fund:'Reksa Dana',bond:'Obligasi',gold:'Emas',property:'Properti',other:'Lainnya'};
-  return html`<${F}>
-    <div class="pg-hd"><div><h2>Investasi</h2><p>Pantau portofolio investasi Anda</p></div><button class="btn bp" onClick=${oA}><${Ic} n="plus"/> Tambah</button></div>
-    <div class="sg">
-      <div class="cd st"><div class="lb">Total Investasi</div><div class="vl">${fmtIDR(tI)}</div></div>
-      <div class="cd st"><div class="lb">Nilai Saat Ini</div><div class="vl" style=${{color:'var(--blu)'}}>${fmtIDR(tC)}</div></div>
-      <div class="cd st"><div class="lb">Gain/Loss</div><div class="vl" style=${{color:tGL>=0?'var(--acc)':'var(--red)'}}>${tGL>=0?'+':''}${fmtIDR(tGL)}</div>${tI>0&&html`<div class="sub">${tGL>=0?'+':''}${((tGL/tI)*100).toFixed(1)}%</div>`}</div>
-    </div>
-    ${I.length===0?html`<div class="cd"><div class="empty"><div class="ei">📈</div><h3>Belum Ada Investasi</h3><p>Mulai catat portofolio Anda</p></div></div>`:
-    html`<div class="cd"><div class="tw"><table><thead><tr><th>Nama</th><th>Tipe</th><th style=${{textAlign:'right'}}>Modal</th><th style=${{textAlign:'right'}}>Nilai</th><th style=${{textAlign:'right'}}>G/L</th><th>Tanggal</th><th></th></tr></thead>
-    <tbody>${I.map(function(i){
-      var gl=(Number(i.current_value)||0)-(Number(i.amount)||0);var pc=i.amount>0?((gl/i.amount)*100).toFixed(1):0;
-      return html`<tr key=${i.id}>
-        <td style=${{fontWeight:600}}>${i.name}</td>
-        <td><span class="badge" style=${{background:'rgba(59,130,246,.08)',color:'var(--blu)'}}>${tl[i.type]||i.type||'-'}</span></td>
-        <td style=${{textAlign:'right',fontFamily:'Outfit'}}>${fmtIDR(i.amount)}</td>
-        <td style=${{textAlign:'right',fontFamily:'Outfit'}}>${fmtIDR(i.current_value)}</td>
-        <td style=${{textAlign:'right',fontFamily:'Outfit',fontWeight:600,color:gl>=0?'var(--acc)':'var(--red)'}}>${gl>=0?'+':''}${fmtIDR(gl)} <span style=${{fontSize:'.73rem',fontWeight:400}}>(${gl>=0?'+':''}${pc}%)</span></td>
-        <td style=${{color:'var(--t3)',fontSize:'.82rem'}}>${fmtDate(i.purchase_date)}</td>
-        <td style=${{whiteSpace:'nowrap'}}><button class="bi" onClick=${function(){oE(i)}}><${Ic} n="edit"/></button><button class="bi" style=${{color:'var(--red)'}} onClick=${function(){del(i)}}><${Ic} n="trash"/></button></td>
-      </tr>`})}</tbody></table></div></div>`}
-    <${Mod} open=${!!mo} onClose=${function(){sM(null)}} title=${mo&&mo.m==='add'?'Tambah Investasi':'Edit Investasi'} footer=${html`<${F}><button class="btn bs" onClick=${function(){sM(null)}}>Batal</button><button class="btn bp" onClick=${save}>${mo&&mo.m==='add'?'Tambah':'Simpan'}</button><//>`}>
-      <div class="fg"><label>Nama Aset</label><input class="fi" placeholder="cth: BBCA, Bitcoin, Emas..." value=${f.name} onInput=${function(e){uf('name',e.target.value)}}/></div>
-      <div class="fr"><div class="fg"><label>Tipe</label><select class="fi" value=${f.type} onChange=${function(e){uf('type',e.target.value)}}><option value="stock">Saham</option><option value="crypto">Crypto</option><option value="mutual_fund">Reksa Dana</option><option value="bond">Obligasi</option><option value="gold">Emas</option><option value="property">Properti</option><option value="other">Lainnya</option></select></div><div class="fg"><label>Tanggal Beli</label><input class="fi" type="date" value=${f.purchase_date} onInput=${function(e){uf('purchase_date',e.target.value)}}/></div></div>
-      <div class="fr"><div class="fg"><label>Modal (Rp)</label><input class="fi" type="number" placeholder="0" value=${f.amount} onInput=${function(e){uf('amount',e.target.value)}}/></div><div class="fg"><label>Nilai Saat Ini (Rp)</label><input class="fi" type="number" placeholder="0" value=${f.current_value} onInput=${function(e){uf('current_value',e.target.value)}}/></div></div>
-    <//>
-    ${cfE}
-  <//>`;
+  return h(F,null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Investasi'),h('p',null,'Pantau portofolio Anda')),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah')),
+    h('div',{className:'sg'},h('div',{className:'cd st'},h('div',{className:'lb'},'Total Investasi'),h('div',{className:'vl'},fmt(tI))),h('div',{className:'cd st'},h('div',{className:'lb'},'Nilai Saat Ini'),h('div',{className:'vl',style:{color:'var(--blu)'}},fmt(tC))),h('div',{className:'cd st'},h('div',{className:'lb'},'Gain/Loss'),h('div',{className:'vl',style:{color:tGL>=0?'var(--acc)':'var(--red)'}},tGL>=0?'+':'',fmt(tGL)),tI>0?h('div',{className:'sub'},(tGL>=0?'+':'')+((tGL/tI)*100).toFixed(1)+'%'):null)),
+    I.length===0?h('div',{className:'cd'},h('div',{className:'empty'},h('div',{className:'ei'},'📈'),h('h3',null,'Belum Ada Investasi'))):
+    h('div',{className:'cd'},h('div',{className:'tw'},h('table',null,h('thead',null,h('tr',null,h('th',null,'Nama'),h('th',null,'Tipe'),h('th',{style:{textAlign:'right'}},'Modal'),h('th',{style:{textAlign:'right'}},'Nilai'),h('th',{style:{textAlign:'right'}},'G/L'),h('th',null,'Tgl'),h('th'))),h('tbody',null,I.map(function(i){var gl=(Number(i.current_value)||0)-(Number(i.amount)||0),pc=i.amount>0?((gl/i.amount)*100).toFixed(1):0;return h('tr',{key:i.id},h('td',{style:{fontWeight:600}},i.name),h('td',null,h('span',{className:'badge',style:{background:'rgba(59,130,246,.08)',color:'var(--blu)'}},tl[i.type]||i.type||'-')),h('td',{style:{textAlign:'right',fontFamily:'Outfit'}},fmt(i.amount)),h('td',{style:{textAlign:'right',fontFamily:'Outfit'}},fmt(i.current_value)),h('td',{style:{textAlign:'right',fontFamily:'Outfit',fontWeight:600,color:gl>=0?'var(--acc)':'var(--red)'}},gl>=0?'+':'',fmt(gl),' (',gl>=0?'+':'',pc,'%)'),h('td',{style:{color:'var(--t3)',fontSize:'.82rem'}},fdt(i.purchase_date)),h('td',{style:{whiteSpace:'nowrap'}},h('button',{className:'bi',onClick:function(){oE(i)}},h(Ic,{n:'edit'})),h('button',{className:'bi',style:{color:'var(--red)'},onClick:function(){del(i)}},h(Ic,{n:'trash'}))))}))))),
+    h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah Investasi':'Edit Investasi',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},mo&&mo.m==='add'?'Tambah':'Simpan'))},
+      h('div',{className:'fg'},h('label',null,'Nama Aset'),h('input',{className:'fi',placeholder:'cth: BBCA, BTC...',value:f.name,onInput:function(e){uf(f,'name',e.target.value,sF)}})),
+      h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Tipe'),h('select',{className:'fi',value:f.type,onChange:function(e){uf(f,'type',e.target.value,sF)}},h('option',{value:'stock'},'Saham'),h('option',{value:'crypto'},'Crypto'),h('option',{value:'mutual_fund'},'Reksa Dana'),h('option',{value:'bond'},'Obligasi'),h('option',{value:'gold'},'Emas'),h('option',{value:'property'},'Properti'),h('option',{value:'other'},'Lainnya'))),h('div',{className:'fg'},h('label',null,'Tanggal Beli'),h('input',{className:'fi',type:'date',value:f.purchase_date,onInput:function(e){uf(f,'purchase_date',e.target.value,sF)}}))),
+      h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Modal (Rp)'),h('input',{className:'fi',type:'number',placeholder:'0',value:f.amount,onInput:function(e){uf(f,'amount',e.target.value,sF)}})),h('div',{className:'fg'},h('label',null,'Nilai Saat Ini (Rp)'),h('input',{className:'fi',type:'number',placeholder:'0',value:f.current_value,onInput:function(e){uf(f,'current_value',e.target.value,sF)}})))),
+    cfE)
 }
 
 /* ═══ MOUNT ═══ */
-ReactDOM.createRoot(document.getElementById('root')).render(
-  React.createElement(TP, null, React.createElement(App, null))
-);
+ReactDOM.createRoot(document.getElementById('root')).render(h(TP,null,h(App)));
+} /* end else guard */
 </script>
 </body>
 </html>
