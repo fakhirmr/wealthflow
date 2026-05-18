@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="id">
 <head>
 <meta charset="UTF-8">
@@ -24,63 +23,63 @@ input,select,textarea{font-family:inherit;outline:none}
 ::-webkit-scrollbar-thumb{background:#2d3748;border-radius:3px}
 
 :root{
-–bg:#0b0f1a;–bgc:#131a2b;–bgc2:#1a2236;–bgi:#0f1525;
-–brd:#1e293b;–acc:#10b981;–acc2:#34d399;–accd:#059669;–accbg:rgba(16,185,129,.08);
-–red:#ef4444;–redbg:rgba(239,68,68,.08);–org:#f59e0b;–blu:#3b82f6;–pur:#8b5cf6;–cyn:#06b6d4;
-–t1:#e2e8f0;–t2:#94a3b8;–t3:#64748b;
-–sw:260px;–rad:12px;–rs:8px;
+  --bg:#0b0f1a;--bgc:#131a2b;--bgc2:#1a2236;--bgi:#0f1525;
+  --brd:#1e293b;--acc:#10b981;--acc2:#34d399;--accd:#059669;--accbg:rgba(16,185,129,.08);
+  --red:#ef4444;--redbg:rgba(239,68,68,.08);--org:#f59e0b;--blu:#3b82f6;--pur:#8b5cf6;--cyn:#06b6d4;
+  --t1:#e2e8f0;--t2:#94a3b8;--t3:#64748b;
+  --sw:260px;--rad:12px;--rs:8px;
 }
 
 #root{display:flex;min-height:100vh;width:100%}
 
 /* SIDEBAR */
-.sb{position:fixed;left:0;top:0;bottom:0;width:var(–sw);background:#0d1220;border-right:1px solid var(–brd);display:flex;flex-direction:column;z-index:100;transition:transform .3s}
+.sb{position:fixed;left:0;top:0;bottom:0;width:var(--sw);background:#0d1220;border-right:1px solid var(--brd);display:flex;flex-direction:column;z-index:100;transition:transform .3s}
 .sb-brand{padding:24px 22px 18px;display:flex;align-items:center;gap:12px}
-.sb-logo{width:38px;height:38px;background:linear-gradient(135deg,var(–acc),var(–cyn));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;font-family:‘Outfit’,sans-serif}
+.sb-logo{width:38px;height:38px;background:linear-gradient(135deg,var(--acc),var(--cyn));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;font-family:'Outfit',sans-serif}
 .sb-brand h1{font-size:1.25rem;color:#fff;font-weight:700}
-.sb-brand h1 span{color:var(–acc)}
+.sb-brand h1 span{color:var(--acc)}
 .sb-nav{flex:1;padding:8px 12px;display:flex;flex-direction:column;gap:2px}
-.nv{display:flex;align-items:center;gap:14px;padding:11px 16px;border-radius:var(–rs);color:var(–t2);font-size:.9rem;font-weight:500;transition:all .2s;background:transparent;width:100%;text-align:left}
-.nv:hover{background:var(–bgc);color:var(–t1)}
-.nv.act{background:var(–accbg);color:var(–acc)}
+.nv{display:flex;align-items:center;gap:14px;padding:11px 16px;border-radius:var(--rs);color:var(--t2);font-size:.9rem;font-weight:500;transition:all .2s;background:transparent;width:100%;text-align:left}
+.nv:hover{background:var(--bgc);color:var(--t1)}
+.nv.act{background:var(--accbg);color:var(--acc)}
 .nv svg{width:20px;height:20px;flex-shrink:0}
-.sb-ft{padding:14px 20px;border-top:1px solid var(–brd);font-size:.72rem;color:var(–t3);text-align:center}
+.sb-ft{padding:14px 20px;border-top:1px solid var(--brd);font-size:.72rem;color:var(--t3);text-align:center}
 
 /* MAIN */
-.main{margin-left:var(–sw);flex:1;min-height:100vh;width:calc(100% - var(–sw))}
+.main{margin-left:var(--sw);flex:1;min-height:100vh;width:calc(100% - var(--sw))}
 .pg{padding:28px 36px;max-width:1600px;width:100%}
 .pg-hd{margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
 .pg-hd h2{font-size:1.55rem;color:#fff}
-.pg-hd p{color:var(–t2);font-size:.85rem;margin-top:2px}
+.pg-hd p{color:var(--t2);font-size:.85rem;margin-top:2px}
 
 /* CARDS */
-.cd{background:var(–bgc);border:1px solid var(–brd);border-radius:var(–rad);padding:22px;transition:border-color .2s}
+.cd{background:var(--bgc);border:1px solid var(--brd);border-radius:var(--rad);padding:22px;transition:border-color .2s}
 .cd:hover{border-color:#2d3748}
 .sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:24px}
-.st .lb{font-size:.8rem;color:var(–t2);margin-bottom:8px}
-.st .vl{font-size:1.45rem;font-weight:700;font-family:‘Outfit’,sans-serif;color:#fff}
-.st .sub{font-size:.78rem;color:var(–t3);margin-top:4px}
+.st .lb{font-size:.8rem;color:var(--t2);margin-bottom:8px}
+.st .vl{font-size:1.45rem;font-weight:700;font-family:'Outfit',sans-serif;color:#fff}
+.st .sub{font-size:.78rem;color:var(--t3);margin-top:4px}
 .si{width:34px;height:34px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:10px}
 
 /* BUTTONS */
-.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(–rs);font-size:.86rem;font-weight:600;transition:all .2s}
-.bp{background:var(–acc);color:#fff}.bp:hover{background:var(–accd);transform:translateY(-1px)}
-.bs{background:var(–bgc);color:var(–t1);border:1px solid var(–brd)}.bs:hover{border-color:var(–t3)}
-.bd{background:var(–redbg);color:var(–red)}.bd:hover{background:rgba(239,68,68,.15)}
-.bi{width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:var(–rs);background:transparent;color:var(–t2);transition:all .15s;border:none}
-.bi:hover{background:var(–bgc);color:var(–t1)}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--rs);font-size:.86rem;font-weight:600;transition:all .2s}
+.bp{background:var(--acc);color:#fff}.bp:hover{background:var(--accd);transform:translateY(-1px)}
+.bs{background:var(--bgc);color:var(--t1);border:1px solid var(--brd)}.bs:hover{border-color:var(--t3)}
+.bd{background:var(--redbg);color:var(--red)}.bd:hover{background:rgba(239,68,68,.15)}
+.bi{width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:var(--rs);background:transparent;color:var(--t2);transition:all .15s;border:none}
+.bi:hover{background:var(--bgc);color:var(--t1)}
 
 /* FORMS */
 .fg{margin-bottom:16px}
-.fg label{display:block;font-size:.78rem;font-weight:600;color:var(–t2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
-.fi{width:100%;padding:10px 13px;background:var(–bgi);border:1px solid var(–brd);border-radius:var(–rs);color:var(–t1);font-size:.9rem;transition:border-color .2s}
-.fi:focus{border-color:var(–acc);box-shadow:0 0 0 3px rgba(16,185,129,.1)}
-.fi::placeholder{color:var(–t3)}
+.fg label{display:block;font-size:.78rem;font-weight:600;color:var(--t2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.fi{width:100%;padding:10px 13px;background:var(--bgi);border:1px solid var(--brd);border-radius:var(--rs);color:var(--t1);font-size:.9rem;transition:border-color .2s}
+.fi:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(16,185,129,.1)}
+.fi::placeholder{color:var(--t3)}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
 /* MODAL */
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .2s}
-.moc{background:var(–bgc);border:1px solid var(–brd);border-radius:16px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;animation:slideUp .25s}
+.moc{background:var(--bgc);border:1px solid var(--brd);border-radius:16px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;animation:slideUp .25s}
 .moh{padding:20px 22px 0;display:flex;align-items:center;justify-content:space-between}
 .moh h3{font-size:1.1rem;color:#fff}
 .mob{padding:18px 22px}
@@ -89,16 +88,16 @@ input,select,textarea{font-family:inherit;outline:none}
 /* TABLE */
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse}
-thead th{text-align:left;font-size:.76rem;font-weight:600;color:var(–t3);text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid var(–brd)}
-tbody td{padding:13px 14px;border-bottom:1px solid var(–brd);font-size:.88rem}
-tbody tr:hover{background:var(–bgc2)}
+thead th{text-align:left;font-size:.76rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;padding:10px 14px;border-bottom:1px solid var(--brd)}
+tbody td{padding:13px 14px;border-bottom:1px solid var(--brd);font-size:.88rem}
+tbody tr:hover{background:var(--bgc2)}
 tbody tr:last-child td{border-bottom:none}
 
 /* WALLET */
 .wg{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
 .wc{position:relative;overflow:hidden}
 .wc-nm{font-size:.95rem;font-weight:600;color:#fff;margin-bottom:2px}
-.wc-bl{font-size:1.5rem;font-weight:700;font-family:‘Outfit’,sans-serif;color:#fff;margin-top:10px}
+.wc-bl{font-size:1.5rem;font-weight:700;font-family:'Outfit',sans-serif;color:#fff;margin-top:10px}
 .wc-act{display:flex;gap:4px;position:absolute;top:14px;right:14px}
 
 /* CATEGORY */
@@ -109,28 +108,28 @@ tbody tr:last-child td{border-bottom:none}
 .cc-act{display:flex;gap:2px}
 
 /* TXN */
-.txi{color:var(–acc)}.txe{color:var(–red)}
+.txi{color:var(--acc)}.txe{color:var(--red)}
 .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:16px;font-size:.76rem;font-weight:500}
 
 /* EMPTY */
-.empty{text-align:center;padding:50px 20px;color:var(–t3)}
+.empty{text-align:center;padding:50px 20px;color:var(--t3)}
 .empty .ei{font-size:42px;margin-bottom:14px;opacity:.5}
-.empty h3{color:var(–t2);margin-bottom:6px;font-size:1rem}
+.empty h3{color:var(--t2);margin-bottom:6px;font-size:1rem}
 .empty p{font-size:.84rem;max-width:280px;margin:0 auto}
 
 /* TABS */
-.tabs{display:flex;gap:3px;background:var(–bgi);border-radius:var(–rs);padding:3px;width:fit-content}
-.tab{padding:7px 18px;border-radius:6px;font-size:.83rem;font-weight:600;color:var(–t3);background:transparent;transition:all .2s}
-.tab.act{background:var(–bgc);color:var(–acc);box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.tabs{display:flex;gap:3px;background:var(--bgi);border-radius:var(--rs);padding:3px;width:fit-content}
+.tab{padding:7px 18px;border-radius:6px;font-size:.83rem;font-weight:600;color:var(--t3);background:transparent;transition:all .2s}
+.tab.act{background:var(--bgc);color:var(--acc);box-shadow:0 2px 8px rgba(0,0,0,.12)}
 
 /* TOAST */
 .tc{position:fixed;bottom:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
-.toast{padding:12px 18px;border-radius:var(–rs);font-size:.86rem;font-weight:500;animation:slideUp .3s;display:flex;align-items:center;gap:9px}
+.toast{padding:12px 18px;border-radius:var(--rs);font-size:.86rem;font-weight:500;animation:slideUp .3s;display:flex;align-items:center;gap:9px}
 .tok{background:#065f46;color:#a7f3d0;border:1px solid #10b981}
 .terr{background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444}
 
 /* BUDGET BAR */
-.bbg{width:100%;height:7px;background:var(–bgi);border-radius:4px;overflow:hidden;margin-top:8px}
+.bbg{width:100%;height:7px;background:var(--bgi);border-radius:4px;overflow:hidden;margin-top:8px}
 .bfill{height:100%;border-radius:4px;transition:width .5s}
 
 /* COLOR PICKER */
@@ -146,36 +145,35 @@ tbody tr:last-child td{border-bottom:none}
 .dg{display:grid;grid-template-columns:1.2fr 1fr;gap:16px}
 
 /* MOBILE */
-.mh{display:none;position:fixed;top:0;left:0;right:0;height:54px;background:#0d1220;border-bottom:1px solid var(–brd);z-index:100;padding:0 14px;align-items:center;justify-content:space-between}
-.mn{display:none;position:fixed;bottom:0;left:0;right:0;height:62px;background:#0d1220;border-top:1px solid var(–brd);z-index:100;padding:0 4px;align-items:center;justify-content:space-around}
-.mni{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65rem;color:var(–t3);padding:5px 10px;border-radius:8px;background:transparent;transition:color .2s;border:none}
-.mni.act{color:var(–acc)}
+.mh{display:none;position:fixed;top:0;left:0;right:0;height:54px;background:#0d1220;border-bottom:1px solid var(--brd);z-index:100;padding:0 14px;align-items:center;justify-content:space-between}
+.mn{display:none;position:fixed;bottom:0;left:0;right:0;height:62px;background:#0d1220;border-top:1px solid var(--brd);z-index:100;padding:0 4px;align-items:center;justify-content:space-around}
+.mni{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65rem;color:var(--t3);padding:5px 10px;border-radius:8px;background:transparent;transition:color .2s;border:none}
+.mni.act{color:var(--acc)}
 .mni svg{width:21px;height:21px}
 
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
 @media(max-width:768px){
-.sb{transform:translateX(-100%)}.sb.open{transform:translateX(0)}
-.mh,.mn{display:flex}
-.main{margin-left:0;padding-bottom:76px;padding-top:54px}
-.pg{padding:16px 14px}
-.sg{grid-template-columns:repeat(2,1fr);gap:8px}
-.st .vl{font-size:1.15rem}
-.fr{grid-template-columns:1fr}
-.wg{grid-template-columns:1fr}
-.cg{grid-template-columns:1fr}
-.pg-hd h2{font-size:1.2rem}
-.fbar .fi{max-width:100%;flex:1}
-.dg{grid-template-columns:1fr}
+  .sb{transform:translateX(-100%)}.sb.open{transform:translateX(0)}
+  .mh,.mn{display:flex}
+  .main{margin-left:0;padding-bottom:76px;padding-top:54px}
+  .pg{padding:16px 14px}
+  .sg{grid-template-columns:repeat(2,1fr);gap:8px}
+  .st .vl{font-size:1.15rem}
+  .fr{grid-template-columns:1fr}
+  .wg{grid-template-columns:1fr}
+  .cg{grid-template-columns:1fr}
+  .pg-hd h2{font-size:1.2rem}
+  .fbar .fi{max-width:100%;flex:1}
+  .dg{grid-template-columns:1fr}
 }
 
 /* LOADING */
-.loading-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;color:var(–acc);font-weight:600}
+.loading-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;color:var(--acc);font-weight:600}
 .loading-screen div{text-align:center}
 .loading-screen .icon{font-size:2.5rem;margin-bottom:14px}
 </style>
-
 </head>
 <body>
 
@@ -339,24 +337,35 @@ function App() {
   var toast = useToast();
 
   useEffect(function() {
-    Promise.all([
-      sb.from('wallets').select('*').order('created_at', {ascending: true}),
-      sb.from('transactions').select('*').order('date', {ascending: false}),
-      sb.from('categories').select('*').order('name', {ascending: true}),
-      sb.from('budgets').select('*').order('created_at', {ascending: true}),
-      sb.from('investments').select('*').order('created_at', {ascending: true}),
-    ]).then(function(results) {
-      if (results[0].data) setW(results[0].data);
-      if (results[1].data) setT(results[1].data);
-      if (results[2].data) setC(results[2].data);
-      else if (results[2].error) setDbErr('categories: ' + results[2].error.message);
-      if (results[3].data) setB(results[3].data);
-      if (results[4].data) setI(results[4].data);
-      setL(false);
-    }).catch(function(err) {
-      setDbErr(err.message);
-      setL(false);
-    });
+    var errors = [];
+    var done = 0;
+    var total = 5;
+    function check() { done++; if (done >= total) { if(errors.length>0) setDbErr(errors.join('; ')); setL(false); } }
+
+    // Timeout safety: if Supabase hangs, still show app after 8s
+    var timer = setTimeout(function() { setL(false); setDbErr('Timeout — beberapa data mungkin belum termuat. Cek koneksi atau Supabase RLS.'); }, 8000);
+
+    sb.from('wallets').select('*').order('created_at', {ascending: true}).then(function(r) {
+      if (r.data) setW(r.data); else if (r.error) errors.push('wallets: ' + r.error.message); check();
+    }).catch(function(e) { errors.push('wallets: ' + e.message); check(); });
+
+    sb.from('transactions').select('*').order('date', {ascending: false}).then(function(r) {
+      if (r.data) setT(r.data); else if (r.error) errors.push('transactions: ' + r.error.message); check();
+    }).catch(function(e) { errors.push('transactions: ' + e.message); check(); });
+
+    sb.from('categories').select('*').order('name', {ascending: true}).then(function(r) {
+      if (r.data) setC(r.data); else if (r.error) errors.push('categories: ' + r.error.message + ' (buat tabel dulu, lihat halaman Kategori)'); check();
+    }).catch(function(e) { errors.push('categories: ' + e.message); check(); });
+
+    sb.from('budgets').select('*').order('created_at', {ascending: true}).then(function(r) {
+      if (r.data) setB(r.data); else if (r.error) errors.push('budgets: ' + r.error.message); check();
+    }).catch(function(e) { errors.push('budgets: ' + e.message); check(); });
+
+    sb.from('investments').select('*').order('created_at', {ascending: true}).then(function(r) {
+      if (r.data) setI(r.data); else if (r.error) errors.push('investments: ' + r.error.message); check();
+    }).catch(function(e) { errors.push('investments: ' + e.message); check(); });
+
+    return function() { clearTimeout(timer); };
   }, []);
 
   var rW = function() { sb.from('wallets').select('*').order('created_at').then(function(r) { if(r.data) setW(r.data); }); };
@@ -378,10 +387,23 @@ function App() {
 
   function go(p) { setPage(p); setMob(false); }
 
+  var _slow = useState(false), slow = _slow[0], setSlow = _slow[1];
+  useEffect(function() { var t = setTimeout(function() { setSlow(true); }, 3000); return function() { clearTimeout(t); }; }, []);
+
   if (loading) {
     return (
       <div className="loading-screen">
-        <div><div className="icon">💰</div>Memuat WealthFlow...</div>
+        <div>
+          <div className="icon">💰</div>
+          <div>Memuat WealthFlow...</div>
+          {slow && <div style={{marginTop:20,fontSize:'.78rem',color:'var(--t3)',maxWidth:320,lineHeight:1.6}}>
+            <p>Loading lama? Kemungkinan:</p>
+            <p style={{marginTop:6}}>1. Tabel belum dibuat di Supabase</p>
+            <p>2. RLS aktif tanpa policy</p>
+            <p>3. Koneksi lambat</p>
+            <button className="btn bp" style={{marginTop:14}} onClick={function() { setL(false); }}>Lewati &amp; Buka App →</button>
+          </div>}
+        </div>
       </div>
     );
   }
@@ -764,191 +786,180 @@ function CategoriesPage(props) {
         <pre style={{background:'var(--bgi)',padding:14,borderRadius:'var(--rs)',fontSize:'.75rem',color:'var(--cyn)',overflow:'auto',lineHeight:1.6,whiteSpace:'pre-wrap'}}>{
 "CREATE TABLE IF NOT EXISTS categories (\n  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,\n  name TEXT NOT NULL,\n  type TEXT NOT NULL CHECK (type IN ('income','expense')),\n  color TEXT DEFAULT '#10b981',\n  created_at TIMESTAMPTZ DEFAULT NOW()\n);\n\nALTER TABLE categories ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Allow all\" ON categories FOR ALL USING (true) WITH CHECK (true);"
         }</pre>
+      </div>
 
-```
-  </div>
-
-  <Modal open={!!modal} onClose={function(){setM(null);}} title={modal && modal.mode==='add'?'Tambah Kategori':'Edit Kategori'} footer={
-    <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal && modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
-  }>
-    <div className="fg"><label>Nama Kategori</label><input className="fi" placeholder="cth: Makan, Transport, Gaji..." value={f.name} onChange={function(e){uf('name',e.target.value);}}/></div>
-    <div className="fg"><label>Tipe</label><div className="tabs"><button className={'tab'+(f.type==='expense'?' act':'')} onClick={function(){uf('type','expense');}}>Pengeluaran</button><button className={'tab'+(f.type==='income'?' act':'')} onClick={function(){uf('type','income');}}>Pemasukan</button></div></div>
-    <div className="fg"><label>Warna</label><div className="clr">{COLORS.map(function(cl){return <div key={cl} className={'co'+(f.color===cl?' sel':'')} style={{background:cl}} onClick={function(){uf('color',cl);}}/>;})}</div></div>
-  </Modal>
-  {cEl}
-</Fragment>
-```
-
-);
+      <Modal open={!!modal} onClose={function(){setM(null);}} title={modal && modal.mode==='add'?'Tambah Kategori':'Edit Kategori'} footer={
+        <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal && modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
+      }>
+        <div className="fg"><label>Nama Kategori</label><input className="fi" placeholder="cth: Makan, Transport, Gaji..." value={f.name} onChange={function(e){uf('name',e.target.value);}}/></div>
+        <div className="fg"><label>Tipe</label><div className="tabs"><button className={'tab'+(f.type==='expense'?' act':'')} onClick={function(){uf('type','expense');}}>Pengeluaran</button><button className={'tab'+(f.type==='income'?' act':'')} onClick={function(){uf('type','income');}}>Pemasukan</button></div></div>
+        <div className="fg"><label>Warna</label><div className="clr">{COLORS.map(function(cl){return <div key={cl} className={'co'+(f.color===cl?' sel':'')} style={{background:cl}} onClick={function(){uf('color',cl);}}/>;})}</div></div>
+      </Modal>
+      {cEl}
+    </Fragment>
+  );
 }
 
 /* ══════════════════════════════════════════
-BUDGETS
+   BUDGETS
 ══════════════════════════════════════════ */
 function BudgetsPage(props) {
-var budgets=props.budgets, categories=props.categories, transactions=props.transactions, rB=props.rB;
-var toast=useToast();
-var _m=useState(null), modal=_m[0], setM=_m[1];
-var _c=useConfirm(), confirm=_c[0], cEl=_c[1];
-var _f=useState({category_id:’’,amount:’’,period:‘monthly’}), f=_f[0], setF=_f[1];
-var expC = categories.filter(function(c){return c.type===‘expense’;});
+  var budgets=props.budgets, categories=props.categories, transactions=props.transactions, rB=props.rB;
+  var toast=useToast();
+  var _m=useState(null), modal=_m[0], setM=_m[1];
+  var _c=useConfirm(), confirm=_c[0], cEl=_c[1];
+  var _f=useState({category_id:'',amount:'',period:'monthly'}), f=_f[0], setF=_f[1];
+  var expC = categories.filter(function(c){return c.type==='expense';});
 
-function openA() { setF({category_id:expC.length>0?expC[0].id:’’,amount:’’,period:‘monthly’}); setM({mode:‘add’}); }
-function openE(b) { setF({category_id:b.category_id||’’,amount:String(b.amount||0),period:b.period||‘monthly’}); setM({mode:‘edit’,d:b}); }
-function uf(key,val) { var n={category_id:f.category_id,amount:f.amount,period:f.period}; n[key]=val; setF(n); }
+  function openA() { setF({category_id:expC.length>0?expC[0].id:'',amount:'',period:'monthly'}); setM({mode:'add'}); }
+  function openE(b) { setF({category_id:b.category_id||'',amount:String(b.amount||0),period:b.period||'monthly'}); setM({mode:'edit',d:b}); }
+  function uf(key,val) { var n={category_id:f.category_id,amount:f.amount,period:f.period}; n[key]=val; setF(n); }
 
-function save() {
-if (!f.amount||Number(f.amount)<=0) { toast(‘Jumlah harus > 0’,‘err’); return; }
-var p = {category_id:f.category_id||null, amount:Number(f.amount), period:f.period};
-if (modal.mode===‘add’) {
-sb.from(‘budgets’).insert(p).then(function(r){if(r.error){toast(r.error.message,‘err’);return;}toast(‘Anggaran ditambahkan’);setM(null);rB();});
-} else {
-sb.from(‘budgets’).update(p).eq(‘id’,modal.d.id).then(function(r){if(r.error){toast(r.error.message,‘err’);return;}toast(‘Anggaran diperbarui’);setM(null);rB();});
-}
-}
+  function save() {
+    if (!f.amount||Number(f.amount)<=0) { toast('Jumlah harus > 0','err'); return; }
+    var p = {category_id:f.category_id||null, amount:Number(f.amount), period:f.period};
+    if (modal.mode==='add') {
+      sb.from('budgets').insert(p).then(function(r){if(r.error){toast(r.error.message,'err');return;}toast('Anggaran ditambahkan');setM(null);rB();});
+    } else {
+      sb.from('budgets').update(p).eq('id',modal.d.id).then(function(r){if(r.error){toast(r.error.message,'err');return;}toast('Anggaran diperbarui');setM(null);rB();});
+    }
+  }
 
-function del(b) {
-var nm = getCatName(categories, b.category_id);
-confirm(‘Hapus anggaran untuk “’+nm+’”?’).then(function(ok) {
-if (!ok) return;
-sb.from(‘budgets’).delete().eq(‘id’,b.id).then(function(r){if(r.error){toast(r.error.message,‘err’);return;}toast(‘Anggaran dihapus’);rB();});
-});
-}
+  function del(b) {
+    var nm = getCatName(categories, b.category_id);
+    confirm('Hapus anggaran untuk "'+nm+'"?').then(function(ok) {
+      if (!ok) return;
+      sb.from('budgets').delete().eq('id',b.id).then(function(r){if(r.error){toast(r.error.message,'err');return;}toast('Anggaran dihapus');rB();});
+    });
+  }
 
-return (
-<Fragment>
-<div className="pg-hd"><div><h2>Anggaran</h2><p>Atur batas pengeluaran per kategori</p></div><button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah</button></div>
-{budgets.length===0 ? <div className="cd"><div className="empty"><div className="ei">📊</div><h3>Belum Ada Anggaran</h3><p>Tetapkan batas pengeluaran</p></div></div> :
-<div style={{display:‘grid’,gridTemplateColumns:‘repeat(auto-fill,minmax(320px,1fr))’,gap:14}}>
-{budgets.map(function(b) {
-var cat = findById(categories, b.category_id);
-var nm = cat ? cat.name : ‘-’;
-var cl = cat ? (cat.color || ‘var(–acc)’) : ‘var(–acc)’;
-var sp = transactions.filter(function(t){return t.type===‘expense’&&t.category_id===b.category_id;}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
-var pct = b.amount>0 ? Math.min((sp/b.amount)*100,100) : 0;
-var ov = sp > b.amount;
-return (
-<div key={b.id} className="cd">
-<div style={{display:‘flex’,justifyContent:‘space-between’,alignItems:‘flex-start’}}>
-<div><div style={{display:‘flex’,alignItems:‘center’,gap:8,marginBottom:4}}><span style={{width:10,height:10,borderRadius:‘50%’,background:cl}}/><span style={{fontWeight:600,fontSize:’.95rem’}}>{nm}</span></div><div style={{fontSize:’.76rem’,color:‘var(–t3)’,textTransform:‘capitalize’}}>{b.period||‘monthly’}</div></div>
-<div style={{display:‘flex’,gap:4}}><button className="bi" style={{width:30,height:30}} onClick={function(){openE(b);}}><Ico name="edit"/></button><button className=“bi” style={{width:30,height:30,color:‘var(–red)’}} onClick={function(){del(b);}}><Ico name="trash"/></button></div>
-</div>
-<div style={{marginTop:12,display:‘flex’,justifyContent:‘space-between’,alignItems:‘baseline’}}><span style={{fontFamily:‘Outfit’,fontWeight:700,fontSize:‘1.15rem’,color:ov?‘var(–red)’:’#fff’}}>{fmtIDR(sp)}</span><span style={{fontSize:’.8rem’,color:‘var(–t3)’}}>dari {fmtIDR(b.amount)}</span></div>
-<div className="bbg"><div className=“bfill” style={{width:pct+’%’,background:ov?‘var(–red)’:pct>70?‘var(–org)’:cl}}/></div>
-<div style={{textAlign:‘right’,fontSize:’.73rem’,color:ov?‘var(–red)’:‘var(–t3)’,marginTop:4}}>{Math.round(pct)}%{ov?’ — Over budget!’:’’}</div>
-</div>
-);
-})}
-</div>}
+  return (
+    <Fragment>
+      <div className="pg-hd"><div><h2>Anggaran</h2><p>Atur batas pengeluaran per kategori</p></div><button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah</button></div>
+      {budgets.length===0 ? <div className="cd"><div className="empty"><div className="ei">📊</div><h3>Belum Ada Anggaran</h3><p>Tetapkan batas pengeluaran</p></div></div> :
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(320px,1fr))',gap:14}}>
+        {budgets.map(function(b) {
+          var cat = findById(categories, b.category_id);
+          var nm = cat ? cat.name : '-';
+          var cl = cat ? (cat.color || 'var(--acc)') : 'var(--acc)';
+          var sp = transactions.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id;}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
+          var pct = b.amount>0 ? Math.min((sp/b.amount)*100,100) : 0;
+          var ov = sp > b.amount;
+          return (
+            <div key={b.id} className="cd">
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <div><div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}><span style={{width:10,height:10,borderRadius:'50%',background:cl}}/><span style={{fontWeight:600,fontSize:'.95rem'}}>{nm}</span></div><div style={{fontSize:'.76rem',color:'var(--t3)',textTransform:'capitalize'}}>{b.period||'monthly'}</div></div>
+                <div style={{display:'flex',gap:4}}><button className="bi" style={{width:30,height:30}} onClick={function(){openE(b);}}><Ico name="edit"/></button><button className="bi" style={{width:30,height:30,color:'var(--red)'}} onClick={function(){del(b);}}><Ico name="trash"/></button></div>
+              </div>
+              <div style={{marginTop:12,display:'flex',justifyContent:'space-between',alignItems:'baseline'}}><span style={{fontFamily:'Outfit',fontWeight:700,fontSize:'1.15rem',color:ov?'var(--red)':'#fff'}}>{fmtIDR(sp)}</span><span style={{fontSize:'.8rem',color:'var(--t3)'}}>dari {fmtIDR(b.amount)}</span></div>
+              <div className="bbg"><div className="bfill" style={{width:pct+'%',background:ov?'var(--red)':pct>70?'var(--org)':cl}}/></div>
+              <div style={{textAlign:'right',fontSize:'.73rem',color:ov?'var(--red)':'var(--t3)',marginTop:4}}>{Math.round(pct)}%{ov?' — Over budget!':''}</div>
+            </div>
+          );
+        })}
+      </div>}
 
-```
-  <Modal open={!!modal} onClose={function(){setM(null);}} title={modal&&modal.mode==='add'?'Tambah Anggaran':'Edit Anggaran'} footer={
-    <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal&&modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
-  }>
-    <div className="fg"><label>Kategori Pengeluaran</label><select className="fi" value={f.category_id} onChange={function(e){uf('category_id',e.target.value);}}><option value="">Pilih</option>{expC.map(function(c){return <option key={c.id} value={c.id}>{c.name}</option>;})}</select></div>
-    <div className="fr">
-      <div className="fg"><label>Batas (Rp)</label><input className="fi" type="number" placeholder="0" value={f.amount} onChange={function(e){uf('amount',e.target.value);}}/></div>
-      <div className="fg"><label>Periode</label><select className="fi" value={f.period} onChange={function(e){uf('period',e.target.value);}}><option value="monthly">Bulanan</option><option value="weekly">Mingguan</option><option value="yearly">Tahunan</option></select></div>
-    </div>
-  </Modal>
-  {cEl}
-</Fragment>
-```
-
-);
+      <Modal open={!!modal} onClose={function(){setM(null);}} title={modal&&modal.mode==='add'?'Tambah Anggaran':'Edit Anggaran'} footer={
+        <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal&&modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
+      }>
+        <div className="fg"><label>Kategori Pengeluaran</label><select className="fi" value={f.category_id} onChange={function(e){uf('category_id',e.target.value);}}><option value="">Pilih</option>{expC.map(function(c){return <option key={c.id} value={c.id}>{c.name}</option>;})}</select></div>
+        <div className="fr">
+          <div className="fg"><label>Batas (Rp)</label><input className="fi" type="number" placeholder="0" value={f.amount} onChange={function(e){uf('amount',e.target.value);}}/></div>
+          <div className="fg"><label>Periode</label><select className="fi" value={f.period} onChange={function(e){uf('period',e.target.value);}}><option value="monthly">Bulanan</option><option value="weekly">Mingguan</option><option value="yearly">Tahunan</option></select></div>
+        </div>
+      </Modal>
+      {cEl}
+    </Fragment>
+  );
 }
 
 /* ══════════════════════════════════════════
-INVESTMENTS
+   INVESTMENTS
 ══════════════════════════════════════════ */
 function InvestmentsPage(props) {
-var investments=props.investments, rI=props.rI;
-var toast=useToast();
-var _m=useState(null), modal=_m[0], setM=_m[1];
-var _c=useConfirm(), confirm=_c[0], cEl=_c[1];
-var _f=useState({name:’’,type:‘stock’,amount:’’,current_value:’’,purchase_date:getToday()}), f=_f[0], setF=_f[1];
+  var investments=props.investments, rI=props.rI;
+  var toast=useToast();
+  var _m=useState(null), modal=_m[0], setM=_m[1];
+  var _c=useConfirm(), confirm=_c[0], cEl=_c[1];
+  var _f=useState({name:'',type:'stock',amount:'',current_value:'',purchase_date:getToday()}), f=_f[0], setF=_f[1];
 
-function openA() { setF({name:’’,type:‘stock’,amount:’’,current_value:’’,purchase_date:getToday()}); setM({mode:‘add’}); }
-function openE(i) { setF({name:i.name||’’,type:i.type||‘stock’,amount:String(i.amount||0),current_value:String(i.current_value||0),purchase_date:i.purchase_date||getToday()}); setM({mode:‘edit’,d:i}); }
-function uf(key,val) { var n={name:f.name,type:f.type,amount:f.amount,current_value:f.current_value,purchase_date:f.purchase_date}; n[key]=val; setF(n); }
+  function openA() { setF({name:'',type:'stock',amount:'',current_value:'',purchase_date:getToday()}); setM({mode:'add'}); }
+  function openE(i) { setF({name:i.name||'',type:i.type||'stock',amount:String(i.amount||0),current_value:String(i.current_value||0),purchase_date:i.purchase_date||getToday()}); setM({mode:'edit',d:i}); }
+  function uf(key,val) { var n={name:f.name,type:f.type,amount:f.amount,current_value:f.current_value,purchase_date:f.purchase_date}; n[key]=val; setF(n); }
 
-function save() {
-if (!f.name.trim()) { toast(‘Nama wajib diisi’,‘err’); return; }
-var p = {name:f.name.trim(),type:f.type,amount:Number(f.amount)||0,current_value:Number(f.current_value)||0,purchase_date:f.purchase_date};
-if (modal.mode===‘add’) {
-sb.from(‘investments’).insert(p).then(function(r){if(r.error){toast(r.error.message,‘err’);return;}toast(‘Investasi ditambahkan’);setM(null);rI();});
-} else {
-sb.from(‘investments’).update(p).eq(‘id’,modal.d.id).then(function(r){if(r.error){toast(r.error.message,‘err’);return;}toast(‘Investasi diperbarui’);setM(null);rI();});
-}
-}
+  function save() {
+    if (!f.name.trim()) { toast('Nama wajib diisi','err'); return; }
+    var p = {name:f.name.trim(),type:f.type,amount:Number(f.amount)||0,current_value:Number(f.current_value)||0,purchase_date:f.purchase_date};
+    if (modal.mode==='add') {
+      sb.from('investments').insert(p).then(function(r){if(r.error){toast(r.error.message,'err');return;}toast('Investasi ditambahkan');setM(null);rI();});
+    } else {
+      sb.from('investments').update(p).eq('id',modal.d.id).then(function(r){if(r.error){toast(r.error.message,'err');return;}toast('Investasi diperbarui');setM(null);rI();});
+    }
+  }
 
-function del(inv) {
-confirm(‘Hapus investasi “’+inv.name+’”?’).then(function(ok) {
-if (!ok) return;
-sb.from(‘investments’).delete().eq(‘id’,inv.id).then(function(r){if(r.error){toast(r.error.message,‘err’);return;}toast(‘Investasi dihapus’);rI();});
-});
-}
+  function del(inv) {
+    confirm('Hapus investasi "'+inv.name+'"?').then(function(ok) {
+      if (!ok) return;
+      sb.from('investments').delete().eq('id',inv.id).then(function(r){if(r.error){toast(r.error.message,'err');return;}toast('Investasi dihapus');rI();});
+    });
+  }
 
-var tI = investments.reduce(function(s,i){return s+(Number(i.amount)||0);},0);
-var tC = investments.reduce(function(s,i){return s+(Number(i.current_value)||Number(i.amount)||0);},0);
-var tGL = tC - tI;
-var typeLabel = {stock:‘Saham’,crypto:‘Crypto’,mutual_fund:‘Reksa Dana’,bond:‘Obligasi’,gold:‘Emas’,property:‘Properti’,other:‘Lainnya’};
+  var tI = investments.reduce(function(s,i){return s+(Number(i.amount)||0);},0);
+  var tC = investments.reduce(function(s,i){return s+(Number(i.current_value)||Number(i.amount)||0);},0);
+  var tGL = tC - tI;
+  var typeLabel = {stock:'Saham',crypto:'Crypto',mutual_fund:'Reksa Dana',bond:'Obligasi',gold:'Emas',property:'Properti',other:'Lainnya'};
 
-return (
-<Fragment>
-<div className="pg-hd"><div><h2>Investasi</h2><p>Pantau portofolio investasi Anda</p></div><button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah</button></div>
-<div className="sg">
-<div className="cd st"><div className="lb">Total Investasi</div><div className="vl">{fmtIDR(tI)}</div></div>
-<div className="cd st"><div className="lb">Nilai Saat Ini</div><div className=“vl” style={{color:‘var(–blu)’}}>{fmtIDR(tC)}</div></div>
-<div className="cd st"><div className="lb">Gain/Loss</div><div className="vl" style={{color:tGL>=0?‘var(–acc)’:‘var(–red)’}}>{tGL>=0?’+’:’’}{fmtIDR(tGL)}</div>{tI>0 && <div className="sub">{tGL>=0?’+’:’’}{((tGL/tI)*100).toFixed(1)}%</div>}</div>
-</div>
+  return (
+    <Fragment>
+      <div className="pg-hd"><div><h2>Investasi</h2><p>Pantau portofolio investasi Anda</p></div><button className="btn bp" onClick={openA}><Ico name="plus"/> Tambah</button></div>
+      <div className="sg">
+        <div className="cd st"><div className="lb">Total Investasi</div><div className="vl">{fmtIDR(tI)}</div></div>
+        <div className="cd st"><div className="lb">Nilai Saat Ini</div><div className="vl" style={{color:'var(--blu)'}}>{fmtIDR(tC)}</div></div>
+        <div className="cd st"><div className="lb">Gain/Loss</div><div className="vl" style={{color:tGL>=0?'var(--acc)':'var(--red)'}}>{tGL>=0?'+':''}{fmtIDR(tGL)}</div>{tI>0 && <div className="sub">{tGL>=0?'+':''}{((tGL/tI)*100).toFixed(1)}%</div>}</div>
+      </div>
 
-```
-  {investments.length===0 ? <div className="cd"><div className="empty"><div className="ei">📈</div><h3>Belum Ada Investasi</h3><p>Mulai catat portofolio Anda</p></div></div> :
-  <div className="cd"><div className="tw"><table>
-    <thead><tr><th>Nama</th><th>Tipe</th><th style={{textAlign:'right'}}>Modal</th><th style={{textAlign:'right'}}>Nilai Saat Ini</th><th style={{textAlign:'right'}}>G/L</th><th>Tanggal</th><th></th></tr></thead>
-    <tbody>{investments.map(function(inv) {
-      var gl = (Number(inv.current_value)||0) - (Number(inv.amount)||0);
-      var pct = inv.amount > 0 ? ((gl / inv.amount) * 100).toFixed(1) : 0;
-      return (
-        <tr key={inv.id}>
-          <td style={{fontWeight:600}}>{inv.name}</td>
-          <td><span className="badge" style={{background:'rgba(59,130,246,.08)',color:'var(--blu)'}}>{typeLabel[inv.type]||inv.type||'-'}</span></td>
-          <td style={{textAlign:'right',fontFamily:'Outfit'}}>{fmtIDR(inv.amount)}</td>
-          <td style={{textAlign:'right',fontFamily:'Outfit'}}>{fmtIDR(inv.current_value)}</td>
-          <td style={{textAlign:'right',fontFamily:'Outfit',fontWeight:600,color:gl>=0?'var(--acc)':'var(--red)'}}>{gl>=0?'+':''}{fmtIDR(gl)} <span style={{fontSize:'.73rem',fontWeight:400}}>({gl>=0?'+':''}{pct}%)</span></td>
-          <td style={{color:'var(--t3)',fontSize:'.82rem'}}>{fmtDate(inv.purchase_date)}</td>
-          <td style={{whiteSpace:'nowrap'}}><button className="bi" onClick={function(){openE(inv);}}><Ico name="edit"/></button><button className="bi" onClick={function(){del(inv);}} style={{color:'var(--red)'}}><Ico name="trash"/></button></td>
-        </tr>
-      );
-    })}</tbody>
-  </table></div></div>}
+      {investments.length===0 ? <div className="cd"><div className="empty"><div className="ei">📈</div><h3>Belum Ada Investasi</h3><p>Mulai catat portofolio Anda</p></div></div> :
+      <div className="cd"><div className="tw"><table>
+        <thead><tr><th>Nama</th><th>Tipe</th><th style={{textAlign:'right'}}>Modal</th><th style={{textAlign:'right'}}>Nilai Saat Ini</th><th style={{textAlign:'right'}}>G/L</th><th>Tanggal</th><th></th></tr></thead>
+        <tbody>{investments.map(function(inv) {
+          var gl = (Number(inv.current_value)||0) - (Number(inv.amount)||0);
+          var pct = inv.amount > 0 ? ((gl / inv.amount) * 100).toFixed(1) : 0;
+          return (
+            <tr key={inv.id}>
+              <td style={{fontWeight:600}}>{inv.name}</td>
+              <td><span className="badge" style={{background:'rgba(59,130,246,.08)',color:'var(--blu)'}}>{typeLabel[inv.type]||inv.type||'-'}</span></td>
+              <td style={{textAlign:'right',fontFamily:'Outfit'}}>{fmtIDR(inv.amount)}</td>
+              <td style={{textAlign:'right',fontFamily:'Outfit'}}>{fmtIDR(inv.current_value)}</td>
+              <td style={{textAlign:'right',fontFamily:'Outfit',fontWeight:600,color:gl>=0?'var(--acc)':'var(--red)'}}>{gl>=0?'+':''}{fmtIDR(gl)} <span style={{fontSize:'.73rem',fontWeight:400}}>({gl>=0?'+':''}{pct}%)</span></td>
+              <td style={{color:'var(--t3)',fontSize:'.82rem'}}>{fmtDate(inv.purchase_date)}</td>
+              <td style={{whiteSpace:'nowrap'}}><button className="bi" onClick={function(){openE(inv);}}><Ico name="edit"/></button><button className="bi" onClick={function(){del(inv);}} style={{color:'var(--red)'}}><Ico name="trash"/></button></td>
+            </tr>
+          );
+        })}</tbody>
+      </table></div></div>}
 
-  <Modal open={!!modal} onClose={function(){setM(null);}} title={modal&&modal.mode==='add'?'Tambah Investasi':'Edit Investasi'} footer={
-    <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal&&modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
-  }>
-    <div className="fg"><label>Nama Aset</label><input className="fi" placeholder="cth: BBCA, Bitcoin, Emas..." value={f.name} onChange={function(e){uf('name',e.target.value);}}/></div>
-    <div className="fr">
-      <div className="fg"><label>Tipe</label><select className="fi" value={f.type} onChange={function(e){uf('type',e.target.value);}}><option value="stock">Saham</option><option value="crypto">Crypto</option><option value="mutual_fund">Reksa Dana</option><option value="bond">Obligasi</option><option value="gold">Emas</option><option value="property">Properti</option><option value="other">Lainnya</option></select></div>
-      <div className="fg"><label>Tanggal Beli</label><input className="fi" type="date" value={f.purchase_date} onChange={function(e){uf('purchase_date',e.target.value);}}/></div>
-    </div>
-    <div className="fr">
-      <div className="fg"><label>Modal (Rp)</label><input className="fi" type="number" placeholder="0" value={f.amount} onChange={function(e){uf('amount',e.target.value);}}/></div>
-      <div className="fg"><label>Nilai Saat Ini (Rp)</label><input className="fi" type="number" placeholder="0" value={f.current_value} onChange={function(e){uf('current_value',e.target.value);}}/></div>
-    </div>
-  </Modal>
-  {cEl}
-</Fragment>
-```
-
-);
+      <Modal open={!!modal} onClose={function(){setM(null);}} title={modal&&modal.mode==='add'?'Tambah Investasi':'Edit Investasi'} footer={
+        <Fragment><button className="btn bs" onClick={function(){setM(null);}}>Batal</button><button className="btn bp" onClick={save}>{modal&&modal.mode==='add'?'Tambah':'Simpan'}</button></Fragment>
+      }>
+        <div className="fg"><label>Nama Aset</label><input className="fi" placeholder="cth: BBCA, Bitcoin, Emas..." value={f.name} onChange={function(e){uf('name',e.target.value);}}/></div>
+        <div className="fr">
+          <div className="fg"><label>Tipe</label><select className="fi" value={f.type} onChange={function(e){uf('type',e.target.value);}}><option value="stock">Saham</option><option value="crypto">Crypto</option><option value="mutual_fund">Reksa Dana</option><option value="bond">Obligasi</option><option value="gold">Emas</option><option value="property">Properti</option><option value="other">Lainnya</option></select></div>
+          <div className="fg"><label>Tanggal Beli</label><input className="fi" type="date" value={f.purchase_date} onChange={function(e){uf('purchase_date',e.target.value);}}/></div>
+        </div>
+        <div className="fr">
+          <div className="fg"><label>Modal (Rp)</label><input className="fi" type="number" placeholder="0" value={f.amount} onChange={function(e){uf('amount',e.target.value);}}/></div>
+          <div className="fg"><label>Nilai Saat Ini (Rp)</label><input className="fi" type="number" placeholder="0" value={f.current_value} onChange={function(e){uf('current_value',e.target.value);}}/></div>
+        </div>
+      </Modal>
+      {cEl}
+    </Fragment>
+  );
 }
 
 /* ═══ RENDER ═══ */
-ReactDOM.createRoot(document.getElementById(‘root’)).render(
-React.createElement(ToastProvider, null, React.createElement(App, null))
+ReactDOM.createRoot(document.getElementById('root')).render(
+  React.createElement(ToastProvider, null, React.createElement(App, null))
 );
 </script>
-
 </body>
 </html>
