@@ -270,8 +270,8 @@ function TxnsP(p){
       h('div',{className:'fg'},h('label',null,'Tipe'),h('div',{className:'tabs'},h('button',{className:'tab'+(f.type==='expense'?' act':''),onClick:function(){uf(f,'type','expense',sF)}},'Pengeluaran'),h('button',{className:'tab'+(f.type==='income'?' act':''),onClick:function(){uf(f,'type','income',sF)}},'Pemasukan'))),
       h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Jumlah (Rp)'),h('input',{className:'fi',type:'number',placeholder:'0',value:f.amount,onChange:function(e){uf(f,'amount',e.target.value,sF)}})),h('div',{className:'fg'},h('label',null,'Tanggal'),h('input',{className:'fi',type:'date',value:f.date,onChange:function(e){uf(f,'date',e.target.value,sF)}}))),
       h('div',{className:'fg'},h('label',null,'Dompet'),h('select',{className:'fi',value:f.wallet_id,onChange:function(e){uf(f,'wallet_id',e.target.value,sF)}},h('option',{value:''},'-- Pilih Dompet --'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name||'?')}))),
-      h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category_id,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.category_id=e.target.value;n.sub_category_id='';sF(n)}},h('option',{value:''},'-- Pilih Kategori --'),relC.filter(function(c){return !c.parent_id}).map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))),
-      f.category_id?h('div',{className:'fg'},h('label',null,'Sub-Kategori'),h('select',{className:'fi',value:f.sub_category_id||'',onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.sub_category_id=e.target.value;sF(n)}},h('option',{value:''},'-- Opsional --'),C.filter(function(c){return c.parent_id===f.category_id}).map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))):null,
+      h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category_id,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.category_id=e.target.value;n.sub_category_id='';sF(n)}},h('option',{value:''},'-- Pilih Kategori --'),relC.filter(function(c){return !c.parent_id}).map(function(c){return h('option',{key:c.id,value:c.id},c.name)}))),
+      f.category_id?h('div',{className:'fg'},h('label',null,'Sub-Kategori'),h('select',{className:'fi',value:f.sub_category_id||'',onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.sub_category_id=e.target.value;sF(n)}},h('option',{value:''},'-- Tanpa Sub-Kategori --'),C.filter(function(c){return c.parent_id===f.category_id}).map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))):null,
       h('div',{className:'fg'},h('label',null,'Keterangan'),h('input',{className:'fi',placeholder:'Deskripsi...',value:f.description,onChange:function(e){uf(f,'description',e.target.value,sF)}})),
       canInstallment?h(F,null,
         h('div',{className:'fg'},h(Tgl,{on:f.is_installment,label:'Bayar Cicilan',onChange:function(v){var n={};for(var x in f)n[x]=f[x];n.is_installment=v;sF(n)}})),
@@ -286,19 +286,44 @@ function TxnsP(p){
 /* ═══ CATEGORIES ═══ */
 function CatsP(p){
   var C=p.C,rC=p.rC;var t=useContext(TCtx);var _m=useState(null),mo=_m[0],sM=_m[1];var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
-  var _f=useState({name:'',type:'expense',color:COLORS[0]}),f=_f[0],sF=_f[1];var _tb=useState('expense'),tab=_tb[0],sTb=_tb[1];
-  function oA(){sF({name:'',type:tab,color:rc()});sM({m:'add'})}
-  function oE(c){sF({name:c.name,type:c.type,color:c.color||COLORS[0]});sM({m:'edit',d:c})}
-  function save(){if(!f.name.trim()){t('Nama wajib','err');return}var pay={name:f.name.trim(),type:f.type,color:f.color};(mo.m==='add'?sb.from('categories').insert(pay):sb.from('categories').update(pay).eq('id',mo.d.id)).then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Ditambahkan':'Diperbarui');sM(null);rC()})}
+  var _f=useState({name:'',type:'expense',color:COLORS[0],icon:'📋',parent_id:''}),f=_f[0],sF=_f[1];var _tb=useState('expense'),tab=_tb[0],sTb=_tb[1];
+  function oA(){sF({name:'',type:tab,color:rc(),icon:'📋',parent_id:''});sM({m:'add'})}
+  function oE(c){sF({name:c.name,type:c.type,color:c.color||COLORS[0],icon:c.icon||'📋',parent_id:c.parent_id||''});sM({m:'edit',d:c})}
+  function save(){if(!f.name.trim()){t('Nama wajib','err');return}var pay={name:f.name.trim(),type:f.type,color:f.color,icon:f.icon||'📋',parent_id:f.parent_id||null,user_id:'1311300f-c949-49d4-a4a0-b65f1f957e23'};(mo.m==='add'?sb.from('categories').insert(pay):sb.from('categories').update(pay).eq('id',mo.d.id)).then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Ditambahkan':'Diperbarui');sM(null);rC()})}
   function del(c){cf('Hapus "'+c.name+'"?').then(function(ok){if(!ok)return;sb.from('categories').delete().eq('id',c.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dihapus');rC()})})}
-  var eC=C.filter(function(c){return c.type==='expense'}),iC=C.filter(function(c){return c.type==='income'}),sh=tab==='expense'?eC:iC;
+  var parents=C.filter(function(c){return !c.parent_id});
+  var eP=parents.filter(function(c){return c.type==='expense'});
+  var iP=parents.filter(function(c){return c.type==='income'});
+  var shown=tab==='expense'?eP:iP;
+  function getSubs(pid){return C.filter(function(c){return c.parent_id===pid})}
   return h(F,null,
     h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Kategori'),h('p',null,'Kelola kategori pemasukan & pengeluaran')),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah')),
-    h('div',{className:'tabs',style:{marginBottom:18}},h('button',{className:'tab'+(tab==='expense'?' act':''),onClick:function(){sTb('expense')}},'Pengeluaran (',eC.length,')'),h('button',{className:'tab'+(tab==='income'?' act':''),onClick:function(){sTb('income')}},'Pemasukan (',iC.length,')')),
-    sh.length===0?h('div',{className:'cd'},h('div',{className:'empty'},h('div',{className:'ei'},'🏷️'),h('h3',null,'Belum Ada Kategori'))):
-    h('div',{className:'cg'},sh.map(function(c){return h('div',{key:c.id,className:'cd cc'},h('div',{className:'cc-dot',style:{background:c.color||'var(--acc)'}}),h('div',{className:'cc-nm'},c.name),h('div',{className:'cc-act'},h('button',{className:'bi',style:{width:30,height:30},onClick:function(){oE(c)}},h(Ic,{n:'edit'})),h('button',{className:'bi',style:{width:30,height:30,color:'var(--red)'},onClick:function(){del(c)}},h(Ic,{n:'trash'}))))})),
-    h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah':'Edit',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},mo&&mo.m==='add'?'Tambah':'Simpan'))},
-      h('div',{className:'fg'},h('label',null,'Nama'),h('input',{className:'fi',placeholder:'cth: Makan, Gaji...',value:f.name,onChange:function(e){uf(f,'name',e.target.value,sF)}})),
+    h('div',{className:'tabs',style:{marginBottom:18}},h('button',{className:'tab'+(tab==='expense'?' act':''),onClick:function(){sTb('expense')}},'Pengeluaran (',eP.length,')'),h('button',{className:'tab'+(tab==='income'?' act':''),onClick:function(){sTb('income')}},'Pemasukan (',iP.length,')')),
+    shown.length===0?h('div',{className:'cd'},h('div',{className:'empty'},h('div',{className:'ei'},'🏷️'),h('h3',null,'Belum Ada Kategori'))):
+    shown.map(function(cat){
+      var subs=getSubs(cat.id);
+      return h('div',{key:cat.id,className:'cd',style:{marginBottom:12}},
+        h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between'}},
+          h('div',{style:{display:'flex',alignItems:'center',gap:10}},
+            h('div',{style:{width:36,height:36,borderRadius:8,background:cat.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}},cat.icon||'📋'),
+            h('div',null,
+              h('div',{style:{fontWeight:600,fontSize:'.95rem'}},cat.name),
+              h('div',{style:{fontSize:'.75rem',color:'var(--t3)'}},subs.length>0?subs.length+' sub-kategori':'Tidak ada sub-kategori'))),
+          h('div',{style:{display:'flex',gap:4}},
+            h('button',{className:'bi',onClick:function(){oE(cat)}},h(Ic,{n:'edit'})),
+            h('button',{className:'bi',style:{color:'var(--red)'},onClick:function(){del(cat)}},h(Ic,{n:'trash'})))),
+        subs.length>0?h('div',{style:{marginTop:12,paddingTop:12,borderTop:'1px solid var(--brd)',display:'flex',flexWrap:'wrap',gap:8}},
+          subs.map(function(s){return h('div',{key:s.id,style:{display:'flex',alignItems:'center',gap:6,background:'var(--bgi)',padding:'6px 12px',borderRadius:6,fontSize:'.82rem'}},
+            h('span',null,s.icon||'📋'),
+            h('span',{style:{fontWeight:500}},s.name),
+            h('button',{className:'bi',style:{width:24,height:24,fontSize:'.7rem'},onClick:function(){oE(s)}},h(Ic,{n:'edit'})),
+            h('button',{className:'bi',style:{width:24,height:24,color:'var(--red)'},onClick:function(){del(s)}},h(Ic,{n:'trash'})))})):null)
+    }),
+    h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah Kategori':'Edit Kategori',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},mo&&mo.m==='add'?'Tambah':'Simpan'))},
+      h('div',{className:'fg'},h('label',null,'Parent Kategori (kosongkan jika ini parent)'),h('select',{className:'fi',value:f.parent_id,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.parent_id=e.target.value;sF(n)}},h('option',{value:''},'-- Ini adalah Parent Kategori --'),parents.filter(function(c){return c.type===f.type}).map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))),
+      h('div',{className:'fr'},
+        h('div',{className:'fg'},h('label',null,'Icon (emoji)'),h('input',{className:'fi',value:f.icon,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.icon=e.target.value;sF(n)},style:{fontSize:'1.2rem',textAlign:'center'}})),
+        h('div',{className:'fg'},h('label',null,'Nama'),h('input',{className:'fi',placeholder:'cth: Makan, Gaji...',value:f.name,onChange:function(e){uf(f,'name',e.target.value,sF)}}))),
       h('div',{className:'fg'},h('label',null,'Tipe'),h('div',{className:'tabs'},h('button',{className:'tab'+(f.type==='expense'?' act':''),onClick:function(){uf(f,'type','expense',sF)}},'Pengeluaran'),h('button',{className:'tab'+(f.type==='income'?' act':''),onClick:function(){uf(f,'type','income',sF)}},'Pemasukan'))),
       h('div',{className:'fg'},h('label',null,'Warna'),h('div',{className:'clr'},COLORS.map(function(c){return h('div',{key:c,className:'co'+(f.color===c?' sel':''),style:{background:c},onClick:function(){uf(f,'color',c,sF)}})})))),cfE)
 }
