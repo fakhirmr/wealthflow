@@ -62,6 +62,15 @@ tbody td{padding:13px 14px;border-bottom:1px solid var(--brd);font-size:.88rem}t
 .mni{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65rem;color:var(--t3);padding:5px 10px;border-radius:8px;background:transparent;border:none}.mni.act{color:var(--acc)}.mni svg{width:21px;height:21px}
 .ls{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;color:var(--acc);font-weight:600;text-align:center}
 .tgl{display:flex;align-items:center;gap:10px;cursor:pointer}.tgl-track{width:42px;height:24px;border-radius:12px;background:var(--brd);position:relative;transition:background .2s}.tgl-track.on{background:var(--acc)}.tgl-knob{width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform .2s}.tgl-track.on .tgl-knob{transform:translateX(18px)}
+.chat-box{display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:400px}
+.chat-msgs{flex:1;overflow-y:auto;padding:8px 0;display:flex;flex-direction:column;gap:10px}
+.chat-msg{max-width:85%;padding:12px 16px;border-radius:12px;font-size:.88rem;line-height:1.6;white-space:pre-wrap;word-wrap:break-word}
+.chat-msg.user{align-self:flex-end;background:var(--acc);color:#fff;border-bottom-right-radius:4px}
+.chat-msg.ai{align-self:flex-start;background:var(--bgc2);color:var(--t1);border-bottom-left-radius:4px;border:1px solid var(--brd)}
+.chat-msg.sys{align-self:center;background:transparent;color:var(--t3);font-size:.8rem;text-align:center;padding:8px}
+.chat-input{display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--brd)}
+.chat-input input{flex:1}
+.chat-typing{color:var(--blu);font-size:.82rem;padding:8px 0}
 .cic-info{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:var(--rs);padding:12px;margin-top:8px;font-size:.82rem;color:var(--blu)}
 .wc-type{font-size:.72rem;color:var(--t3);margin-top:2px;text-transform:uppercase;letter-spacing:.03em}
 .wc-limit{font-size:.78rem;color:var(--t3);margin-top:6px}
@@ -152,7 +161,7 @@ function App(){
   function rB(){lt('budgets','created_at',true).then(function(r){sB(r.d)})}
   function rI(){lt('investments','created_at',true).then(function(r){sI(r.d)})}
 
-  var nav=[{id:'dashboard',lb:'Dashboard',ic:'dashboard'},{id:'stats',lb:'Statistik',ic:'budget'},{id:'wallets',lb:'Dompet',ic:'wallet'},{id:'transactions',lb:'Transaksi',ic:'txn'},{id:'categories',lb:'Kategori',ic:'cat'},{id:'budgets',lb:'Anggaran',ic:'budget'},{id:'investments',lb:'Investasi',ic:'invest'}];
+  var nav=[{id:'dashboard',lb:'Dashboard',ic:'dashboard'},{id:'stats',lb:'Statistik',ic:'budget'},{id:'wallets',lb:'Dompet',ic:'wallet'},{id:'transactions',lb:'Transaksi',ic:'txn'},{id:'ai',lb:'AI Asisten',ic:'invest'},{id:'categories',lb:'Kategori',ic:'cat'},{id:'budgets',lb:'Anggaran',ic:'budget'},{id:'investments',lb:'Investasi',ic:'invest'}];
   function go(p){sPg(p);sMb(false)}
 
   if(ld)return h('div',{className:'ls'},h('div',null,h('div',{style:{fontSize:'2.5rem',marginBottom:14}},'💰'),h('div',null,'Memuat WealthFlow...'),slow?h('div',{style:{marginTop:20,fontSize:'.78rem',color:'var(--t3)',maxWidth:320,lineHeight:1.6}},h('p',null,'Loading lama?'),h('p',{style:{marginTop:6}},'1. Tabel belum ada di Supabase'),h('p',null,'2. RLS aktif tanpa policy'),h('button',{className:'btn bp',style:{marginTop:14},onClick:function(){sL(false)}},'Lewati → Buka App')):null));
@@ -165,7 +174,7 @@ function App(){
     h('div',{className:'mn'},nav.slice(0,6).map(function(n){return h('button',{key:n.id,className:'mni'+(pg===n.id?' act':''),onClick:function(){go(n.id)}},h(Ic,{n:n.ic}),h('span',null,n.lb))})),
     h('main',{className:'main'},h('div',{className:'pg'},
       dbE?h('div',{style:{background:'var(--redbg)',border:'1px solid var(--red)',borderRadius:'var(--rs)',padding:'12px 16px',marginBottom:16,fontSize:'.82rem',color:'#fca5a5'}},h('strong',null,'DB: '),dbE):null,
-      pg==='dashboard'?h(Dash,cx):null,pg==='stats'?h(StatsP,cx):null,pg==='wallets'?h(WalletsP,cx):null,pg==='transactions'?h(TxnsP,cx):null,pg==='categories'?h(CatsP,cx):null,pg==='budgets'?h(BudgP,cx):null,pg==='investments'?h(InvP,cx):null)))
+      pg==='dashboard'?h(Dash,cx):null,pg==='stats'?h(StatsP,cx):null,pg==='wallets'?h(WalletsP,cx):null,pg==='transactions'?h(TxnsP,cx):null,pg==='ai'?h(AiP,cx):null,pg==='categories'?h(CatsP,cx):null,pg==='budgets'?h(BudgP,cx):null,pg==='investments'?h(InvP,cx):null)))
 }
 
 /* ═══ DASHBOARD ═══ */
@@ -296,7 +305,25 @@ function CatsP(p){
   function oA(){sF({name:'',type:tab,color:rc(),icon:'📋',parent_id:''});sM({m:'add'})}
   function oE(c){sF({name:c.name,type:c.type,color:c.color||COLORS[0],icon:c.icon||'📋',parent_id:c.parent_id||''});sM({m:'edit',d:c})}
   function save(){if(!f.name.trim()){t('Nama wajib','err');return}var pay={name:f.name.trim(),type:f.type,color:f.color,icon:f.icon||'📋',parent_id:f.parent_id||null,user_id:'1311300f-c949-49d4-a4a0-b65f1f957e23'};(mo.m==='add'?sb.from('categories').insert(pay):sb.from('categories').update(pay).eq('id',mo.d.id)).then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Ditambahkan':'Diperbarui');sM(null);rC()})}
-  function del(c){cf('Hapus "'+c.name+'"?').then(function(ok){if(!ok)return;sb.from('categories').delete().eq('id',c.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dihapus');rC()})})}
+  function del(c){
+    var isParent=!c.parent_id;
+    var msg=isParent?'Hapus kategori "'+c.name+'" beserta sub-kategorinya? Transaksi terkait tidak akan terhapus.':'Hapus sub-kategori "'+c.name+'"?';
+    cf(msg).then(function(ok){if(!ok)return;
+      // Nullify references in transactions first
+      var p1=sb.from('transactions').update({category_id:null}).eq('category_id',c.id);
+      var p2=sb.from('transactions').update({sub_category_id:null}).eq('sub_category_id',c.id);
+      Promise.all([p1,p2]).then(function(){
+        if(isParent){
+          // Delete child sub-categories first
+          sb.from('categories').delete().eq('parent_id',c.id).then(function(){
+            sb.from('categories').delete().eq('id',c.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Kategori dihapus');rC()})
+          })
+        }else{
+          sb.from('categories').delete().eq('id',c.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Sub-kategori dihapus');rC()})
+        }
+      })
+    })
+  }
   var parents=C.filter(function(c){return !c.parent_id});
   var eP=parents.filter(function(c){return c.type==='expense'});
   var iP=parents.filter(function(c){return c.type==='income'});
@@ -350,6 +377,109 @@ function BudgP(p){
     h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah':'Edit',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},mo&&mo.m==='add'?'Tambah':'Simpan'))},
       h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category_id,onChange:function(e){uf(f,'category_id',e.target.value,sF)}},h('option',{value:''},'Pilih'),eC.map(function(c){return h('option',{key:c.id,value:c.id},c.name)}))),
       h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Batas (Rp)'),h('input',{className:'fi',type:'number',placeholder:'0',value:f.amount,onChange:function(e){uf(f,'amount',e.target.value,sF)}})),h('div',{className:'fg'},h('label',null,'Periode'),h('select',{className:'fi',value:f.period,onChange:function(e){uf(f,'period',e.target.value,sF)}},h('option',{value:'monthly'},'Bulanan'),h('option',{value:'weekly'},'Mingguan'),h('option',{value:'yearly'},'Tahunan'))))),cfE)
+}
+
+/* ═══ AI FINANCIAL ASSISTANT ═══ */
+function AiP(p){
+  var W=p.W,T=p.T,C=p.C,B=p.B,I=p.I;
+  var _key=useState(''),apiKey=_key[0],sKey=_key[1];
+  var _msgs=useState([{role:'sys',text:'Halo! Saya asisten keuangan AI Anda. Masukkan API key Anthropic untuk memulai, lalu tanyakan apa saja tentang keuangan Anda. 🤖💰'}]),msgs=_msgs[0],sMsgs=_msgs[1];
+  var _q=useState(''),q=_q[0],sQ=_q[1];
+  var _loading=useState(false),loading=_loading[0],sLoading=_loading[1];
+  var _keySet=useState(false),keySet=_keySet[0],sKeySet=_keySet[1];
+  var chatRef=React.useRef(null);
+
+  useEffect(function(){if(chatRef.current)chatRef.current.scrollTop=chatRef.current.scrollHeight},[msgs]);
+
+  function buildContext(){
+    var now=new Date();var mo=now.getMonth();var yr=now.getFullYear();
+    var moTxns=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===mo&&d.getFullYear()===yr});
+    var totalBal=W.reduce(function(s,w){return s+(Number(w.balance)||0)},0);
+    var moInc=moTxns.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    var moExp=moTxns.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+
+    // Top categories this month
+    var parents=C.filter(function(c){return !c.parent_id});
+    var catBreak=[];
+    parents.forEach(function(cat){
+      var ct=moTxns.filter(function(t){return t.type==='expense'&&t.category_id===cat.id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+      if(ct>0)catBreak.push(cat.name+': '+fmt(ct))
+    });
+
+    // Wallets
+    var walletInfo=W.map(function(w){return w.name+' ('+fmt(w.balance)+')'}).join(', ');
+
+    // Budget status
+    var budgetInfo=B.map(function(b){
+      var catName=cn(C,b.category_id);
+      var spent=T.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+      return catName+': '+fmt(spent)+'/'+fmt(b.amount)
+    }).join('; ');
+
+    // Last 3 months trend
+    var trends=[];
+    for(var m=0;m<3;m++){
+      var tm=(mo-m+12)%12;var ty=mo-m<0?yr-1:yr;
+      var mTxns=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===tm&&d.getFullYear()===ty});
+      var mExp=mTxns.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+      var mInc=mTxns.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+      var mn=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][tm];
+      trends.push(mn+' '+ty+': Masuk '+fmt(mInc)+', Keluar '+fmt(mExp))
+    }
+
+    return 'DATA KEUANGAN USER:\n'+
+      'Total saldo semua dompet: '+fmt(totalBal)+'\n'+
+      'Dompet: '+walletInfo+'\n'+
+      'Bulan ini - Pemasukan: '+fmt(moInc)+', Pengeluaran: '+fmt(moExp)+', Selisih: '+fmt(moInc-moExp)+'\n'+
+      'Breakdown pengeluaran bulan ini:\n'+catBreak.join('\n')+'\n'+
+      'Anggaran: '+(budgetInfo||'Belum ada')+'\n'+
+      'Tren 3 bulan terakhir:\n'+trends.join('\n')+'\n'+
+      'Total transaksi: '+T.length+'\n'+
+      'Investasi: '+I.length+' aset, total '+fmt(I.reduce(function(s,i){return s+(Number(i.current_value)||0)},0))
+  }
+
+  function send(){
+    if(!q.trim()||loading)return;
+    if(!keySet){sKey(q.trim());sKeySet(true);sMsgs(function(m){return m.concat({role:'sys',text:'✅ API key tersimpan (hanya di memori browser). Sekarang tanyakan apa saja tentang keuangan Anda!'})});sQ('');return}
+    var userMsg=q.trim();sQ('');
+    sMsgs(function(m){return m.concat({role:'user',text:userMsg})});
+    sLoading(true);
+
+    var context=buildContext();
+    var sysPrompt='Kamu adalah asisten keuangan pribadi yang cerdas dan helpful. Jawab dalam Bahasa Indonesia. Analisis data keuangan user dan berikan insight yang actionable. Jika ditanya soal pengeluaran, berikan breakdown dan saran penghematan. Jika ditanya soal investasi, berikan perspektif (bukan saran investasi). Gunakan emoji untuk membuat jawaban lebih engaging. Format angka dalam Rupiah. Jawab ringkas tapi informatif.\n\n'+context;
+
+    fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,system:sysPrompt,messages:[{role:'user',content:userMsg}]})
+    }).then(function(r){return r.json()}).then(function(data){
+      sLoading(false);
+      if(data.error){sMsgs(function(m){return m.concat({role:'sys',text:'❌ Error: '+(data.error.message||JSON.stringify(data.error))})});return}
+      var reply=data.content&&data.content[0]?data.content[0].text:'Maaf, tidak ada respons.';
+      sMsgs(function(m){return m.concat({role:'ai',text:reply})})
+    }).catch(function(err){
+      sLoading(false);
+      sMsgs(function(m){return m.concat({role:'sys',text:'❌ Error: '+err.message})})
+    })
+  }
+
+  var quickQs=['Bagaimana kondisi keuangan saya bulan ini?','Kategori pengeluaran terbesar apa?','Berikan tips hemat berdasarkan pola saya','Analisis tren pengeluaran 3 bulan terakhir','Apakah anggaran saya sudah on track?'];
+
+  return h(F,null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'🤖 AI Asisten Keuangan'),h('p',null,'Tanya apa saja tentang keuangan Anda'))),
+    h('div',{className:'cd chat-box'},
+      h('div',{className:'chat-msgs',ref:chatRef},
+        msgs.map(function(m,i){return h('div',{key:i,className:'chat-msg '+m.role},m.text)}),
+        loading?h('div',{className:'chat-typing'},'🤔 Sedang menganalisis...'):null),
+
+      !keySet?null:h('div',{style:{display:'flex',gap:6,flexWrap:'wrap',paddingTop:8,paddingBottom:4}},
+        quickQs.map(function(qq,i){return h('button',{key:i,className:'btn bs',style:{fontSize:'.76rem',padding:'5px 10px'},onClick:function(){sQ(qq)}},qq)})),
+
+      h('div',{className:'chat-input'},
+        h('input',{className:'fi',placeholder:keySet?'Tanya tentang keuangan Anda...':'Masukkan Anthropic API key dulu...',value:q,onChange:function(e){sQ(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')send()}}),
+        h('button',{className:'btn bp',onClick:send,disabled:loading},keySet?'Kirim':'Set Key')),
+
+      keySet?h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginTop:6,textAlign:'center'}},'AI menganalisis ',T.length,' transaksi, ',W.length,' dompet, ',C.length,' kategori. API key hanya disimpan di memori.'):null))
 }
 
 /* ═══ STATISTICS ═══ */
