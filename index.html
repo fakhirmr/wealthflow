@@ -62,8 +62,8 @@ tbody td{padding:13px 14px;border-bottom:1px solid var(--brd);font-size:.88rem}t
 .mni{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.65rem;color:var(--t3);padding:5px 10px;border-radius:8px;background:transparent;border:none}.mni.act{color:var(--acc)}.mni svg{width:21px;height:21px}
 .ls{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;color:var(--acc);font-weight:600;text-align:center}
 .tgl{display:flex;align-items:center;gap:10px;cursor:pointer}.tgl-track{width:42px;height:24px;border-radius:12px;background:var(--brd);position:relative;transition:background .2s}.tgl-track.on{background:var(--acc)}.tgl-knob{width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:transform .2s}.tgl-track.on .tgl-knob{transform:translateX(18px)}
-.chat-box{display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:400px}
-.chat-msgs{flex:1;overflow-y:auto;padding:8px 0;display:flex;flex-direction:column;gap:10px}
+.chat-box{display:flex;flex-direction:column;max-height:calc(100vh - 200px);min-height:300px}
+.chat-msgs{flex:1;overflow-y:auto;padding:8px 0;display:flex;flex-direction:column;gap:10px;max-height:50vh}
 .chat-msg{max-width:85%;padding:12px 16px;border-radius:12px;font-size:.88rem;line-height:1.6;white-space:pre-wrap;word-wrap:break-word}
 .chat-msg.user{align-self:flex-end;background:var(--acc);color:#fff;border-bottom-right-radius:4px}
 .chat-msg.ai{align-self:flex-start;background:var(--bgc2);color:var(--t1);border-bottom-left-radius:4px;border:1px solid var(--brd)}
@@ -212,9 +212,19 @@ function WalletsP(p){
   var grouped={};var groupTotals={};
   W.forEach(function(w){var g=w.group_type||'others';if(!grouped[g])grouped[g]=[];grouped[g].push(w);groupTotals[g]=(groupTotals[g]||0)+(Number(w.balance)||0)});
   var totalAll=W.reduce(function(s,w){return s+(Number(w.balance)||0)},0);
+  var totalAssets=W.filter(function(w){return(Number(w.balance)||0)>=0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0);
+  var totalLiabilities=W.filter(function(w){return(Number(w.balance)||0)<0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0);
 
   return h(F,null,
-    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Dompet'),h('p',null,'Total: '+fmt(totalAll))),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah')),
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Dompet')),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah')),
+
+    // Assets / Liabilities / Total header
+    h('div',{className:'cd',style:{marginBottom:16,padding:'16px 20px'}},
+      h('div',{style:{display:'flex',justifyContent:'space-around',textAlign:'center'}},
+        h('div',null,h('div',{style:{fontSize:'.75rem',color:'var(--t3)',marginBottom:4}},'Aset'),h('div',{style:{fontFamily:'Outfit',fontWeight:700,fontSize:'1.1rem',color:'var(--blu)'}},fmt(totalAssets))),
+        h('div',null,h('div',{style:{fontSize:'.75rem',color:'var(--t3)',marginBottom:4}},'Liabilitas'),h('div',{style:{fontFamily:'Outfit',fontWeight:700,fontSize:'1.1rem',color:'var(--red)'}},fmt(totalLiabilities))),
+        h('div',null,h('div',{style:{fontSize:'.75rem',color:'var(--t3)',marginBottom:4}},'Total'),h('div',{style:{fontFamily:'Outfit',fontWeight:700,fontSize:'1.1rem',color:'#fff'}},fmt(totalAll))))),
+
     W.length===0?h('div',{className:'cd'},h('div',{className:'empty'},h('div',{className:'ei'},'👛'),h('h3',null,'Belum Ada Dompet'))):
     WALLET_GROUPS.filter(function(g){return grouped[g.id]}).map(function(g){
       return h('div',{key:g.id,className:'cd',style:{marginBottom:12,padding:0,overflow:'hidden'}},
@@ -469,6 +479,109 @@ function BudgP(p){
     h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah Anggaran':'Edit Anggaran',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},mo&&mo.m==='add'?'Tambah':'Simpan'))},
       h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category_id,onChange:function(e){ufb('category_id',e.target.value)}},h('option',{value:''},'Pilih'),eC.map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))),
       h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Batas Anggaran (Rp)'),h('input',{className:'fi',type:'number',placeholder:'0',value:f.amount,onChange:function(e){ufb('amount',e.target.value)}})),h('div',{className:'fg'},h('label',null,'Periode'),h('select',{className:'fi',value:f.period,onChange:function(e){ufb('period',e.target.value)}},h('option',{value:'monthly'},'Bulanan'),h('option',{value:'weekly'},'Mingguan'),h('option',{value:'yearly'},'Tahunan'))))),cfE)
+}
+
+/* ═══ AI FINANCIAL ASSISTANT ═══ */
+function AiP(p){
+  var W=p.W,T=p.T,C=p.C,B=p.B,I=p.I;
+  var saved='';try{saved=localStorage.getItem('wf_groq_key')||''}catch(e){}
+  var _key=useState(saved),apiKey=_key[0],sKey=_key[1];
+  var _msgs=useState([{role:'sys',text:saved?'✅ Key Groq tersimpan. Tanya apa saja! 🤖💰':'Masukkan API key Groq (gratis).\n🔑 console.groq.com/keys'}]),msgs=_msgs[0],sMsgs=_msgs[1];
+  var _q=useState(''),q=_q[0],sQ=_q[1];
+  var _loading=useState(false),loading=_loading[0],sLoading=_loading[1];
+  var keySet=!!apiKey;var chatRef=React.useRef(null);
+  useEffect(function(){if(chatRef.current)chatRef.current.scrollTop=chatRef.current.scrollHeight},[msgs]);
+  function buildContext(){
+    var now=new Date();var mo=now.getMonth();var yr=now.getFullYear();
+    var moTxns=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===mo&&d.getFullYear()===yr});
+    var moInc=moTxns.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    var moExp=moTxns.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    var parents=C.filter(function(c){return !c.parent_id});var catB=[];
+    parents.forEach(function(cat){var ct=moTxns.filter(function(t){return t.type==='expense'&&t.category_id===cat.id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);if(ct>0)catB.push(cat.name+': Rp'+ct.toLocaleString('id-ID'))});
+    var budgetInfo=B.map(function(b){var n=cn(C,b.category_id);var sp=T.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);return n+': Rp'+sp.toLocaleString('id-ID')+'/Rp'+((Number(b.amount)||0)).toLocaleString('id-ID')}).join('; ');
+    return 'DATA KEUANGAN:\nBulan ini: Masuk Rp'+moInc.toLocaleString('id-ID')+', Keluar Rp'+moExp.toLocaleString('id-ID')+'\nBreakdown:\n'+catB.join('\n')+'\nAnggaran: '+(budgetInfo||'-')+'\nTotal: '+T.length+' transaksi'
+  }
+  function send(){
+    if(!q.trim()||loading)return;
+    if(!keySet){var k=q.trim();sKey(k);try{localStorage.setItem('wf_groq_key',k)}catch(e){}sMsgs(function(m){return m.concat({role:'sys',text:'✅ Key tersimpan!'})});sQ('');return}
+    var userMsg=q.trim();sQ('');sMsgs(function(m){return m.concat({role:'user',text:userMsg})});sLoading(true);
+    var sys='Kamu asisten keuangan pribadi. Bahasa Indonesia. Analisis data, insight actionable. Emoji. Rupiah. Ringkas.\n\n'+buildContext();
+    fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1500,messages:[{role:'system',content:sys},{role:'user',content:userMsg}]})
+    }).then(function(r){return r.json()}).then(function(data){sLoading(false);if(data.error){sMsgs(function(m){return m.concat({role:'sys',text:'❌ '+data.error.message})});return}var reply=data.choices&&data.choices[0]&&data.choices[0].message?data.choices[0].message.content:'No response.';sMsgs(function(m){return m.concat({role:'ai',text:reply})})}).catch(function(e){sLoading(false);sMsgs(function(m){return m.concat({role:'sys',text:'❌ '+e.message})})})
+  }
+  function resetKey(){try{localStorage.removeItem('wf_groq_key')}catch(e){}sKey('');sMsgs(function(m){return m.concat({role:'sys',text:'🔄 Key dihapus.'})})}
+  var qs=['Kondisi keuangan bulan ini?','Pengeluaran terbesar?','Tips hemat?','Tren 3 bulan','Budget on track?'];
+  return h(F,null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'🤖 AI Asisten Keuangan'),h('p',null,'Powered by Groq (Gratis)'))),
+    h('div',{className:'cd chat-box'},
+      h('div',{className:'chat-msgs',ref:chatRef},msgs.map(function(m,i){return h('div',{key:i,className:'chat-msg '+m.role},m.text)}),loading?h('div',{className:'chat-typing'},'🤔 Menganalisis...'):null),
+      keySet?h('div',{style:{display:'flex',gap:6,flexWrap:'wrap',paddingTop:8,paddingBottom:4}},qs.map(function(qq,i){return h('button',{key:i,className:'btn bs',style:{fontSize:'.74rem',padding:'4px 10px'},onClick:function(){sQ(qq)}},qq)})):null,
+      h('div',{className:'chat-input'},h('input',{className:'fi',placeholder:keySet?'Tanya tentang keuangan...':'Paste API key Groq...',value:q,onChange:function(e){sQ(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')send()}}),h('button',{className:'btn bp',onClick:send,disabled:loading},keySet?'Kirim':'Set Key')),
+      keySet?h('div',{style:{display:'flex',justifyContent:'space-between',marginTop:6}},h('span',{style:{fontSize:'.7rem',color:'var(--t3)'}},'Key tersimpan di browser'),h('button',{className:'btn bs',style:{fontSize:'.7rem',padding:'3px 8px'},onClick:resetKey},'Hapus Key')):h('div',{style:{fontSize:'.75rem',color:'var(--t3)',marginTop:6}},'🔑 Gratis — ',h('a',{href:'https://console.groq.com/keys',target:'_blank',style:{color:'var(--blu)',textDecoration:'underline'}},'console.groq.com/keys'))))
+}
+
+/* ═══ STATISTICS ═══ */
+function StatsP(p){
+  var T=p.T,C=p.C,W=p.W;var now=new Date();
+  var _yr=useState(now.getFullYear()),yr=_yr[0],sYr=_yr[1];var _mn=useState(now.getMonth()),mn=_mn[0],sMn=_mn[1];
+  var _tab=useState('expense'),tab=_tab[0],sTb=_tab[1];var _exp=useState(null),expanded=_exp[0],sExp=_exp[1];
+  var _sd=useState(null),subDet=_sd[0],sSd=_sd[1];
+  var months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  var moTxns=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===mn&&d.getFullYear()===yr});
+  var expTxns=moTxns.filter(function(t){return t.type==='expense'});var incTxns=moTxns.filter(function(t){return t.type==='income'});
+  var totalExp=expTxns.reduce(function(s,t){return s+(Number(t.amount)||0)},0);var totalInc=incTxns.reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+  var activeTxns=tab==='expense'?expTxns:incTxns;var activeTotal=tab==='expense'?totalExp:totalInc;
+  var parents=C.filter(function(c){return !c.parent_id});var catStats=[];
+  parents.forEach(function(cat){
+    var catTxns=activeTxns.filter(function(t){return t.category_id===cat.id});
+    var total=catTxns.reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    if(total>0){
+      var subs=C.filter(function(c){return c.parent_id===cat.id});var subStats=[];
+      subs.forEach(function(sub){var st=catTxns.filter(function(t){return t.sub_category_id===sub.id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);if(st>0)subStats.push({id:sub.id,name:sub.name,icon:sub.icon||'📋',total:st})});
+      var noSub=catTxns.filter(function(t){return!t.sub_category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+      if(noSub>0)subStats.unshift({id:'none',name:'Lainnya',icon:'📋',total:noSub});
+      subStats.sort(function(a,b){return b.total-a.total});
+      catStats.push({id:cat.id,name:cat.name,icon:cat.icon||'📋',color:cat.color||'var(--acc)',total:total,count:catTxns.length,subs:subStats})
+    }
+  });
+  catStats.sort(function(a,b){return b.total-a.total});
+  var detailTxns=[];
+  if(subDet){detailTxns=activeTxns.filter(function(t){if(t.category_id!==subDet.catId)return false;if(subDet.subId==='none')return !t.sub_category_id;return t.sub_category_id===subDet.subId}).sort(function(a,b){return new Date(b.date)-new Date(a.date)})}
+  function prevMo(){if(mn===0){sMn(11);sYr(yr-1)}else sMn(mn-1);sExp(null);sSd(null)}
+  function nextMo(){if(mn===11){sMn(0);sYr(yr+1)}else sMn(mn+1);sExp(null);sSd(null)}
+  return h(F,null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Statistik'),h('p',null,'Analisis pemasukan & pengeluaran'))),
+    h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',gap:16,marginBottom:24}},h('button',{className:'btn bs',onClick:prevMo},'◀'),h('div',{style:{fontSize:'1.1rem',fontWeight:700,fontFamily:'Outfit',color:'#fff',minWidth:180,textAlign:'center'}},months[mn],' ',yr),h('button',{className:'btn bs',onClick:nextMo},'▶')),
+    h('div',{className:'sg'},
+      h('div',{className:'cd st',style:{cursor:'pointer',border:tab==='income'?'2px solid var(--acc)':''},onClick:function(){sTb('income');sExp(null);sSd(null)}},h('div',{className:'lb'},'📈 Pemasukan'),h('div',{className:'vl',style:{color:'var(--acc)'}},fmt(totalInc)),h('div',{className:'sub'},incTxns.length+' transaksi')),
+      h('div',{className:'cd st',style:{cursor:'pointer',border:tab==='expense'?'2px solid var(--red)':''},onClick:function(){sTb('expense');sExp(null);sSd(null)}},h('div',{className:'lb'},'📉 Pengeluaran'),h('div',{className:'vl',style:{color:'var(--red)'}},fmt(totalExp)),h('div',{className:'sub'},expTxns.length+' transaksi')),
+      h('div',{className:'cd st'},h('div',{className:'lb'},'💰 Selisih'),h('div',{className:'vl',style:{color:totalInc-totalExp>=0?'var(--acc)':'var(--red)'}},fmt(totalInc-totalExp)))),
+    h('div',{className:'cd'},
+      h('h3',{style:{fontSize:'1rem',marginBottom:16,color:'#fff'}},'Breakdown ',tab==='expense'?'Pengeluaran':'Pemasukan'),
+      catStats.length===0?h('div',{className:'empty'},h('div',{className:'ei'},'📊'),h('p',null,'Tidak ada data')):
+      catStats.map(function(cat){
+        var pct=activeTotal>0?((cat.total/activeTotal)*100):0;var isOpen=expanded===cat.id;
+        return h('div',{key:cat.id,style:{marginBottom:2}},
+          h('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'10px 8px',borderRadius:8,cursor:'pointer',background:isOpen?'var(--bgc2)':'transparent'},onClick:function(){sExp(isOpen?null:cat.id);sSd(null)}},
+            h('span',{style:{fontSize:18,width:28,textAlign:'center'}},cat.icon),
+            h('div',{style:{flex:1}},
+              h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:3}},h('span',{style:{fontWeight:600,fontSize:'.88rem'}},cat.name),h('span',{style:{fontWeight:700,fontFamily:'Outfit',fontSize:'.9rem',color:tab==='expense'?'var(--red)':'var(--acc)'}},fmt(cat.total))),
+              h('div',{style:{display:'flex',alignItems:'center',gap:8}},h('div',{style:{flex:1,height:5,background:'var(--bgi)',borderRadius:3,overflow:'hidden'}},h('div',{style:{height:'100%',width:pct+'%',background:cat.color,borderRadius:3}})),h('span',{style:{fontSize:'.72rem',color:'var(--t3)',minWidth:36,textAlign:'right'}},pct.toFixed(1)+'%'))),
+            h('span',{style:{fontSize:'.72rem',color:'var(--t3)',background:'var(--bgi)',padding:'2px 7px',borderRadius:10}},cat.count),
+            cat.subs.length>0?h('span',{style:{color:'var(--t3)',fontSize:'.7rem',marginLeft:4}},isOpen?'▼':'▶'):null),
+          isOpen&&cat.subs.length>0?h('div',{style:{marginLeft:38,borderLeft:'2px solid '+(cat.color||'var(--brd)'),paddingLeft:14,paddingBottom:4}},
+            cat.subs.map(function(sub){
+              var sp=cat.total>0?((sub.total/cat.total)*100):0;var isSel=subDet&&subDet.subId===sub.id&&subDet.catId===cat.id;
+              return h('div',{key:sub.id,style:{padding:'7px 8px',borderRadius:6,cursor:'pointer',background:isSel?'rgba(59,130,246,.1)':'transparent',borderBottom:'1px solid var(--brd)'},onClick:function(){sSd(isSel?null:{catId:cat.id,subId:sub.id,subName:sub.name})}},
+                h('div',{style:{display:'flex',alignItems:'center',gap:8}},h('span',{style:{fontSize:13}},sub.icon),h('span',{style:{flex:1,fontSize:'.84rem',fontWeight:500}},sub.name),h('span',{style:{fontWeight:600,fontFamily:'Outfit',fontSize:'.84rem',color:tab==='expense'?'var(--red)':'var(--acc)'}},fmt(sub.total)),h('span',{style:{fontSize:'.7rem',color:'var(--t3)',marginLeft:4}},sp.toFixed(0)+'%')),
+                h('div',{style:{height:3,background:'var(--bgi)',borderRadius:2,marginTop:4,overflow:'hidden'}},h('div',{style:{height:'100%',width:sp+'%',background:cat.color,opacity:.6}})))
+            }),
+            subDet&&subDet.catId===cat.id?h('div',{style:{marginTop:8,background:'var(--bgi)',borderRadius:8,padding:12}},
+              h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}},h('span',{style:{fontSize:'.85rem',fontWeight:600,color:'var(--blu)'}},'📋 ',subDet.subName,' (',detailTxns.length,')'),h('button',{className:'bi',style:{width:24,height:24},onClick:function(){sSd(null)}},h(Ic,{n:'x'}))),
+              detailTxns.map(function(tx){return h('div',{key:tx.id,style:{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'1px solid var(--brd)',fontSize:'.82rem'}},h('span',{style:{color:'var(--t3)',minWidth:65}},fdt(tx.date)),h('span',{style:{flex:1,fontWeight:500}},tx.description||'-'),h('span',{style:{fontWeight:600,fontFamily:'Outfit',color:tab==='expense'?'var(--red)':'var(--acc)'}},fmt(tx.amount)))})
+            ):null
+          ):null)
+      })))
 }
 
 /* ═══ INVESTMENTS ═══ */
