@@ -152,7 +152,7 @@ function App(){
   function rB(){lt('budgets','created_at',true).then(function(r){sB(r.d)})}
   function rI(){lt('investments','created_at',true).then(function(r){sI(r.d)})}
 
-  var nav=[{id:'dashboard',lb:'Dashboard',ic:'dashboard'},{id:'wallets',lb:'Dompet',ic:'wallet'},{id:'transactions',lb:'Transaksi',ic:'txn'},{id:'categories',lb:'Kategori',ic:'cat'},{id:'budgets',lb:'Anggaran',ic:'budget'},{id:'investments',lb:'Investasi',ic:'invest'}];
+  var nav=[{id:'dashboard',lb:'Dashboard',ic:'dashboard'},{id:'stats',lb:'Statistik',ic:'budget'},{id:'wallets',lb:'Dompet',ic:'wallet'},{id:'transactions',lb:'Transaksi',ic:'txn'},{id:'categories',lb:'Kategori',ic:'cat'},{id:'budgets',lb:'Anggaran',ic:'budget'},{id:'investments',lb:'Investasi',ic:'invest'}];
   function go(p){sPg(p);sMb(false)}
 
   if(ld)return h('div',{className:'ls'},h('div',null,h('div',{style:{fontSize:'2.5rem',marginBottom:14}},'💰'),h('div',null,'Memuat WealthFlow...'),slow?h('div',{style:{marginTop:20,fontSize:'.78rem',color:'var(--t3)',maxWidth:320,lineHeight:1.6}},h('p',null,'Loading lama?'),h('p',{style:{marginTop:6}},'1. Tabel belum ada di Supabase'),h('p',null,'2. RLS aktif tanpa policy'),h('button',{className:'btn bp',style:{marginTop:14},onClick:function(){sL(false)}},'Lewati → Buka App')):null));
@@ -162,10 +162,10 @@ function App(){
     h('aside',{className:'sb'+(mob?' open':'')},h('div',{className:'sb-brand'},h('div',{className:'sb-logo'},'W'),h('h1',null,'Wealth',h('span',null,'Flow'))),h('nav',{className:'sb-nav'},nav.map(function(n){return h('button',{key:n.id,className:'nv'+(pg===n.id?' act':''),onClick:function(){go(n.id)}},h(Ic,{n:n.ic}),n.lb)})),h('div',{className:'sb-ft'},'WealthFlow v2.0')),
     h('div',{className:'mh'},h('button',{className:'bi',onClick:function(){sMb(!mob)}},h(Ic,{n:'menu'})),h('h1',{style:{fontFamily:'Outfit',fontSize:'1.05rem',fontWeight:700,color:'#fff'}},'Wealth',h('span',{style:{color:'var(--acc)'}},'Flow')),h('div',{style:{width:34}})),
     mob?h('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.4)',zIndex:99},onClick:function(){sMb(false)}}):null,
-    h('div',{className:'mn'},nav.slice(0,5).map(function(n){return h('button',{key:n.id,className:'mni'+(pg===n.id?' act':''),onClick:function(){go(n.id)}},h(Ic,{n:n.ic}),h('span',null,n.lb))})),
+    h('div',{className:'mn'},nav.slice(0,6).map(function(n){return h('button',{key:n.id,className:'mni'+(pg===n.id?' act':''),onClick:function(){go(n.id)}},h(Ic,{n:n.ic}),h('span',null,n.lb))})),
     h('main',{className:'main'},h('div',{className:'pg'},
       dbE?h('div',{style:{background:'var(--redbg)',border:'1px solid var(--red)',borderRadius:'var(--rs)',padding:'12px 16px',marginBottom:16,fontSize:'.82rem',color:'#fca5a5'}},h('strong',null,'DB: '),dbE):null,
-      pg==='dashboard'?h(Dash,cx):null,pg==='wallets'?h(WalletsP,cx):null,pg==='transactions'?h(TxnsP,cx):null,pg==='categories'?h(CatsP,cx):null,pg==='budgets'?h(BudgP,cx):null,pg==='investments'?h(InvP,cx):null)))
+      pg==='dashboard'?h(Dash,cx):null,pg==='stats'?h(StatsP,cx):null,pg==='wallets'?h(WalletsP,cx):null,pg==='transactions'?h(TxnsP,cx):null,pg==='categories'?h(CatsP,cx):null,pg==='budgets'?h(BudgP,cx):null,pg==='investments'?h(InvP,cx):null)))
 }
 
 /* ═══ DASHBOARD ═══ */
@@ -344,6 +344,121 @@ function BudgP(p){
     h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah':'Edit',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},mo&&mo.m==='add'?'Tambah':'Simpan'))},
       h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category_id,onChange:function(e){uf(f,'category_id',e.target.value,sF)}},h('option',{value:''},'Pilih'),eC.map(function(c){return h('option',{key:c.id,value:c.id},c.name)}))),
       h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Batas (Rp)'),h('input',{className:'fi',type:'number',placeholder:'0',value:f.amount,onChange:function(e){uf(f,'amount',e.target.value,sF)}})),h('div',{className:'fg'},h('label',null,'Periode'),h('select',{className:'fi',value:f.period,onChange:function(e){uf(f,'period',e.target.value,sF)}},h('option',{value:'monthly'},'Bulanan'),h('option',{value:'weekly'},'Mingguan'),h('option',{value:'yearly'},'Tahunan'))))),cfE)
+}
+
+/* ═══ STATISTICS ═══ */
+function StatsP(p){
+  var T=p.T,C=p.C,W=p.W;
+  var now=new Date();
+  var _yr=useState(now.getFullYear()),yr=_yr[0],sYr=_yr[1];
+  var _mn=useState(now.getMonth()),mn=_mn[0],sMn=_mn[1];
+  var _tab=useState('expense'),tab=_tab[0],sTb=_tab[1];
+  var _exp=useState(null),expanded=_exp[0],sExp=_exp[1]; // expanded category id
+
+  var months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+
+  // Filter transactions for selected month
+  var moTxns=T.filter(function(t){
+    if(!t.date)return false;
+    var d=new Date(t.date);return d.getMonth()===mn&&d.getFullYear()===yr
+  });
+  var expTxns=moTxns.filter(function(t){return t.type==='expense'});
+  var incTxns=moTxns.filter(function(t){return t.type==='income'});
+  var totalExp=expTxns.reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+  var totalInc=incTxns.reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+  var activeTxns=tab==='expense'?expTxns:incTxns;
+  var activeTotal=tab==='expense'?totalExp:totalInc;
+
+  // Group by parent category
+  var parents=C.filter(function(c){return !c.parent_id});
+  var catStats=[];
+  parents.forEach(function(cat){
+    var catTxns=activeTxns.filter(function(t){return t.category_id===cat.id});
+    var total=catTxns.reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    if(total>0){
+      // Get sub-category breakdown
+      var subs=C.filter(function(c){return c.parent_id===cat.id});
+      var subStats=[];
+      subs.forEach(function(sub){
+        var subTotal=catTxns.filter(function(t){return t.sub_category_id===sub.id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+        if(subTotal>0)subStats.push({id:sub.id,name:sub.name,icon:sub.icon||'📋',total:subTotal})
+      });
+      // Transactions without sub-category
+      var noSubTotal=catTxns.filter(function(t){return!t.sub_category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+      if(noSubTotal>0)subStats.unshift({id:'none',name:'Tanpa sub-kategori',icon:'📋',total:noSubTotal});
+      subStats.sort(function(a,b){return b.total-a.total});
+      catStats.push({id:cat.id,name:cat.name,icon:cat.icon||'📋',color:cat.color||'var(--acc)',total:total,count:catTxns.length,subs:subStats})
+    }
+  });
+  // Uncategorized
+  var uncatTotal=activeTxns.filter(function(t){return!t.category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+  if(uncatTotal>0)catStats.push({id:'uncat',name:'Tanpa Kategori',icon:'❓',color:'#64748b',total:uncatTotal,count:activeTxns.filter(function(t){return!t.category_id}).length,subs:[]});
+  catStats.sort(function(a,b){return b.total-a.total});
+
+  function prevMo(){if(mn===0){sMn(11);sYr(yr-1)}else sMn(mn-1);sExp(null)}
+  function nextMo(){if(mn===11){sMn(0);sYr(yr+1)}else sMn(mn+1);sExp(null)}
+
+  return h(F,null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Statistik'),h('p',null,'Analisis pemasukan & pengeluaran'))),
+
+    // Month navigator
+    h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',gap:16,marginBottom:24}},
+      h('button',{className:'btn bs',onClick:prevMo},'◀'),
+      h('div',{style:{fontSize:'1.1rem',fontWeight:700,fontFamily:'Outfit',color:'#fff',minWidth:180,textAlign:'center'}},months[mn],' ',yr),
+      h('button',{className:'btn bs',onClick:nextMo},'▶')),
+
+    // Summary cards
+    h('div',{className:'sg'},
+      h('div',{className:'cd st',style:{cursor:'pointer',border:tab==='income'?'2px solid var(--acc)':''},onClick:function(){sTb('income');sExp(null)}},h('div',{className:'lb'},'📈 Pemasukan'),h('div',{className:'vl',style:{color:'var(--acc)'}},fmt(totalInc)),h('div',{className:'sub'},incTxns.length+' transaksi')),
+      h('div',{className:'cd st',style:{cursor:'pointer',border:tab==='expense'?'2px solid var(--red)':''},onClick:function(){sTb('expense');sExp(null)}},h('div',{className:'lb'},'📉 Pengeluaran'),h('div',{className:'vl',style:{color:'var(--red)'}},fmt(totalExp)),h('div',{className:'sub'},expTxns.length+' transaksi')),
+      h('div',{className:'cd st'},h('div',{className:'lb'},'💰 Selisih'),h('div',{className:'vl',style:{color:totalInc-totalExp>=0?'var(--acc)':'var(--red)'}},fmt(totalInc-totalExp)))),
+
+    // Category breakdown
+    h('div',{className:'cd'},
+      h('h3',{style:{fontSize:'1rem',marginBottom:16,color:'#fff'}},'Breakdown ',tab==='expense'?'Pengeluaran':'Pemasukan',' — ',months[mn],' ',yr),
+      catStats.length===0?h('div',{className:'empty'},h('div',{className:'ei'},'📊'),h('p',null,'Tidak ada data untuk periode ini')):
+      catStats.map(function(cat){
+        var pct=activeTotal>0?((cat.total/activeTotal)*100):0;
+        var isOpen=expanded===cat.id;
+        return h('div',{key:cat.id,style:{marginBottom:4}},
+          // Parent category row
+          h('div',{style:{display:'flex',alignItems:'center',gap:12,padding:'12px 8px',borderRadius:8,cursor:'pointer',background:isOpen?'var(--bgc2)':'transparent',transition:'background .2s'},onClick:function(){sExp(isOpen?null:cat.id)}},
+            h('div',{style:{fontSize:20,width:32,textAlign:'center'}},cat.icon),
+            h('div',{style:{flex:1,minWidth:0}},
+              h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}},
+                h('span',{style:{fontWeight:600,fontSize:'.9rem'}},cat.name),
+                h('span',{style:{fontWeight:700,fontFamily:'Outfit',fontSize:'.95rem',color:tab==='expense'?'var(--red)':'var(--acc)'}},fmt(cat.total))),
+              h('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                h('div',{style:{flex:1,height:6,background:'var(--bgi)',borderRadius:3,overflow:'hidden'}},
+                  h('div',{style:{height:'100%',width:pct+'%',background:cat.color,borderRadius:3,transition:'width .5s'}})),
+                h('span',{style:{fontSize:'.75rem',color:'var(--t3)',minWidth:40,textAlign:'right'}},pct.toFixed(1)+'%'))),
+            h('span',{style:{fontSize:'.8rem',color:'var(--t3)',marginLeft:8}},cat.subs.length>0?(isOpen?'▼':'▶'):''),
+            h('span',{style:{fontSize:'.72rem',color:'var(--t3)',background:'var(--bgi)',padding:'2px 8px',borderRadius:10}},cat.count)),
+          // Sub-category breakdown (expanded)
+          isOpen&&cat.subs.length>0?h('div',{style:{marginLeft:44,padding:'8px 0',borderLeft:'2px solid '+cat.color,paddingLeft:16}},
+            cat.subs.map(function(sub){
+              var subPct=cat.total>0?((sub.total/cat.total)*100):0;
+              return h('div',{key:sub.id,style:{display:'flex',alignItems:'center',gap:10,padding:'6px 0'}},
+                h('span',{style:{fontSize:14}},sub.icon),
+                h('div',{style:{flex:1}},
+                  h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.84rem',marginBottom:3}},
+                    h('span',{style:{fontWeight:500}},sub.name),
+                    h('span',{style:{fontWeight:600,fontFamily:'Outfit',color:tab==='expense'?'var(--red)':'var(--acc)'}},fmt(sub.total))),
+                  h('div',{style:{height:4,background:'var(--bgi)',borderRadius:2,overflow:'hidden'}},
+                    h('div',{style:{height:'100%',width:subPct+'%',background:cat.color,opacity:.7,borderRadius:2}}))),
+                h('span',{style:{fontSize:'.72rem',color:'var(--t3)',minWidth:36,textAlign:'right'}},subPct.toFixed(0)+'%'))
+            })):null)
+      })),
+
+    // Top transactions this month
+    h('div',{className:'cd',style:{marginTop:16}},
+      h('h3',{style:{fontSize:'1rem',marginBottom:14,color:'#fff'}},'Top ',tab==='expense'?'Pengeluaran':'Pemasukan',' — ',months[mn]),
+      activeTxns.slice().sort(function(a,b){return(Number(b.amount)||0)-(Number(a.amount)||0)}).slice(0,10).map(function(t){
+        return h('div',{key:t.id,style:{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--brd)'}},
+          h('div',{style:{fontSize:'.82rem',color:'var(--t3)',minWidth:70}},fdt(t.date)),
+          h('div',{style:{flex:1,fontSize:'.86rem',fontWeight:500}},t.description||cn(C,t.category_id)),
+          h('div',{style:{fontWeight:600,fontFamily:'Outfit',fontSize:'.88rem',color:tab==='expense'?'var(--red)':'var(--acc)'}},fmt(t.amount)))
+      })))
 }
 
 /* ═══ INVESTMENTS ═══ */
