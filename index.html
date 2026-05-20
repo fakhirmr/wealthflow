@@ -184,48 +184,125 @@ function TransferMod(p){
 
 /* ═══ DASHBOARD (with budget charts) ═══ */
 function Dash(p){
-  var W=p.W,T=p.T,C=p.C,B=p.B;var now=new Date();
+  var W=p.W,T=p.T,C=p.C,B=p.B,I=p.I;var now=new Date();var moName=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][now.getMonth()];
   var moTxns=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()});
   var inc=moTxns.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
   var exp=moTxns.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
   var bal=W.reduce(function(s,w){return s+(Number(w.balance)||0)},0);
+  var savings=inc-exp;var savingsRate=inc>0?Math.round((savings/inc)*100):0;
 
-  // Budget chart data
-  var budgetData=B.map(function(b){
-    var cat=fid(C,b.category_id);var nm=cat?cat.name:'-';var ico=cat?(cat.icon||'📋'):'📋';var col=cat?(cat.color||'var(--acc)'):'var(--acc)';
-    var sp=moTxns.filter(function(tx){return tx.type==='expense'&&tx.category_id===b.category_id}).reduce(function(s,tx){return s+(Number(tx.amount)||0)},0);
-    var amt=Number(b.amount)||0;var pct=amt>0?Math.round((sp/amt)*100):0;
-    return{name:nm,icon:ico,color:col,budget:amt,spent:sp,pct:pct,over:sp>amt}
-  }).sort(function(a,b){return b.pct-a.pct});
+  // Income vs Expense donut
+  var total=inc+exp;var incPct=total>0?(inc/total*100):50;var expPct=total>0?(exp/total*100):50;
+  var R=50;var C2=2*Math.PI*R;var incArc=C2*(incPct/100);var expArc=C2*(expPct/100);
 
-  var rec=T.slice(0,6);
+  // Top 5 spending categories
+  var parents=C.filter(function(c){return !c.parent_id&&c.type==='expense'});
+  var topCats=[];
+  parents.forEach(function(cat){var sp=moTxns.filter(function(t){return t.type==='expense'&&t.category_id===cat.id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);if(sp>0)topCats.push({name:cat.name,icon:cat.icon||'📋',color:cat.color||'#3b82f6',spent:sp})});
+  topCats.sort(function(a,b){return b.spent-a.spent});
+  var top5=topCats.slice(0,6);var maxCat=top5.length>0?top5[0].spent:1;
+
+  // Budget health
+  var totalBudget=B.reduce(function(s,b){return s+(Number(b.amount)||0)},0);
+  var budgetSpent=B.reduce(function(s,b){var sp=moTxns.filter(function(t){return t.category_id===b.category_id}).reduce(function(ss,t){return ss+(Number(t.amount)||0)},0);return s+sp},0);
+  var budgetPct=totalBudget>0?Math.round((budgetSpent/totalBudget)*100):0;
+  var bR=42;var bC=2*Math.PI*bR;var bArc=bC*(Math.min(budgetPct,100)/100);var bCol=budgetPct>100?'var(--red)':budgetPct>70?'var(--org)':'var(--acc)';
+
+  // 3-month trend
+  var trend=[];
+  for(var m=2;m>=0;m--){var tm=(now.getMonth()-m+12)%12;var ty=now.getMonth()-m<0?now.getFullYear()-1:now.getFullYear();
+    var mT=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===tm&&d.getFullYear()===ty});
+    var mI=mT.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    var mE=mT.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    trend.push({month:['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][tm],inc:mI,exp:mE})}
+  var trendMax=Math.max.apply(null,trend.map(function(t){return Math.max(t.inc,t.exp,1)}));
+
+  var rec=T.slice(0,5);
   return h(F,null,
-    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Dashboard'),h('p',null,'Ringkasan keuangan Anda'))),
-    h('div',{className:'sg'},
-      h('div',{className:'cd st'},h('div',{className:'lb'},'Total Saldo'),h('div',{className:'vl'},fmt(bal)),h('div',{className:'sub'},W.length+' dompet')),
-      h('div',{className:'cd st'},h('div',{className:'lb'},'Pemasukan Bulan Ini'),h('div',{className:'vl',style:{color:'var(--acc)'}},fmt(inc))),
-      h('div',{className:'cd st'},h('div',{className:'lb'},'Pengeluaran Bulan Ini'),h('div',{className:'vl',style:{color:'var(--red)'}},fmt(exp))),
-      h('div',{className:'cd st'},h('div',{className:'lb'},'Selisih'),h('div',{className:'vl',style:{color:inc-exp>=0?'var(--acc)':'var(--red)'}},fmt(inc-exp)))),
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Dashboard'),h('p',null,moName+' '+now.getFullYear()))),
 
-    // Budget Chart
-    budgetData.length>0?h('div',{className:'cd',style:{marginBottom:16}},
-      h('h3',{style:{fontSize:'.95rem',fontWeight:700,marginBottom:14}},'📊 Anggaran Bulan Ini'),
-      budgetData.map(function(b,i){return h('div',{key:i,style:{marginBottom:12}},
-        h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.8rem',marginBottom:3}},
-          h('span',{style:{fontWeight:600}},b.icon,' ',b.name),
-          h('span',{style:{color:b.over?'var(--red)':'var(--t2)'}},fmt(b.spent),' / ',fmt(b.budget),' (',b.pct,'%)')),
-        h('div',{className:'bbg',style:{height:8}},h('div',{className:'bfill',style:{width:Math.min(b.pct,100)+'%',background:b.over?'var(--red)':b.pct>70?'var(--org)':'var(--blu)'}})))})):null,
+    // === ROW 1: Net Worth + Income vs Expense Ring ===
+    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}},
+      // Net Worth card
+      h('div',{className:'cd',style:{background:'linear-gradient(135deg,var(--bgc),var(--bgc2))',position:'relative',overflow:'hidden'}},
+        h('div',{style:{fontSize:'.72rem',color:'var(--t3)',fontWeight:500,marginBottom:4}},'Total Kekayaan Bersih'),
+        h('div',{style:{fontSize:'1.65rem',fontWeight:800,marginBottom:8}},fmt(bal)),
+        h('div',{style:{display:'flex',gap:16}},
+          h('div',null,h('div',{style:{fontSize:'.65rem',color:'var(--t3)'}},'Dompet'),h('div',{style:{fontSize:'.88rem',fontWeight:700,color:'var(--blu)'}},W.length)),
+          h('div',null,h('div',{style:{fontSize:'.65rem',color:'var(--t3)'}},'Transaksi'),h('div',{style:{fontSize:'.88rem',fontWeight:700,color:'var(--blu)'}},moTxns.length)),
+          h('div',null,h('div',{style:{fontSize:'.65rem',color:'var(--t3)'}},'Tabungan'),h('div',{style:{fontSize:'.88rem',fontWeight:700,color:savingsRate>=0?'var(--acc)':'var(--red)'}},savingsRate+'%')))),
 
-    // Recent transactions
-    h('div',{className:'cd'},
-      h('h3',{style:{fontSize:'.95rem',fontWeight:700,marginBottom:12}},'Transaksi Terakhir'),
-      rec.length===0?h('div',{className:'empty'},h('p',null,'Belum ada transaksi')):
-      rec.map(function(t){return h('div',{key:t.id,style:{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--brd)'}},
-        h('div',{style:{width:30,height:30,borderRadius:7,background:t.type==='income'?'var(--accbg)':t.type==='expense'?'var(--redbg)':'var(--blubg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,flexShrink:0}},t.type==='income'?'↗':t.type==='expense'?'↘':'↔'),
-        h('div',{style:{flex:1,minWidth:0}},
-          h('div',{style:{fontSize:'.82rem',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.description||cn(C,t.category_id)),
-          h('div',{style:{fontSize:'.7rem',color:'var(--t3)'}},fdt(t.date),' · ',wn(W,t.wallet_id))),
-        h('div',{style:{fontWeight:600,fontSize:'.85rem',color:t.type==='income'?'var(--acc)':t.type==='expense'?'var(--red)':'var(--blu)'}},t.type==='income'?'+':t.type==='expense'?'-':'',fmt(t.amount)))})))
+      // Income vs Expense Ring
+      h('div',{className:'cd',style:{display:'flex',alignItems:'center',gap:16}},
+        h('div',{style:{position:'relative',width:100,height:100,flexShrink:0}},
+          h('svg',{viewBox:'0 0 110 110',style:{width:'100%',height:'100%',transform:'rotate(-90deg)'}},
+            h('circle',{cx:55,cy:55,r:R,fill:'none',stroke:'var(--acc)',strokeWidth:9,strokeDasharray:incArc+' '+C2,opacity:.85}),
+            h('circle',{cx:55,cy:55,r:R,fill:'none',stroke:'var(--red)',strokeWidth:9,strokeDasharray:expArc+' '+C2,strokeDashoffset:-incArc,opacity:.85})),
+          h('div',{style:{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}},
+            h('div',{style:{fontSize:'.65rem',color:'var(--t3)'}},'Selisih'),
+            h('div',{style:{fontSize:'.95rem',fontWeight:700,color:savings>=0?'var(--acc)':'var(--red)'}},savings>=0?'+':'',fmt(savings)))),
+        h('div',{style:{flex:1}},
+          h('div',{style:{display:'flex',alignItems:'center',gap:6,marginBottom:8}},h('div',{style:{width:10,height:10,borderRadius:3,background:'var(--acc)'}}),h('div',{style:{flex:1}},h('div',{style:{fontSize:'.7rem',color:'var(--t3)'}},'Pemasukan'),h('div',{style:{fontSize:'.92rem',fontWeight:700,color:'var(--acc)'}},fmt(inc)))),
+          h('div',{style:{display:'flex',alignItems:'center',gap:6}},h('div',{style:{width:10,height:10,borderRadius:3,background:'var(--red)'}}),h('div',{style:{flex:1}},h('div',{style:{fontSize:'.7rem',color:'var(--t3)'}},'Pengeluaran'),h('div',{style:{fontSize:'.92rem',fontWeight:700,color:'var(--red)'}},fmt(exp))))))),
+
+    // === ROW 2: Budget Health + 3-Month Trend ===
+    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:12}},
+      // Budget health mini
+      B.length>0?h('div',{className:'cd'},
+        h('div',{style:{display:'flex',alignItems:'center',gap:14}},
+          h('div',{style:{position:'relative',width:90,height:90,flexShrink:0}},
+            h('svg',{viewBox:'0 0 100 100',style:{width:'100%',height:'100%',transform:'rotate(-90deg)'}},
+              h('circle',{cx:50,cy:50,r:bR,fill:'none',stroke:'var(--bgi)',strokeWidth:8}),
+              h('circle',{cx:50,cy:50,r:bR,fill:'none',stroke:bCol,strokeWidth:8,strokeDasharray:bC,strokeDashoffset:bC-bArc,strokeLinecap:'round'})),
+            h('div',{style:{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}},
+              h('div',{style:{fontSize:'1.15rem',fontWeight:800,color:bCol}},budgetPct+'%'),
+              h('div',{style:{fontSize:'.55rem',color:'var(--t3)'}},'budget'))),
+          h('div',{style:{flex:1}},
+            h('div',{style:{fontSize:'.82rem',fontWeight:700,marginBottom:6}},'Anggaran'),
+            h('div',{style:{fontSize:'.72rem',color:'var(--t2)',marginBottom:2}},'Terpakai: ',h('span',{style:{color:bCol,fontWeight:600}},fmt(budgetSpent))),
+            h('div',{style:{fontSize:'.72rem',color:'var(--t2)'}},'Budget: ',h('span',{style:{fontWeight:600}},fmt(totalBudget))),
+            h('div',{style:{fontSize:'.72rem',marginTop:4,color:totalBudget-budgetSpent>=0?'var(--acc)':'var(--red)',fontWeight:600}},'Sisa: ',fmt(totalBudget-budgetSpent))))):
+      h('div',{className:'cd',style:{display:'flex',alignItems:'center',justifyContent:'center'}},h('div',{style:{textAlign:'center',color:'var(--t3)',fontSize:'.82rem'}},'Belum ada anggaran')),
+
+      // 3-Month Trend Bar Chart
+      h('div',{className:'cd'},
+        h('div',{style:{fontSize:'.82rem',fontWeight:700,marginBottom:12}},'Tren 3 Bulan'),
+        h('div',{style:{display:'flex',gap:10,alignItems:'flex-end',height:80}},
+          trend.map(function(t,i){
+            var iH=trendMax>0?(t.inc/trendMax*70):0;var eH=trendMax>0?(t.exp/trendMax*70):0;
+            return h('div',{key:i,style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}},
+              h('div',{style:{display:'flex',gap:2,alignItems:'flex-end',height:70}},
+                h('div',{style:{width:14,height:Math.max(iH,2),background:'var(--acc)',borderRadius:'3px 3px 0 0',opacity:.8}}),
+                h('div',{style:{width:14,height:Math.max(eH,2),background:'var(--red)',borderRadius:'3px 3px 0 0',opacity:.8}})),
+              h('div',{style:{fontSize:'.62rem',color:'var(--t3)',fontWeight:500}},t.month))})),
+        h('div',{style:{display:'flex',gap:12,justifyContent:'center',marginTop:8}},
+          h('div',{style:{display:'flex',alignItems:'center',gap:4,fontSize:'.65rem',color:'var(--t3)'}},h('div',{style:{width:8,height:8,borderRadius:2,background:'var(--acc)'}}),'Masuk'),
+          h('div',{style:{display:'flex',alignItems:'center',gap:4,fontSize:'.65rem',color:'var(--t3)'}},h('div',{style:{width:8,height:8,borderRadius:2,background:'var(--red)'}}),'Keluar')))),
+
+    // === ROW 3: Top Categories + Recent Transactions ===
+    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}},
+      // Top Spending Categories
+      h('div',{className:'cd'},
+        h('div',{style:{fontSize:'.82rem',fontWeight:700,marginBottom:12}},'Top Pengeluaran'),
+        top5.length===0?h('div',{style:{color:'var(--t3)',fontSize:'.8rem',textAlign:'center',padding:16}},'Belum ada data'):
+        top5.map(function(c,i){var w=maxCat>0?(c.spent/maxCat*100):0;
+          return h('div',{key:i,style:{marginBottom:10}},
+            h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.78rem',marginBottom:3}},
+              h('span',{style:{fontWeight:500}},c.icon,' ',c.name),
+              h('span',{style:{fontWeight:600,color:'var(--red)'}},fmt(c.spent))),
+            h('div',{style:{height:6,background:'var(--bgi)',borderRadius:3,overflow:'hidden'}},
+              h('div',{style:{height:'100%',width:w+'%',background:c.color,borderRadius:3,transition:'width .5s'}})))})),
+
+      // Recent Transactions
+      h('div',{className:'cd'},
+        h('div',{style:{fontSize:'.82rem',fontWeight:700,marginBottom:12}},'Transaksi Terbaru'),
+        rec.length===0?h('div',{style:{color:'var(--t3)',fontSize:'.8rem',textAlign:'center',padding:16}},'Belum ada'):
+        rec.map(function(t){return h('div',{key:t.id,style:{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'1px solid var(--brd)'}},
+          h('div',{style:{width:28,height:28,borderRadius:6,background:t.type==='income'?'var(--accbg)':t.type==='expense'?'var(--redbg)':'var(--blubg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,flexShrink:0}},t.type==='income'?'↗':t.type==='expense'?'↘':'↔'),
+          h('div',{style:{flex:1,minWidth:0}},
+            h('div',{style:{fontSize:'.78rem',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.description||cn(C,t.category_id)),
+            h('div',{style:{fontSize:'.65rem',color:'var(--t3)'}},fdt(t.date))),
+          h('div',{style:{fontWeight:600,fontSize:'.8rem',color:t.type==='income'?'var(--acc)':t.type==='expense'?'var(--red)':'var(--blu)'}},t.type==='income'?'+':t.type==='expense'?'-':'',fmt(t.amount)))}))))
 }
 
 /* ═══ WALLETS ═══ */
