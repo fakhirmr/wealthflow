@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{font-size:14px}body{font-family:'Inter',system-ui,-apple-system,sans-serif;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
+html{font-size:15px}body{font-family:'Inter',system-ui,-apple-system,sans-serif;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
 button{font-family:inherit;cursor:pointer;border:none;outline:none}input,select{font-family:inherit;outline:none}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
 
@@ -30,7 +30,7 @@ body{background:var(--bg);color:var(--t1)}
 .theme-btn:hover{color:var(--t1)}
 
 .main{margin-left:250px;flex:1;min-height:100vh;width:calc(100% - 250px)}
-.pg{padding:24px 32px;max-width:1400px;width:100%}
+.pg{padding:28px 40px;width:100%}
 .pg-hd{margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
 .pg-hd h2{font-size:1.4rem;font-weight:700}.pg-hd p{color:var(--t2);font-size:.82rem;margin-top:2px}
 
@@ -253,11 +253,11 @@ function Dash(p){
     h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Dashboard'),h('p',null,moName+' '+now.getFullYear()))),
 
     // === ROW 1: Net Worth + Income vs Expense Ring ===
-    h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:12,marginBottom:12}},
+    h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(340px,1fr))',gap:12,marginBottom:12}},
       // Net Worth card
       h('div',{className:'cd',style:{background:'linear-gradient(135deg,var(--bgc),var(--bgc2))',position:'relative',overflow:'hidden'}},
         h('div',{style:{fontSize:'.72rem',color:'var(--t3)',fontWeight:500,marginBottom:4}},'Total Kekayaan Bersih'),
-        h('div',{style:{fontSize:'1.65rem',fontWeight:800,marginBottom:8}},fmt(bal)),
+        h('div',{style:{fontSize:'1.8rem',fontWeight:800,marginBottom:8}},fmt(bal)),
         h('div',{style:{display:'flex',gap:16}},
           h('div',null,h('div',{style:{fontSize:'.65rem',color:'var(--t3)'}},'Dompet'),h('div',{style:{fontSize:'.88rem',fontWeight:700,color:'var(--blu)'}},W.length)),
           h('div',null,h('div',{style:{fontSize:'.65rem',color:'var(--t3)'}},'Transaksi'),h('div',{style:{fontSize:'.88rem',fontWeight:700,color:'var(--blu)'}},moTxns.length)),
@@ -277,7 +277,7 @@ function Dash(p){
           h('div',{style:{display:'flex',alignItems:'center',gap:6}},h('div',{style:{width:10,height:10,borderRadius:3,background:'var(--red)'}}),h('div',{style:{flex:1}},h('div',{style:{fontSize:'.7rem',color:'var(--t3)'}},'Pengeluaran'),h('div',{style:{fontSize:'.92rem',fontWeight:700,color:'var(--red)'}},fmt(exp))))))),
 
     // === ROW 2: Budget Health + 3-Month Trend ===
-    h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:12,marginBottom:12}},
+    h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(340px,1fr))',gap:12,marginBottom:12}},
       // Budget health mini
       B.length>0?h('div',{className:'cd'},
         h('div',{style:{display:'flex',alignItems:'center',gap:14}},
@@ -311,7 +311,7 @@ function Dash(p){
           h('div',{style:{display:'flex',alignItems:'center',gap:4,fontSize:'.65rem',color:'var(--t3)'}},h('div',{style:{width:8,height:8,borderRadius:2,background:'var(--red)'}}),'Keluar')))),
 
     // === ROW 3: Top Categories + Recent Transactions ===
-    h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:12}},
+    h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(340px,1fr))',gap:12}},
       // Top Spending Categories
       h('div',{className:'cd'},
         h('div',{style:{fontSize:'.82rem',fontWeight:700,marginBottom:12}},'Top Pengeluaran'),
@@ -546,7 +546,7 @@ function BudgP(p){
             h('div',{style:{fontSize:'1.6rem',fontWeight:800,color:donutColor}},tPct+'%'),
             h('div',{style:{fontSize:'.68rem',color:'var(--t3)'}},'terpakai')))),
       // Stats grid
-      h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:10}},
+      h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(340px,1fr))',gap:10}},
         h('div',{className:'cd',style:{padding:'14px',textAlign:'center'}},h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:4}},'Total Budget'),h('div',{style:{fontSize:'1.05rem',fontWeight:700}},fmt(totalBudget))),
         h('div',{className:'cd',style:{padding:'14px',textAlign:'center'}},h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:4}},'Terpakai'),h('div',{style:{fontSize:'1.05rem',fontWeight:700,color:tPct>100?'var(--red)':'var(--blu)'}},fmt(totalSpent))),
         h('div',{className:'cd',style:{padding:'14px',textAlign:'center'}},h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:4}},'Sisa'),h('div',{style:{fontSize:'1.05rem',fontWeight:700,color:tRem>=0?'var(--acc)':'var(--red)'}},fmt(tRem))),
