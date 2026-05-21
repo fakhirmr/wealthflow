@@ -82,7 +82,9 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--brd);font-size:.84rem}t
 .mni{min-width:60px;flex-shrink:0;padding:6px 8px !important;font-size:.6rem !important;color:var(--t3);display:flex;flex-direction:column;align-items:center;gap:2px;background:transparent;border:none}
 .mni.act{color:var(--acc)}.mni svg{width:22px !important;height:22px !important}
 .mni-fab{display:flex;flex-direction:column;align-items:center;gap:2px;background:transparent;border:none;cursor:pointer;padding:0;min-width:60px;margin-top:-14px}
-.fab-inner{width:52px;height:52px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;box-shadow:0 4px 14px rgba(16,185,129,.4)}
+.fab-inner{width:52px;height:52px;border-radius:50%;background:var(--acc);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;box-shadow:0 4px 14px rgba(16,185,129,.4);transition:background .15s}
+.fab-inner.fab-act{background:var(--accd);box-shadow:0 4px 18px rgba(16,185,129,.6)}
+.fab-inner svg{width:22px;height:22px}
 .mni-fab span{font-size:.6rem;color:var(--acc);font-weight:600;margin-top:2px}
 .fab{position:fixed;bottom:76px;right:16px;width:52px;height:52px;border-radius:50%;background:var(--acc);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 16px rgba(16,185,129,.4);z-index:90;border:none;transition:transform .15s}
 .fab:hover{transform:scale(1.1)}
@@ -249,7 +251,7 @@ function App(){
     h('div',{className:'mn'},
       h('button',{className:'mni'+(pg==='dashboard'?' act':''),onClick:function(){go('dashboard')}},h(Ic,{n:'dashboard'}),h('span',null,'Dashboard')),
       h('button',{className:'mni'+(pg==='budgets'?' act':''),onClick:function(){go('budgets')}},h(Ic,{n:'budget'}),h('span',null,'Anggaran')),
-      h('button',{className:'mni-fab',onClick:function(){sFab(true)}},h('div',{className:'fab-inner'},h(Ic,{n:'plus'})),h('span',null,'Transaksi')),
+      h('button',{className:'mni-fab'+(pg==='transactions'?' act':''),onClick:function(){go('transactions')}},h('div',{className:'fab-inner'+(pg==='transactions'?' fab-act':'')},h(Ic,{n:'txn'})),h('span',null,'Transaksi')),
       h('button',{className:'mni'+(pg==='ai'?' act':''),onClick:function(){go('ai')}},h(Ic,{n:'ai'}),h('span',null,'AI')),
       h('button',{className:'mni'+(pg==='settings'?' act':''),onClick:function(){go('settings')}},h(Ic,{n:'menu'}),h('span',null,'Pengaturan'))),
     h('main',{className:'main'},h('div',{className:'pg'},
