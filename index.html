@@ -40,6 +40,7 @@ body{background:var(--bg);color:var(--t1)}
 
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:.82rem;font-weight:600;transition:all .15s}
 .bp{background:var(--acc);color:#fff}.bp:hover{background:var(--accd)}.bs{background:var(--bgc);color:var(--t1);border:1px solid var(--brd)}.bd{background:var(--redbg);color:var(--red)}
+button svg{width:18px;height:18px;flex-shrink:0}
 .bi{width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:8px;background:transparent;color:var(--t2);border:none}.bi:hover{background:var(--bgc2);color:var(--t1)}
 
 .fg{margin-bottom:14px}.fg label{display:block;font-size:.72rem;font-weight:600;color:var(--t2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
@@ -475,22 +476,40 @@ function WalletsP(p){
 
   return h(F,null,
     h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Dompet')),h('div',{style:{display:'flex',gap:8}},h('button',{className:'btn bs',onClick:function(){sTf(true)}},h(Ic,{n:'transfer'}),' Transfer'),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah'))),
-    h('div',{className:'cd',style:{marginBottom:14,padding:'14px 18px'}},h('div',{style:{display:'flex',justifyContent:'space-around',textAlign:'center'}},
-      h('div',null,h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:3}},'Aset'),h('div',{style:{fontWeight:700,color:'var(--blu)'}},fmt(totalAssets))),
-      h('div',null,h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:3}},'Liabilitas'),h('div',{style:{fontWeight:700,color:'var(--red)'}},fmt(totalLiab))),
-      h('div',null,h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:3}},'Total'),h('div',{style:{fontWeight:700}},fmt(totalAssets+totalLiab))))),
+
+    // Summary bar
+    h('div',{className:'cd',style:{marginBottom:14,padding:'16px 20px'}},
+      h('div',{style:{display:'flex',justifyContent:'space-around',textAlign:'center'}},
+        h('div',null,h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginBottom:4}},'Aset'),h('div',{style:{fontWeight:700,fontSize:'1.05rem',color:'var(--blu)'}},fmt(totalAssets))),
+        h('div',{style:{width:1,background:'var(--brd)'}}),
+        h('div',null,h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginBottom:4}},'Liabilitas'),h('div',{style:{fontWeight:700,fontSize:'1.05rem',color:'var(--red)'}},fmt(totalLiab))),
+        h('div',{style:{width:1,background:'var(--brd)'}}),
+        h('div',null,h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginBottom:4}},'Total Bersih'),h('div',{style:{fontWeight:700,fontSize:'1.05rem'}},fmt(totalAssets+totalLiab))))),
+
     W.length===0?h('div',{className:'cd'},h('div',{className:'empty'},h('div',{className:'ei'},'👛'),h('h3',null,'Belum Ada Dompet'))):
     WGROUPS.filter(function(g){return grouped[g.id]}).map(function(g){
-      return h('div',{key:g.id,className:'cd',style:{marginBottom:10,padding:0,overflow:'hidden'}},
-        h('div',{style:{display:'flex',justifyContent:'space-between',padding:'10px 16px',background:'var(--bgc2)',borderBottom:'1px solid var(--brd)',fontSize:'.8rem',fontWeight:600}},h('span',null,g.ico,' ',g.lb),h('span',{style:{color:(groupTotals[g.id]||0)>=0?'var(--blu)':'var(--red)'}},fmt(groupTotals[g.id]||0))),
-        grouped[g.id].map(function(w,i){return h('div',{key:w.id,style:{display:'flex',alignItems:'center',padding:'9px 16px',borderBottom:i<grouped[g.id].length-1?'1px solid var(--brd)':'none',gap:10}},
-          h('div',{style:{width:7,height:7,borderRadius:'50%',background:w.color||'var(--acc)',flexShrink:0}}),
-          h('div',{style:{flex:1}},h('div',{style:{fontSize:'.84rem',fontWeight:600}},w.name)),
-          h('div',{style:{fontWeight:700,fontSize:'.88rem',color:(Number(w.balance)||0)>=0?'var(--acc)':'var(--red)'}},fmt(w.balance)),
-          h('button',{style:{width:38,height:38,borderRadius:8,background:'var(--bgc2)',border:'1px solid var(--brd)',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--t2)',cursor:'pointer',flexShrink:0},onClick:function(){oE(w)}},h(Ic,{n:'edit'})),
-          h('button',{style:{width:38,height:38,borderRadius:8,background:'var(--redbg)',border:'1px solid var(--red)',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--red)',cursor:'pointer',flexShrink:0},onClick:function(){del(w)}},h(Ic,{n:'trash'})))}))
+      return h('div',{key:g.id,style:{marginBottom:10}},
+        // Group header
+        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 2px 8px'}},
+          h('span',{style:{fontSize:'.75rem',fontWeight:700,color:'var(--t3)',textTransform:'uppercase',letterSpacing:'.06em',display:'flex',alignItems:'center',gap:5}},g.ico,' ',g.lb),
+          h('span',{style:{fontSize:'.8rem',fontWeight:600,color:(groupTotals[g.id]||0)>=0?'var(--blu)':'var(--red)'}},fmt(groupTotals[g.id]||0))),
+        // Wallet rows in a card
+        h('div',{className:'cd',style:{padding:0,overflow:'hidden'}},
+          grouped[g.id].map(function(w,i){
+            var bal=Number(w.balance)||0;
+            return h('div',{key:w.id,style:{display:'flex',alignItems:'center',gap:12,padding:'13px 16px',borderBottom:i<grouped[g.id].length-1?'1px solid var(--brd)':'none'}},
+              // Color dot
+              h('div',{style:{width:10,height:10,borderRadius:'50%',background:w.color||'var(--acc)',flexShrink:0}}),
+              // Name
+              h('div',{style:{flex:1}},h('span',{style:{fontSize:'.9rem',fontWeight:600}},w.name)),
+              // Balance
+              h('span',{style:{fontFamily:'Outfit,sans-serif',fontWeight:700,fontSize:'.92rem',color:bal>=0?'var(--acc)':'var(--red)',marginRight:8}},fmt(bal)),
+              // Action buttons — use bi class so svg sizing works
+              h('button',{className:'bi',onClick:function(){oE(w)},title:'Edit'},h(Ic,{n:'edit'})),
+              h('button',{className:'bi',style:{color:'var(--red)'},onClick:function(){del(w)},title:'Hapus'},h(Ic,{n:'trash'})))
+          })))
     }),
-    h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah':'Edit',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},'Simpan'))},
+    h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah Dompet':'Edit Dompet',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},'Simpan'))},
       h('div',{className:'fg'},h('label',null,'Grup'),h('select',{className:'fi',value:f.group_type,onChange:function(e){uf(f,'group_type',e.target.value,sF)}},WGROUPS.map(function(g){return h('option',{key:g.id,value:g.id},g.ico,' ',g.lb)}))),
       h('div',{className:'fg'},h('label',null,'Nama'),h('input',{className:'fi',value:f.name,onChange:function(e){uf(f,'name',e.target.value,sF)}})),
       h('div',{className:'fg'},h('label',null,'Warna'),h('div',{className:'clr'},COLORS.map(function(c){return h('div',{key:c,className:'co'+(f.color===c?' sel':''),style:{background:c},onClick:function(){uf(f,'color',c,sF)}})})))),
