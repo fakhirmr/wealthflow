@@ -97,7 +97,64 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--brd);font-size:.84rem}t
 <script>
 if(!window.React||!window.ReactDOM||!window.supabase){document.getElementById('root').innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#ef4444;padding:20px;text-align:center"><div>⚠️ Library gagal dimuat. Refresh halaman.</div></div>'}else{
 var h=React.createElement,F=React.Fragment,useState=React.useState,useEffect=React.useEffect,useCallback=React.useCallback,useMemo=React.useMemo,createContext=React.createContext,useContext=React.useContext;
-var UID='1311300f-c949-49d4-a4a0-b65f1f957e23';
+var UID=null; // Dynamic - set from auth session
+
+/* ═══ AUTH PAGE ═══ */
+function AuthPage(p){
+  var _tab=useState('login'),tab=_tab[0],sTab=_tab[1];
+  var _email=useState(''),email=_email[0],sEmail=_email[1];
+  var _pass=useState(''),pass=_pass[0],sPass=_pass[1];
+  var _err=useState(''),err=_err[0],sErr=_err[1];
+  var _loading=useState(false),loading=_loading[0],sLoading=_loading[1];
+
+  function doLogin(){
+    if(!email||!pass){sErr('Email dan password wajib diisi');return}
+    sLoading(true);sErr('');
+    sb.auth.signInWithPassword({email:email,password:pass}).then(function(r){
+      sLoading(false);
+      if(r.error){sErr(r.error.message);return}
+      if(p.onAuth)p.onAuth(r.data.user);
+    })
+  }
+  function doRegister(){
+    if(!email||!pass){sErr('Email dan password wajib diisi');return}
+    if(pass.length<6){sErr('Password minimal 6 karakter');return}
+    sLoading(true);sErr('');
+    sb.auth.signUp({email:email,password:pass}).then(function(r){
+      sLoading(false);
+      if(r.error){sErr(r.error.message);return}
+      if(r.data.user&&!r.data.user.email_confirmed_at){sErr('');sTab('verify')}
+      else if(p.onAuth)p.onAuth(r.data.user);
+    })
+  }
+
+  if(tab==='verify')return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%',padding:20}},
+    h('div',{className:'cd',style:{maxWidth:400,width:'100%',textAlign:'center',padding:32}},
+      h('div',{style:{fontSize:48,marginBottom:16}},'📧'),
+      h('h2',{style:{marginBottom:8}},'Cek Email Kamu'),
+      h('p',{style:{color:'var(--t2)',marginBottom:16}},'Link verifikasi telah dikirim ke ',h('strong',null,email)),
+      h('p',{style:{color:'var(--t3)',fontSize:'.82rem'}},'Klik link di email, lalu kembali ke sini dan login.'),
+      h('button',{className:'btn bp',style:{marginTop:16},onClick:function(){sTab('login')}},'Ke Halaman Login')));
+
+  return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%',padding:20}},
+    h('div',{style:{maxWidth:400,width:'100%'}},
+      // Logo
+      h('div',{style:{textAlign:'center',marginBottom:32}},
+        h('div',{style:{width:56,height:56,background:'linear-gradient(135deg,var(--acc),var(--cyn))',borderRadius:14,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:24,fontWeight:800,color:'#fff',marginBottom:12}},'W'),
+        h('h1',{style:{fontSize:'1.6rem',fontWeight:800}},'Wealth',h('span',{style:{color:'var(--acc)'}},'Flow')),
+        h('p',{style:{color:'var(--t3)',fontSize:'.85rem',marginTop:4}},'Personal Finance Manager')),
+      // Card
+      h('div',{className:'cd',style:{padding:28}},
+        h('div',{className:'tabs',style:{marginBottom:20,width:'100%'}},
+          h('button',{className:'tab'+(tab==='login'?' act':''),style:{flex:1,textAlign:'center'},onClick:function(){sTab('login');sErr('')}},'Login'),
+          h('button',{className:'tab'+(tab==='register'?' act':''),style:{flex:1,textAlign:'center'},onClick:function(){sTab('register');sErr('')}},'Register')),
+        err?h('div',{style:{background:'var(--redbg)',border:'1px solid var(--red)',borderRadius:8,padding:'10px 14px',marginBottom:14,fontSize:'.82rem',color:'var(--red)'}},err):null,
+        h('div',{className:'fg'},h('label',null,'Email'),h('input',{className:'fi',type:'email',placeholder:'email@contoh.com',value:email,onChange:function(e){sEmail(e.target.value)},onKeyDown:function(e){if(e.key==='Enter'){tab==='login'?doLogin():doRegister()}}})),
+        h('div',{className:'fg'},h('label',null,'Password'),h('input',{className:'fi',type:'password',placeholder:'Minimal 6 karakter',value:pass,onChange:function(e){sPass(e.target.value)},onKeyDown:function(e){if(e.key==='Enter'){tab==='login'?doLogin():doRegister()}}})),
+        h('button',{className:'btn bp',style:{width:'100%',justifyContent:'center',padding:'12px',fontSize:'.9rem'},onClick:tab==='login'?doLogin:doRegister,disabled:loading},loading?'Memproses...':tab==='login'?'Login':'Buat Akun'),
+        tab==='login'?h('p',{style:{textAlign:'center',fontSize:'.78rem',color:'var(--t3)',marginTop:14}},'Belum punya akun? ',h('button',{style:{color:'var(--acc)',background:'none',border:'none',fontWeight:600,cursor:'pointer'},onClick:function(){sTab('register');sErr('')}},'Daftar')):
+        h('p',{style:{textAlign:'center',fontSize:'.78rem',color:'var(--t3)',marginTop:14}},'Sudah punya akun? ',h('button',{style:{color:'var(--acc)',background:'none',border:'none',fontWeight:600,cursor:'pointer'},onClick:function(){sTab('login');sErr('')}},'Login')))))
+}
 var sb=window.supabase.createClient('https://wkhjxgrjkrakfhwckriu.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraGp4Z3Jqa3Jha2Zod2Nrcml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjQyOTUsImV4cCI6MjA5NDMwMDI5NX0.Prtzf84zL-MvJuWF6Qk9HrJLzb2wmxxRD_OA094ulck');
 var COLORS=['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#6366f1'];
 var WGROUPS=[{id:'cash',lb:'Cash',ico:'💵'},{id:'accounts',lb:'Rekening',ico:'🏦'},{id:'card',lb:'Kartu Kredit',ico:'💳'},{id:'debit',lb:'Kartu Debit',ico:'💳'},{id:'savings',lb:'Tabungan',ico:'🐖'},{id:'ewallet',lb:'E-Wallet',ico:'📱'},{id:'investments',lb:'Investasi',ico:'📈'},{id:'others',lb:'Lainnya',ico:'📦'}];
@@ -122,23 +179,43 @@ function useCf(){var s=useState(null),st=s[0],sS=s[1];var cf=useCallback(functio
 
 /* ═══════════════════ APP ═══════════════════ */
 function App(){
+  var _au=useState(null),user=_au[0],sUser=_au[1];
+  var _ac=useState(true),authChecking=_ac[0],sAC=_ac[1];
   var _p=useState('dashboard'),pg=_p[0],sPg=_p[1];var _mb=useState(false),mob=_mb[0],sMb=_mb[1];
   var _W=useState([]),W=_W[0],sW=_W[1];var _T=useState([]),T=_T[0],sT=_T[1];var _C=useState([]),C=_C[0],sC=_C[1];var _B=useState([]),B=_B[0],sB=_B[1];var _I=useState([]),I=_I[0],sI=_I[1];
-  var _l=useState(true),ld=_l[0],sL=_l[1];var _e=useState(''),dbE=_e[0],sE=_e[1];var _sl=useState(false),slow=_sl[0],sSl=_sl[1];
+  var _l=useState(false),ld=_l[0],sL=_l[1];var _e=useState(''),dbE=_e[0],sE=_e[1];var _sl=useState(false),slow=_sl[0],sSl=_sl[1];
   var initTheme='dark';try{initTheme=localStorage.getItem('wf_theme')||'dark'}catch(e){}
   var _th=useState(initTheme),theme=_th[0],sTh=_th[1];
   useEffect(function(){document.documentElement.setAttribute('data-theme',theme);try{localStorage.setItem('wf_theme',theme)}catch(e){}},[theme]);
   var _fab=useState(false),fabOpen=_fab[0],sFab=_fab[1];
-  var _tf=useState(false),tfOpen=_tf[0],sTf=_tf[1]; // transfer modal
+  var _tf=useState(false),tfOpen=_tf[0],sTf=_tf[1];
 
-  useEffect(function(){var t1=setTimeout(function(){sSl(true)},3e3);var t2=setTimeout(function(){sL(false)},10e3);var errs=[],done=0;
+  // Check auth session on mount
+  useEffect(function(){
+    sb.auth.getSession().then(function(r){
+      if(r.data.session&&r.data.session.user){
+        UID=r.data.session.user.id;sUser(r.data.session.user);
+      }
+      sAC(false);
+    });
+    var sub=sb.auth.onAuthStateChange(function(event,session){
+      if(session&&session.user){UID=session.user.id;sUser(session.user)}
+      else{UID=null;sUser(null);sW([]);sT([]);sC([]);sB([]);sI([])}
+    });
+    return function(){if(sub&&sub.data&&sub.data.subscription)sub.data.subscription.unsubscribe()};
+  },[]);
+
+  // Load data when user changes
+  useEffect(function(){
+    if(!user)return;sL(true);
+    var t1=setTimeout(function(){sSl(true)},3e3);var t2=setTimeout(function(){sL(false)},10e3);var errs=[],done=0;
     function chk(){done++;if(done>=5){clearTimeout(t2);if(errs.length)sE(errs.join('; '));sL(false)}}
     lt('wallets','created_at',true).then(function(r){sW(r.d);if(r.e)errs.push(r.e);chk()});
     lt('transactions','date',false).then(function(r){sT(r.d);if(r.e)errs.push(r.e);chk()});
     lt('categories','name',true).then(function(r){sC(r.d);if(r.e)errs.push(r.e);chk()});
     lt('budgets','created_at',true).then(function(r){sB(r.d);if(r.e)errs.push(r.e);chk()});
     lt('investments','created_at',true).then(function(r){sI(r.d);if(r.e)errs.push(r.e);chk()});
-    return function(){clearTimeout(t1);clearTimeout(t2)}},[]);
+    return function(){clearTimeout(t1);clearTimeout(t2)}},[user]);
   function rW(){lt('wallets','created_at',true).then(function(r){sW(r.d)})}
   function rT(){lt('transactions','date',false).then(function(r){sT(r.d)})}
   function rC(){lt('categories','name',true).then(function(r){sC(r.d)})}
@@ -147,13 +224,22 @@ function App(){
 
   var nav=[{id:'dashboard',lb:'Dashboard',ic:'dashboard'},{id:'stats',lb:'Statistik',ic:'budget'},{id:'wallets',lb:'Dompet',ic:'wallet'},{id:'transactions',lb:'Transaksi',ic:'txn'},{id:'ai',lb:'AI Asisten',ic:'ai'},{id:'categories',lb:'Kategori',ic:'cat'},{id:'budgets',lb:'Anggaran',ic:'budget'},{id:'investments',lb:'Investasi',ic:'invest'}];
   function go(p){sPg(p);sMb(false)}
-  if(ld)return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%',color:'var(--acc)',fontWeight:600,textAlign:'center'}},h('div',null,h('div',{style:{fontSize:'2rem',marginBottom:12}},'💰'),'Memuat...',slow?h('div',{style:{marginTop:16,fontSize:'.78rem',color:'var(--t3)'}},h('button',{className:'btn bp',onClick:function(){sL(false)}},'Lewati → Buka')):null));
+  // Auth checking
+  if(authChecking)return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%',color:'var(--acc)',fontWeight:600}},h('div',{style:{textAlign:'center'}},h('div',{style:{fontSize:'2rem',marginBottom:12}},'💰'),'Memeriksa sesi...'));
+  // Not logged in
+  if(!user)return h(AuthPage,{onAuth:function(u){UID=u.id;sUser(u)}});
+  // Loading data
+  if(ld)return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%',color:'var(--acc)',fontWeight:600,textAlign:'center'}},h('div',null,h('div',{style:{fontSize:'2rem',marginBottom:12}},'💰'),'Memuat data...',slow?h('div',{style:{marginTop:16,fontSize:'.78rem',color:'var(--t3)'}},h('button',{className:'btn bp',onClick:function(){sL(false)}},'Lewati → Buka')):null));
 
   var cx={W:W,T:T,C:C,B:B,I:I,rW:rW,rT:rT,rC:rC,rB:rB,rI:rI};
   return h(F,null,
     h('aside',{className:'sb'+(mob?' open':'')},h('div',{className:'sb-brand'},h('div',{className:'sb-logo'},'W'),h('h1',null,'Wealth',h('span',null,'Flow'))),
       h('nav',{className:'sb-nav'},nav.map(function(n){return h('button',{key:n.id,className:'nv'+(pg===n.id?' act':''),onClick:function(){go(n.id)}},h(Ic,{n:n.ic}),n.lb)})),
-      h('div',{className:'sb-ft'},h('button',{className:'theme-btn',onClick:function(){sTh(theme==='dark'?'light':'dark')}},h(Ic,{n:theme==='dark'?'sun':'moon'}),theme==='dark'?'Light':'Dark'),h('span',{style:{fontSize:'.65rem',color:'var(--t3)'}},'v3.0'))),
+      h('div',{className:'sb-ft',style:{flexDirection:'column',gap:8,alignItems:'stretch'}},
+        h('div',{style:{display:'flex',alignItems:'center',gap:8,fontSize:'.72rem',color:'var(--t2)',overflow:'hidden'}},h('span',null,'👤'),h('span',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}},user.email||'User')),
+        h('div',{style:{display:'flex',gap:6}},
+          h('button',{className:'theme-btn',style:{flex:1},onClick:function(){sTh(theme==='dark'?'light':'dark')}},h(Ic,{n:theme==='dark'?'sun':'moon'}),theme==='dark'?'Light':'Dark'),
+          h('button',{className:'theme-btn',style:{color:'var(--red)'},onClick:function(){sb.auth.signOut()}},'Logout')))),
     h('div',{className:'mh'},h('button',{className:'bi',onClick:function(){sMb(!mob)}},h(Ic,{n:'menu'})),h('h1',{style:{fontSize:'.95rem',fontWeight:700}},'Wealth',h('span',{style:{color:'var(--acc)'}},'Flow')),h('button',{className:'bi',onClick:function(){sTh(theme==='dark'?'light':'dark')}},h(Ic,{n:theme==='dark'?'sun':'moon'}))),
     mob?h('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.3)',zIndex:99},onClick:function(){sMb(false)}}):null,
     h('div',{className:'mn'},nav.map(function(n){return h('button',{key:n.id,className:'mni'+(pg===n.id?' act':''),onClick:function(){go(n.id)}},h(Ic,{n:n.ic}),h('span',null,n.lb))})),
