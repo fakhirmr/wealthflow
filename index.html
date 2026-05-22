@@ -468,10 +468,17 @@ function WalletsP(p){
   function oA(){sF({name:'',color:COLORS[Math.floor(Math.random()*COLORS.length)],group_type:'cash'});sM({m:'add'})}
   function oE(w){sF({name:w.name,color:w.color||COLORS[0],group_type:w.group_type||'others'});sM({m:'edit',d:w})}
   function save(){if(!f.name.trim()){t('Nama wajib','err');return}var pay={user_id:UID,name:f.name.trim(),color:f.color,group_type:f.group_type};(mo.m==='add'?sb.from('wallets').insert(pay):sb.from('wallets').update(pay).eq('id',mo.d.id)).then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Ditambahkan':'Diperbarui');sM(null);rW()})}
-  function del(w){cf('Hapus "'+w.name+'"? Transaksi terkait tidak akan terhapus.').then(function(ok){if(!ok)return;
-    sb.from('transactions').update({wallet_id:null}).eq('wallet_id',w.id).then(function(){
-      sb.from('wallets').delete().eq('id',w.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dihapus');rW()})})})}
-  var grouped={};var groupTotals={};W.forEach(function(w){var g=w.group_type||'others';if(!grouped[g])grouped[g]=[];grouped[g].push(w);groupTotals[g]=(groupTotals[g]||0)+(Number(w.balance)||0)});
+  function del(w){cf('Hapus "'+w.name+'"?\n\nTransaksi yang menggunakan dompet ini akan tetap ada (wallet-nya dikosongkan).').then(function(ok){if(!ok)return;
+    // Step 1: nullify wallet_id in all related transactions
+    sb.from('transactions').update({wallet_id:null}).eq('wallet_id',w.id).then(function(ur){
+      if(ur.error){t('Gagal update transaksi: '+ur.error.message,'err');return}
+      // Step 2: now safe to delete wallet
+      sb.from('wallets').delete().eq('id',w.id).then(function(r){
+        if(r.error){t(r.error.message,'err');return}
+        t('Dompet dihapus');rW()
+      })
+    })
+  })}  var grouped={};var groupTotals={};W.forEach(function(w){var g=w.group_type||'others';if(!grouped[g])grouped[g]=[];grouped[g].push(w);groupTotals[g]=(groupTotals[g]||0)+(Number(w.balance)||0)});
   var totalAssets=W.filter(function(w){return(Number(w.balance)||0)>=0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0);
   var totalLiab=W.filter(function(w){return(Number(w.balance)||0)<0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0);
 
@@ -648,8 +655,13 @@ function CatsP(p){
     })
   }
   function delSub(s){cf('Hapus "'+s.name+'"?').then(function(ok){if(!ok)return;
-    sb.from('transactions').update({sub_category_id:null}).eq('sub_category_id',s.id).then(function(){
-      sb.from('categories').delete().eq('id',s.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dihapus');rC()})})
+    sb.from('transactions').update({sub_category_id:null}).eq('sub_category_id',s.id).then(function(r1){
+      if(r1.error){t('Gagal: '+r1.error.message,'err');return}
+      sb.from('categories').delete().eq('id',s.id).then(function(r2){
+        if(r2.error){t('Gagal: '+r2.error.message,'err');return}
+        t('Sub-kategori dihapus');rC()
+      })
+    })
   })}
   function save(){
     if(!f.name.trim()){t('Nama wajib','err');return}
@@ -657,11 +669,36 @@ function CatsP(p){
     var pay={user_id:UID,name:f.name.trim(),type:f.type,color:f.color,icon:f.icon||'📋',parent_id:f.is_sub?(f.parent_id||null):null};
     (mo.m==='add'?sb.from('categories').insert(pay):sb.from('categories').update(pay).eq('id',mo.d.id)).then(function(r){if(r.error){t(r.error.message,'err');return}t('OK');sM(null);rC()})
   }
-  function del(c){var isP=!c.parent_id;cf('Hapus "'+c.name+'"?').then(function(ok){if(!ok)return;
-    sb.from('transactions').update({category_id:null}).eq('category_id',c.id).then(function(){sb.from('transactions').update({sub_category_id:null}).eq('sub_category_id',c.id).then(function(){
-      if(isP)sb.from('categories').delete().eq('parent_id',c.id).then(function(){sb.from('categories').delete().eq('id',c.id).then(function(){t('Dihapus');rC()})});
-      else sb.from('categories').delete().eq('id',c.id).then(function(){t('Dihapus');rC()})})})
-  })}
+  function del(c){var isP=!c.parent_id;
+    var msg=isP?'Hapus kategori "'+c.name+'" beserta semua sub-kategorinya?':'Hapus sub-kategori "'+c.name+'"?';
+    cf(msg).then(function(ok){if(!ok)return;
+      // Step 1: nullify category_id in transactions
+      sb.from('transactions').update({category_id:null,sub_category_id:null}).eq('category_id',c.id).then(function(r1){
+        if(r1.error){t('Gagal: '+r1.error.message,'err');return}
+        // Step 2: nullify sub_category_id
+        sb.from('transactions').update({sub_category_id:null}).eq('sub_category_id',c.id).then(function(r2){
+          if(r2.error){t('Gagal: '+r2.error.message,'err');return}
+          if(isP){
+            // Step 3a: delete sub-categories first
+            sb.from('categories').delete().eq('parent_id',c.id).then(function(r3){
+              if(r3.error){t('Gagal hapus sub: '+r3.error.message,'err');return}
+              // Step 4: delete parent
+              sb.from('categories').delete().eq('id',c.id).then(function(r4){
+                if(r4.error){t('Gagal: '+r4.error.message,'err');return}
+                t('Kategori dihapus');rC()
+              })
+            })
+          } else {
+            // Step 3b: delete sub-category directly
+            sb.from('categories').delete().eq('id',c.id).then(function(r3){
+              if(r3.error){t('Gagal: '+r3.error.message,'err');return}
+              t('Sub-kategori dihapus');rC()
+            })
+          }
+        })
+      })
+    })
+  }
   var parents=C.filter(function(c){return !c.parent_id});
   var eP=parents.filter(function(c){return c.type==='expense'});
   var iP=parents.filter(function(c){return c.type==='income'});
