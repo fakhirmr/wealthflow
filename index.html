@@ -500,6 +500,30 @@ function Dash(p){
 }
 
 
+/* ═══ SETTINGS PAGE ═══ */
+function SettingsP(p){
+  var user=p.user,theme=p.theme,sTh=p.sTh;
+  var _tab=useState('wallets'),tab=_tab[0],sTab=_tab[1];
+  return h('div',null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Pengaturan'))),
+    // User card
+    h('div',{className:'cd',style:{marginBottom:16,padding:'20px'}},
+      h('div',{style:{display:'flex',alignItems:'center',gap:14,marginBottom:16}},
+        h('div',{style:{width:48,height:48,borderRadius:24,background:'linear-gradient(135deg,var(--acc),var(--cyn))',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,fontSize:18,flexShrink:0}},user&&user.email?user.email[0].toUpperCase():'U'),
+        h('div',null,
+          h('div',{style:{fontWeight:700,fontSize:'1rem'}},user&&user.email||'User'),
+          h('div',{style:{fontSize:'.75rem',color:'var(--acc)',marginTop:2}},'● Akun aktif'))),
+      h('button',{style:{width:'100%',padding:'11px',borderRadius:8,fontSize:'.88rem',fontWeight:600,background:'var(--redbg)',color:'var(--red)',border:'1px solid var(--red)',cursor:'pointer'},onClick:function(){if(window.confirm('Yakin ingin keluar?'))sb.auth.signOut()}},'Sign Out')),
+    // Tabs
+    h('div',{className:'tabs',style:{marginBottom:16}},
+      h('button',{className:'tab'+(tab==='wallets'?' act':''),onClick:function(){sTab('wallets')}},'Dompet'),
+      h('button',{className:'tab'+(tab==='categories'?' act':''),onClick:function(){sTab('categories')}},'Kategori'),
+      h('button',{className:'tab'+(tab==='investments'?' act':''),onClick:function(){sTab('investments')}},'Investasi')),
+    tab==='wallets'?h(WalletsP,p):null,
+    tab==='categories'?h(CatsP,p):null,
+    tab==='investments'?h(InvP,p):null)
+}
+
 /* ═══ WALLETS ═══ */
 function WalletsP(p){
   var W=p.W,rW=p.rW,rT=p.rT;var t=useContext(TCtx);
