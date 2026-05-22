@@ -78,7 +78,18 @@ tbody td{padding:10px 12px;border-bottom:1px solid var(--brd);font-size:.84rem}t
 .mn{display:none;position:fixed;bottom:0;left:0;right:0;height:58px;background:var(--sbg);border-top:1px solid var(--brd);z-index:100;padding:0 2px;align-items:center;justify-content:space-around}
 .mni{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:.6rem;color:var(--t3);padding:4px 8px;border-radius:6px;background:transparent;border:none}.mni.act{color:var(--acc)}.mni svg{width:20px;height:20px}
 
-@media(max-width:768px){.sb{transform:translateX(-100%)}.sb.open{transform:translateX(0)}.mh,.mn{display:flex}.main{margin-left:0;padding-bottom:70px;padding-top:50px}.pg{padding:14px 12px}.sg{grid-template-columns:repeat(2,1fr);gap:8px}.fr{grid-template-columns:1fr}.fbar .fi{max-width:100%;flex:1}.dg2{grid-template-columns:1fr !important}}
+.dg4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.dg3{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;margin-bottom:10px}
+.dg2b{display:grid;grid-template-columns:1fr 1.4fr;gap:10px}
+@media(max-width:768px){
+  .dg4{grid-template-columns:repeat(2,1fr);gap:8px}
+  .dg3{grid-template-columns:1fr;gap:8px}
+  .dg2b{grid-template-columns:1fr;gap:8px}
+  .sb{transform:translateX(-100%)}.sb.open{transform:translateX(0)}.mh,.mn{display:flex}.main{margin-left:0;padding-bottom:70px;padding-top:50px}.pg{padding:14px 12px}.sg{grid-template-columns:repeat(2,1fr);gap:8px}.fr{grid-template-columns:1fr}.fbar .fi{max-width:100%;flex:1}.dg4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.dg3{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:10px;margin-bottom:10px}
+.dg2w{display:grid;grid-template-columns:1fr 1.4fr;gap:10px}
+@media(max-width:768px){.dg4{grid-template-columns:repeat(2,1fr)}.dg3,.dg2w{grid-template-columns:1fr}.dg4 .cd{padding:12px 14px !important}.dg3 .cd,.dg2w .cd{padding:14px 16px !important}}
+}
 .mn{overflow-x:visible;justify-content:space-around !important;gap:0;padding:0 !important}
 .mni{min-width:60px;flex-shrink:0;padding:6px 8px !important;font-size:.6rem !important;color:var(--t3);display:flex;flex-direction:column;align-items:center;gap:2px;background:transparent;border:none}
 .mni.act{color:var(--acc)}.mni svg{width:22px !important;height:22px !important}
@@ -359,7 +370,7 @@ function Dash(p){
     h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Dashboard'),h('p',null,moName+' '+now.getFullYear()))),
 
     // === ROW 1: 4 stat pills ===
-    h('div',{style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:12}},
+    h('div',{className:'dg4'},
       h('div',{className:'cd',style:{padding:'14px 16px'}},
         h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:4,fontWeight:500}},'Total Kekayaan'),
         h('div',{style:{fontSize:'1.15rem',fontWeight:800,lineHeight:1.1}},fmt(bal)),
@@ -378,7 +389,7 @@ function Dash(p){
         h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginTop:4}},savingsRate+'% dari pemasukan'))),
 
     // === ROW 2: 3 columns ===
-    h('div',{style:{display:'grid',gridTemplateColumns:'1.2fr 1fr 1fr',gap:10,marginBottom:10}},
+    h('div',{className:'dg3'},
 
       // Col 1: Top spending
       h('div',{className:'cd',style:{padding:'16px 18px'}},
@@ -424,30 +435,31 @@ function Dash(p){
       // Col 3: Tren + income/expense ring
       h('div',{className:'cd',style:{padding:'16px 18px'}},
         h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:14}},'Kas Bulan Ini'),
-        h('div',{style:{display:'flex',justifyContent:'center',marginBottom:12}},
-          h('div',{style:{position:'relative',width:100,height:100}},
+        h('div',{style:{display:'flex',gap:16,alignItems:'center',marginBottom:10}},
+          h('div',{style:{position:'relative',width:90,height:90,flexShrink:0}},
             h('svg',{viewBox:'0 0 100 100',style:{width:'100%',height:'100%',transform:'rotate(-90deg)'}},
               h('circle',{cx:50,cy:50,r:R,fill:'none',stroke:'var(--acc)',strokeWidth:8,strokeDasharray:incArc+' '+C2,opacity:.85}),
               h('circle',{cx:50,cy:50,r:R,fill:'none',stroke:'var(--red)',strokeWidth:8,strokeDasharray:expArc+' '+C2,strokeDashoffset:-incArc,opacity:.85})),
             h('div',{style:{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}},
-              h('div',{style:{fontSize:'.6rem',color:'var(--t3)'}},'selisih'),
-              h('div',{style:{fontSize:'.85rem',fontWeight:700,color:savings>=0?'var(--acc)':'var(--red)'}},savings>=0?'+':'-',fmt(Math.abs(savings)))))),
-        h('div',{style:{display:'flex',justifyContent:'space-around',fontSize:'.78rem',marginBottom:14}},
-          h('div',{style:{textAlign:'center'}},h('div',{style:{width:8,height:8,borderRadius:2,background:'var(--acc)',margin:'0 auto 3px'}}),h('div',{style:{color:'var(--t3)'}},'Masuk'),h('div',{style:{fontWeight:700,color:'var(--acc)',fontSize:'.72rem'}},fmt(inc))),
-          h('div',{style:{textAlign:'center'}},h('div',{style:{width:8,height:8,borderRadius:2,background:'var(--red)',margin:'0 auto 3px'}}),h('div',{style:{color:'var(--t3)'}},'Keluar'),h('div',{style:{fontWeight:700,color:'var(--red)',fontSize:'.72rem'}},fmt(exp)))),
-        // Mini trend bars
-        h('div',{style:{fontWeight:600,fontSize:'.75rem',marginBottom:8,color:'var(--t2)'}},'Tren 3 Bulan'),
-        h('div',{style:{display:'flex',gap:8,alignItems:'flex-end',height:60}},
-          trend.map(function(t,i){
-            var iH=tMax>0?(t.i/tMax*50):0;var eH=tMax>0?(t.e/tMax*50):0;
-            return h('div',{key:i,style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}},
-              h('div',{style:{display:'flex',gap:2,alignItems:'flex-end',height:50}},
-                h('div',{style:{width:10,height:Math.max(iH,2),background:'var(--acc)',borderRadius:'2px 2px 0 0',opacity:.8}}),
-                h('div',{style:{width:10,height:Math.max(eH,2),background:'var(--red)',borderRadius:'2px 2px 0 0',opacity:.8}})),
-              h('div',{style:{fontSize:'.6rem',color:'var(--t3)'}},t.m))})))),
+              h('div',{style:{fontSize:'.55rem',color:'var(--t3)'}},'selisih'),
+              h('div',{style:{fontSize:'.78rem',fontWeight:700,color:savings>=0?'var(--acc)':'var(--red)'}},savings>=0?'+':'-',fmt(Math.abs(savings))))),
+          h('div',{style:{flex:1}},
+            h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:6}},
+              h('div',{style:{fontSize:'.75rem'}},h('div',{style:{width:8,height:8,borderRadius:2,background:'var(--acc)',display:'inline-block',marginRight:4}}),h('span',{style:{color:'var(--t3)'}},'Masuk'),h('div',{style:{fontWeight:700,color:'var(--acc)',fontSize:'.78rem'}},fmt(inc))),
+              h('div',{style:{fontSize:'.75rem',textAlign:'right'}},h('div',{style:{width:8,height:8,borderRadius:2,background:'var(--red)',display:'inline-block',marginRight:4}}),h('span',{style:{color:'var(--t3)'}},'Keluar'),h('div',{style:{fontWeight:700,color:'var(--red)',fontSize:'.78rem'}},fmt(exp))))),
+        h('div',{style:{borderTop:'1px solid var(--brd)',paddingTop:10}},
+          h('div',{style:{fontWeight:600,fontSize:'.72rem',marginBottom:6,color:'var(--t2)'}},'Tren 3 Bulan'),
+          h('div',{style:{display:'flex',gap:8,alignItems:'flex-end',height:50}},
+            trend.map(function(t,i){
+              var iH=tMax>0?(t.i/tMax*42):0;var eH=tMax>0?(t.e/tMax*42):0;
+              return h('div',{key:i,style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}},
+                h('div',{style:{display:'flex',gap:2,alignItems:'flex-end',height:42}},
+                  h('div',{style:{width:9,height:Math.max(iH,2),background:'var(--acc)',borderRadius:'2px 2px 0 0',opacity:.8}}),
+                  h('div',{style:{width:9,height:Math.max(eH,2),background:'var(--red)',borderRadius:'2px 2px 0 0',opacity:.8}})),
+                h('div',{style:{fontSize:'.58rem',color:'var(--t3)'}},t.m))})))))),
 
     // === ROW 3: Aset overview + Recent transactions ===
-    h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1.4fr',gap:10}},
+    h('div',{className:'dg2w'},
 
       // Wallet summary
       h('div',{className:'cd',style:{padding:'16px 18px'}},
