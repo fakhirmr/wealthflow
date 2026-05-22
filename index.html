@@ -447,9 +447,8 @@ function SettingsP(p){
         h('div',null,
           h('div',{style:{fontWeight:700,fontSize:'1rem'}},user&&user.email||'User'),
           h('div',{style:{fontSize:'.75rem',color:'var(--acc)',marginTop:2}},'● Akun aktif'))),
-      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}},
-        h('button',{className:'btn bs',style:{justifyContent:'center',padding:'10px',fontSize:'.85rem'},onClick:function(){sTh(theme==='dark'?'light':'dark')}},theme==='dark'?'Mode Terang':'Mode Gelap'),
-        h('button',{style:{padding:'10px',borderRadius:8,fontSize:'.85rem',fontWeight:600,background:'var(--redbg)',color:'var(--red)',border:'1px solid var(--red)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6},onClick:function(){if(window.confirm('Yakin ingin keluar?'))sb.auth.signOut()}},'Sign Out'))),
+      h('div',{style:{marginTop:16}},
+        h('button',{style:{width:'100%',padding:'11px',borderRadius:8,fontSize:'.88rem',fontWeight:600,background:'var(--redbg)',color:'var(--red)',border:'1px solid var(--red)',cursor:'pointer'},onClick:function(){if(window.confirm('Yakin ingin keluar?'))sb.auth.signOut()}},'Sign Out'))),
     // Tabs
     h('div',{className:'tabs',style:{marginBottom:16}},
       h('button',{className:'tab'+(tab==='wallets'?' act':''),onClick:function(){sTab('wallets')}},'Dompet'),
@@ -469,7 +468,9 @@ function WalletsP(p){
   function oA(){sF({name:'',color:COLORS[Math.floor(Math.random()*COLORS.length)],group_type:'cash'});sM({m:'add'})}
   function oE(w){sF({name:w.name,color:w.color||COLORS[0],group_type:w.group_type||'others'});sM({m:'edit',d:w})}
   function save(){if(!f.name.trim()){t('Nama wajib','err');return}var pay={user_id:UID,name:f.name.trim(),color:f.color,group_type:f.group_type};(mo.m==='add'?sb.from('wallets').insert(pay):sb.from('wallets').update(pay).eq('id',mo.d.id)).then(function(r){if(r.error){t(r.error.message,'err');return}t(mo.m==='add'?'Ditambahkan':'Diperbarui');sM(null);rW()})}
-  function del(w){cf('Hapus "'+w.name+'"?').then(function(ok){if(!ok)return;sb.from('wallets').delete().eq('id',w.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dihapus');rW()})})}
+  function del(w){cf('Hapus "'+w.name+'"? Transaksi terkait tidak akan terhapus.').then(function(ok){if(!ok)return;
+    sb.from('transactions').update({wallet_id:null}).eq('wallet_id',w.id).then(function(){
+      sb.from('wallets').delete().eq('id',w.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dihapus');rW()})})})}
   var grouped={};var groupTotals={};W.forEach(function(w){var g=w.group_type||'others';if(!grouped[g])grouped[g]=[];grouped[g].push(w);groupTotals[g]=(groupTotals[g]||0)+(Number(w.balance)||0)});
   var totalAssets=W.filter(function(w){return(Number(w.balance)||0)>=0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0);
   var totalLiab=W.filter(function(w){return(Number(w.balance)||0)<0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0);
@@ -634,9 +635,22 @@ function CatsP(p){
   var C=p.C,rC=p.rC;var t=useContext(TCtx);var _m=useState(null),mo=_m[0],sM=_m[1];var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
   var _f=useState({name:'',type:'expense',color:COLORS[0],icon:'📋',parent_id:'',is_sub:false}),f=_f[0],sF=_f[1];
   var _tb=useState('expense'),tab=_tb[0],sTb=_tb[1];
-  function oA(){sF({name:'',type:tab,color:COLORS[Math.floor(Math.random()*COLORS.length)],icon:'📋',parent_id:'',is_sub:false});sM({m:'add'})}
-  function oE(c){sF({name:c.name,type:c.type,color:c.color||COLORS[0],icon:c.icon||'📋',parent_id:c.parent_id||'',is_sub:!!c.parent_id});sM({m:'edit',d:c})}
+  var _ns=useState(''),newSub=_ns[0],sNs=_ns[1]; // quick new sub-category name
+  function oA(){sF({name:'',type:tab,color:COLORS[Math.floor(Math.random()*COLORS.length)],icon:'📋',parent_id:'',is_sub:false});sNs('');sM({m:'add'})}
+  function oE(c){sF({name:c.name,type:c.type,color:c.color||COLORS[0],icon:c.icon||'📋',parent_id:c.parent_id||'',is_sub:!!c.parent_id});sNs('');sM({m:'edit',d:c})}
   function ufx(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;if(k==='is_sub'&&!v)n.parent_id='';sF(n)}
+  function addSubCat(){
+    if(!newSub.trim()){t('Nama sub-kategori wajib','err');return}
+    if(!mo||!mo.d||mo.d.parent_id){t('Hanya bisa tambah sub ke parent kategori','err');return}
+    sb.from('categories').insert({user_id:UID,name:newSub.trim(),type:f.type,color:f.color,icon:'📋',parent_id:mo.d.id}).then(function(r){
+      if(r.error){t(r.error.message,'err');return}
+      t('Sub-kategori ditambahkan');sNs('');rC()
+    })
+  }
+  function delSub(s){cf('Hapus "'+s.name+'"?').then(function(ok){if(!ok)return;
+    sb.from('transactions').update({sub_category_id:null}).eq('sub_category_id',s.id).then(function(){
+      sb.from('categories').delete().eq('id',s.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dihapus');rC()})})
+  })}
   function save(){
     if(!f.name.trim()){t('Nama wajib','err');return}
     if(f.is_sub&&!f.parent_id){t('Pilih kategori parent','err');return}
@@ -685,21 +699,28 @@ function CatsP(p){
       h('div',{className:'fg'},h('label',null,'Tipe'),h('div',{className:'tabs'},h('button',{className:'tab'+(f.type==='expense'?' act':''),onClick:function(){ufx('type','expense')}},'Pengeluaran'),h('button',{className:'tab'+(f.type==='income'?' act':''),onClick:function(){ufx('type','income')}},'Pemasukan'))),
       h('div',{className:'fr'},
         h('div',{className:'fg'},h('label',null,'Icon (emoji)'),h('input',{className:'fi',value:f.icon,onChange:function(e){ufx('icon',e.target.value)},style:{fontSize:'1.2rem',textAlign:'center'}})),
-        h('div',{className:'fg'},h('label',null,'Nama'),h('input',{className:'fi',placeholder:'cth: Makan, Gaji...',value:f.name,onChange:function(e){ufx('name',e.target.value)}}))),
+        h('div',{className:'fg'},h('label',null,'Nama Kategori'),h('input',{className:'fi',placeholder:'cth: Makan, Gaji...',value:f.name,onChange:function(e){ufx('name',e.target.value)}}))),
       h('div',{className:'fg'},h('label',null,'Warna'),h('div',{className:'clr'},COLORS.map(function(c){return h('div',{key:c,className:'co'+(f.color===c?' sel':''),style:{background:c},onClick:function(){ufx('color',c)}})}))),
-      // Sub-category toggle
-      h('div',{className:'fg'},
+      // Sub-category toggle (only for add, or when editing non-sub)
+      !f.is_sub?h('div',{className:'fg'},
         h('div',{style:{display:'flex',alignItems:'center',gap:12,cursor:'pointer',padding:'10px 12px',background:'var(--bgi)',borderRadius:8,border:'1px solid '+(f.is_sub?'var(--acc)':'var(--brd)')},onClick:function(){ufx('is_sub',!f.is_sub)}},
-          h('div',{style:{width:44,height:24,borderRadius:12,background:f.is_sub?'var(--acc)':'var(--brd)',position:'relative',transition:'background .2s',flexShrink:0}},
-            h('div',{style:{width:18,height:18,borderRadius:9,background:'#fff',position:'absolute',top:3,left:f.is_sub?23:3,transition:'left .2s'}})),
-          h('div',null,
-            h('div',{style:{fontWeight:600,fontSize:'.85rem'}},'Ini adalah Sub-Kategori'),
-            h('div',{style:{fontSize:'.72rem',color:'var(--t3)'}},f.is_sub?'Pilih kategori induknya di bawah':'Aktifkan jika ini sub-kategori'))),
-        f.is_sub?h('div',{style:{marginTop:10}},
-          h('label',{style:{fontSize:'.72rem',fontWeight:600,color:'var(--t2)',textTransform:'uppercase',letterSpacing:'.05em'}},'Kategori Induk'),
-          h('select',{className:'fi',style:{marginTop:4},value:f.parent_id,onChange:function(e){ufx('parent_id',e.target.value)}},
-            h('option',{value:''},'-- Pilih Kategori --'),
-            parentsByType.map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))):null)),
+          h('div',{style:{width:44,height:24,borderRadius:12,background:f.is_sub?'var(--acc)':'var(--brd)',position:'relative',transition:'background .2s',flexShrink:0}},h('div',{style:{width:18,height:18,borderRadius:9,background:'#fff',position:'absolute',top:3,left:f.is_sub?23:3,transition:'left .2s'}})),
+          h('div',null,h('div',{style:{fontWeight:600,fontSize:'.85rem'}},'Ini adalah Sub-Kategori'),h('div',{style:{fontSize:'.72rem',color:'var(--t3)'}},'Aktifkan jika ini sub-kategori'))),
+        f.is_sub?h('div',{style:{marginTop:10}},h('label',{style:{fontSize:'.72rem',fontWeight:600,color:'var(--t2)',textTransform:'uppercase',letterSpacing:'.05em'}},'Kategori Induk'),h('select',{className:'fi',style:{marginTop:4},value:f.parent_id,onChange:function(e){ufx('parent_id',e.target.value)}},h('option',{value:''},'-- Pilih --'),parentsByType.map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))):null):null,
+      // Sub-category management (only when editing a parent category)
+      mo&&mo.m==='edit'&&mo.d&&!mo.d.parent_id?h('div',{className:'fg',style:{marginTop:4}},
+        h('label',null,'Sub-Kategori'),
+        // List existing subs
+        h('div',{style:{background:'var(--bgi)',borderRadius:8,padding:'4px 0',marginBottom:8}},
+          C.filter(function(c){return c.parent_id===mo.d.id}).length===0?h('div',{style:{padding:'10px 14px',fontSize:'.8rem',color:'var(--t3)'}},'Belum ada sub-kategori'):
+          C.filter(function(c){return c.parent_id===mo.d.id}).map(function(s,i,arr){return h('div',{key:s.id,style:{display:'flex',alignItems:'center',gap:8,padding:'8px 14px',borderBottom:i<arr.length-1?'1px solid var(--brd)':''}},
+            h('span',{style:{fontSize:13}},s.icon||'📋'),
+            h('span',{style:{flex:1,fontSize:'.84rem',fontWeight:500}},s.name),
+            h('button',{className:'bi',style:{color:'var(--red)'},onClick:function(){delSub(s)}},h(Ic,{n:'trash'})))})),
+        // Quick add sub
+        h('div',{style:{display:'flex',gap:8}},
+          h('input',{className:'fi',placeholder:'Nama sub-kategori baru...',value:newSub,onChange:function(e){sNs(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')addSubCat()},style:{flex:1}}),
+          h('button',{className:'btn bp',style:{flexShrink:0},onClick:addSubCat},'+ Tambah'))):null),
     cfE)
 }
 
