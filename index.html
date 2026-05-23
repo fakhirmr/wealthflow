@@ -510,7 +510,109 @@ function Dash(p){
 /* ═══ SETTINGS PAGE ═══ */
 function SettingsP(p){
   var user=p.user,theme=p.theme,sTh=p.sTh;
+  var W=p.W,T=p.T,C=p.C,B=p.B,I=p.I,rW=p.rW,rT=p.rT,rC=p.rC,rB=p.rB,rI=p.rI;
+  var t=useContext(TCtx);
   var _tab=useState('wallets'),tab=_tab[0],sTab=_tab[1];
+  var _imp=useState(false),impBusy=_imp[0],sImp=_imp[1];
+
+  // === EXPORT functions ===
+  function dlFile(name,content,type){
+    var blob=new Blob([content],{type:type});var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)
+  }
+  function exportCSV(){
+    var rows=[['Tanggal','Tipe','Jumlah','Keterangan','Kategori','Sub-Kategori','Dompet','Cicilan']];
+    T.forEach(function(tx){
+      rows.push([tx.date||'',tx.type||'',tx.amount||0,'"'+(tx.description||'').replace(/"/g,'""')+'"',cn(C,tx.category_id),cn(C,tx.sub_category_id),wn(W,tx.wallet_id),tx.installment_count||''])
+    });
+    var csv=rows.map(function(r){return r.join(',')}).join('\n');
+    dlFile('wealthflow_transaksi_'+td()+'.csv',csv,'text/csv');
+    t('CSV terdownload ('+T.length+' transaksi)')
+  }
+  function exportJSON(){
+    var data={exported_at:new Date().toISOString(),wallets:W,categories:C,transactions:T,budgets:B,investments:I};
+    dlFile('wealthflow_backup_'+td()+'.json',JSON.stringify(data,null,2),'application/json');
+    t('Backup JSON terdownload')
+  }
+
+  // === IMPORT functions ===
+  function importJSON(e){
+    var file=e.target.files[0];if(!file){return}
+    if(!UID){t('Login dulu','err');return}
+    sImp(true);
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        var data=JSON.parse(ev.target.result);
+        var ops=[];var counts={w:0,c:0,t:0,b:0,i:0};
+
+        // Import wallets
+        if(data.wallets&&data.wallets.length){data.wallets.forEach(function(w){
+          ops.push(sb.from('wallets').insert({user_id:UID,name:w.name,balance:Number(w.balance)||0,color:w.color,group_type:w.group_type||'others'}).then(function(){counts.w++}))
+        })}
+        // Import categories (parents first, then children)
+        if(data.categories&&data.categories.length){
+          var catMap={};
+          var parents=data.categories.filter(function(c){return !c.parent_id});
+          var children=data.categories.filter(function(c){return !!c.parent_id});
+          parents.forEach(function(c){
+            ops.push(sb.from('categories').insert({user_id:UID,name:c.name,type:c.type||'expense',color:c.color,icon:c.icon||'📋'}).select().then(function(r){
+              if(r.data&&r.data[0])catMap[c.id]=r.data[0].id;counts.c++
+            }))
+          });
+          // Children need to wait for parents — simplified: add after a delay
+          ops.push(new Promise(function(resolve){setTimeout(function(){
+            var childOps=children.map(function(c){
+              var pid=catMap[c.parent_id]||null;
+              return sb.from('categories').insert({user_id:UID,name:c.name,type:c.type||'expense',color:c.color,icon:c.icon||'📋',parent_id:pid}).then(function(){counts.c++})
+            });
+            Promise.all(childOps).then(resolve)
+          },2000)}))
+        }
+        // Import budgets
+        if(data.budgets&&data.budgets.length){data.budgets.forEach(function(b){
+          ops.push(sb.from('budgets').insert({user_id:UID,category_id:null,amount:Number(b.amount)||0,period:b.period||'monthly',year:b.year||new Date().getFullYear(),month:b.month||new Date().getMonth()+1}).then(function(){counts.b++}))
+        })}
+        // Import investments
+        if(data.investments&&data.investments.length){data.investments.forEach(function(inv){
+          ops.push(sb.from('investments').insert({user_id:UID,name:inv.name,type:inv.type||'other',amount:Number(inv.amount)||0,current_value:Number(inv.current_value)||0,purchase_date:inv.purchase_date}).then(function(){counts.i++}))
+        })}
+
+        Promise.all(ops).then(function(){
+          sImp(false);
+          t('Import selesai: '+counts.w+' dompet, '+counts.c+' kategori, '+counts.b+' budget, '+counts.i+' investasi');
+          rW();rC();rB();rI()
+        }).catch(function(err){sImp(false);t('Error: '+err.message,'err')})
+      }catch(err){sImp(false);t('File JSON tidak valid: '+err.message,'err')}
+    };
+    reader.readAsText(file);e.target.value=''
+  }
+  function importCSV(e){
+    var file=e.target.files[0];if(!file)return;
+    if(!UID){t('Login dulu','err');return}
+    sImp(true);
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      try{
+        var text=ev.target.result;var lines=text.split('\n').filter(function(l){return l.trim()});
+        if(lines.length<2){sImp(false);t('CSV kosong','err');return}
+        var rows=lines.slice(1); // skip header
+        var ops=rows.map(function(row){
+          var cols=row.split(',');
+          if(cols.length<3)return Promise.resolve();
+          return sb.from('transactions').insert({
+            user_id:UID,date:cols[0]||td(),type:cols[1]||'expense',amount:Number(String(cols[2]).replace(/"/g,''))||0,
+            description:(cols[3]||'').replace(/"/g,'').trim()
+          }).then(function(){})
+        });
+        Promise.all(ops).then(function(){
+          sImp(false);t('Import '+(rows.length)+' transaksi selesai');rT()
+        }).catch(function(err){sImp(false);t('Error: '+err.message,'err')})
+      }catch(err){sImp(false);t('Error: '+err.message,'err')}
+    };
+    reader.readAsText(file);e.target.value=''
+  }
+
   return h('div',null,
     h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Pengaturan'))),
     // User card
@@ -525,10 +627,40 @@ function SettingsP(p){
     h('div',{className:'tabs',style:{marginBottom:16}},
       h('button',{className:'tab'+(tab==='wallets'?' act':''),onClick:function(){sTab('wallets')}},'Dompet'),
       h('button',{className:'tab'+(tab==='categories'?' act':''),onClick:function(){sTab('categories')}},'Kategori'),
-      h('button',{className:'tab'+(tab==='investments'?' act':''),onClick:function(){sTab('investments')}},'Investasi')),
+      h('button',{className:'tab'+(tab==='investments'?' act':''),onClick:function(){sTab('investments')}},'Investasi'),
+      h('button',{className:'tab'+(tab==='data'?' act':''),onClick:function(){sTab('data')}},'Data')),
     tab==='wallets'?h(WalletsP,p):null,
     tab==='categories'?h(CatsP,p):null,
-    tab==='investments'?h(InvP,p):null)
+    tab==='investments'?h(InvP,p):null,
+    tab==='data'?h('div',null,
+      // Export section
+      h('div',{className:'cd',style:{marginBottom:12}},
+        h('h3',{style:{fontSize:'.95rem',fontWeight:700,marginBottom:14}},'Export Data'),
+        h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}},
+          h('button',{className:'btn bs',style:{padding:14,flexDirection:'column',gap:6},onClick:exportCSV},
+            h('div',{style:{fontSize:'1.1rem'}},'📊'),
+            h('div',{style:{fontWeight:600,fontSize:'.85rem'}},'Export CSV'),
+            h('div',{style:{fontSize:'.72rem',color:'var(--t3)'}},'Transaksi (',T.length,')')),
+          h('button',{className:'btn bs',style:{padding:14,flexDirection:'column',gap:6},onClick:exportJSON},
+            h('div',{style:{fontSize:'1.1rem'}},'💾'),
+            h('div',{style:{fontWeight:600,fontSize:'.85rem'}},'Backup JSON'),
+            h('div',{style:{fontSize:'.72rem',color:'var(--t3)'}},'Semua data')))),
+      // Import section
+      h('div',{className:'cd'},
+        h('h3',{style:{fontSize:'.95rem',fontWeight:700,marginBottom:14}},'Import Data'),
+        impBusy?h('div',{style:{textAlign:'center',padding:20,color:'var(--acc)'}},'Mengimport data...'):
+        h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}},
+          h('label',{className:'btn bs',style:{padding:14,flexDirection:'column',gap:6,cursor:'pointer'}},
+            h('input',{type:'file',accept:'.csv',style:{display:'none'},onChange:importCSV}),
+            h('div',{style:{fontSize:'1.1rem'}},'📊'),
+            h('div',{style:{fontWeight:600,fontSize:'.85rem'}},'Import CSV'),
+            h('div',{style:{fontSize:'.72rem',color:'var(--t3)'}},'Transaksi')),
+          h('label',{className:'btn bs',style:{padding:14,flexDirection:'column',gap:6,cursor:'pointer'}},
+            h('input',{type:'file',accept:'.json',style:{display:'none'},onChange:importJSON}),
+            h('div',{style:{fontSize:'1.1rem'}},'💾'),
+            h('div',{style:{fontWeight:600,fontSize:'.85rem'}},'Import JSON'),
+            h('div',{style:{fontSize:'.72rem',color:'var(--t3)'}},'Backup lengkap'))),
+        h('div',{style:{marginTop:12,padding:'10px 14px',background:'var(--bgi)',borderRadius:8,fontSize:'.75rem',color:'var(--t3)'}},'Import JSON akan menambah data baru (tidak menimpa). Export dulu sebagai backup sebelum import.'))):null)
 }
 
 /* ═══ WALLETS ═══ */
