@@ -607,12 +607,23 @@ function TxnsP(p){
     if(mo.m==='add'){sb.from('transactions').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(){rW()})}}t('Ditambahkan');sM(null);rT()})}
     else{
       var oldTx=mo.d;var oldAmt=Number(oldTx.amount)||0;var newAmt=Number(f.amount)||0;
-      sb.from('transactions').update(pay).eq('id',oldTx.id).then(function(r){if(r.error){t(r.error.message,'err');return}
-        // Reverse old balance effect
-        if(oldTx.wallet_id){var ow=fid(W,oldTx.wallet_id);if(ow){var rb=oldTx.type==='income'?(Number(ow.balance)||0)-oldAmt:(Number(ow.balance)||0)+oldAmt;sb.from('wallets').update({balance:rb}).eq('id',oldTx.wallet_id)}}
-        // Apply new balance effect
-        if(f.wallet_id){var nw=fid(W,f.wallet_id);if(nw){var adjBase=f.wallet_id===oldTx.wallet_id?(oldTx.type==='income'?(Number(nw.balance)||0)-oldAmt:(Number(nw.balance)||0)+oldAmt):(Number(nw.balance)||0);var nb=f.type==='income'?adjBase+newAmt:adjBase-newAmt;sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id)}}
-        t('Diperbarui');sM(null);rT();setTimeout(rW,300)
+      // Remove user_id from update payload
+      var updPay={};for(var k in pay){if(k!=='user_id')updPay[k]=pay[k]}
+      sb.from('transactions').update(updPay).eq('id',oldTx.id).then(function(r){if(r.error){t(r.error.message,'err');return}
+        // Calculate balance adjustments in ONE step
+        var reverseOld=oldTx.type==='income'?-oldAmt:oldAmt;
+        var applyNew=f.type==='income'?newAmt:-newAmt;
+        if(f.wallet_id===oldTx.wallet_id&&f.wallet_id){
+          // Same wallet: one update
+          var w=fid(W,f.wallet_id);if(w){
+            var nb=(Number(w.balance)||0)+reverseOld+applyNew;
+            sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id)}
+        }else{
+          // Different wallets: update both
+          if(oldTx.wallet_id){var ow=fid(W,oldTx.wallet_id);if(ow){sb.from('wallets').update({balance:(Number(ow.balance)||0)+reverseOld}).eq('id',oldTx.wallet_id)}}
+          if(f.wallet_id){var nw=fid(W,f.wallet_id);if(nw){sb.from('wallets').update({balance:(Number(nw.balance)||0)+applyNew}).eq('id',f.wallet_id)}}
+        }
+        t('Diperbarui');sM(null);rT();setTimeout(rW,500)
       })
     }}
   function del(tx){cf('Hapus transaksi ini?').then(function(ok){if(!ok)return;
