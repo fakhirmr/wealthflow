@@ -282,10 +282,12 @@ function TransferMod(p){
   var _f=useState({from:'',to:'',amount:'',desc:''}),f=_f[0],sF=_f[1];
   function ufx(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
   function save(){
+    if(!UID){t('Sesi habis','err');return}
     if(!f.from||!f.to){t('Pilih dompet asal & tujuan','err');return}
     if(f.from===f.to){t('Dompet asal & tujuan harus beda','err');return}
     var amt=Number(f.amount);if(!amt||amt<=0){t('Jumlah > 0','err');return}
     var wFrom=fid(W,f.from);var wTo=fid(W,f.to);
+    if(!wFrom||!wTo){t('Dompet tidak ditemukan','err');return}
     var desc=f.desc||('Transfer '+wn(W,f.from)+' → '+wn(W,f.to));
     // Insert 2 transactions + update balances
     Promise.all([
@@ -736,6 +738,7 @@ function CatsP(p){
   function oE(c){sF({name:c.name,type:c.type,color:c.color||COLORS[0],icon:c.icon||'📋',parent_id:c.parent_id||'',is_sub:!!c.parent_id});sNs('');sM({m:'edit',d:c})}
   function ufx(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;if(k==='is_sub'&&!v)n.parent_id='';sF(n)}
   function addSubCat(){
+    if(!UID){t('Sesi habis','err');return}
     if(!newSub.trim()){t('Nama sub-kategori wajib','err');return}
     if(!mo||!mo.d||mo.d.parent_id){t('Hanya bisa tambah sub ke parent kategori','err');return}
     sb.from('categories').insert({user_id:UID,name:newSub.trim(),type:f.type,color:f.color,icon:'📋',parent_id:mo.d.id}).then(function(r){
@@ -842,7 +845,7 @@ function BudgP(p){
   function oA(){sF({category_id:eC.length?eC[0].id:'',amount:'',period:'monthly'});sM({m:'add'})}
   function oE(r){sF({category_id:r.cid||'',amount:String(r.budget||0),period:'monthly'});sM({m:'edit',d:{id:r.id}})}
   function ufb(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
-  function save(){if(!f.amount||Number(f.amount)<=0){t('> 0','err');return}var pay={user_id:UID,category_id:f.category_id||null,amount:Number(f.amount),period:f.period,year:now.getFullYear(),month:now.getMonth()+1};(function(){if(mo.m==='add'){pay.user_id=UID;return sb.from('budgets').insert(pay)}else{delete pay.user_id;return sb.from('budgets').update(pay).eq('id',mo.d.id)}})().then(function(r){if(r.error){t(r.error.message,'err');return}t('OK');sM(null);rB()})}
+  function save(){if(!UID){t('Sesi habis','err');return}if(!f.amount||Number(f.amount)<=0){t('> 0','err');return}var pay={user_id:UID,category_id:f.category_id||null,amount:Number(f.amount),period:f.period,year:now.getFullYear(),month:now.getMonth()+1};(function(){if(mo.m==='add'){pay.user_id=UID;return sb.from('budgets').insert(pay)}else{delete pay.user_id;return sb.from('budgets').update(pay).eq('id',mo.d.id)}})().then(function(r){if(r.error){t(r.error.message,'err');return}t('OK');sM(null);rB()})}
   function del(r){cf('Hapus?').then(function(ok){if(!ok)return;sb.from('budgets').delete().eq('id',r.id).then(function(r2){if(r2.error){t(r2.error.message,'err');return}t('Dihapus');rB()})})}
   var tRem=totalBudget-totalSpent;var tPct=totalBudget>0?Math.round((totalSpent/totalBudget)*100):0;
   var onTrack=rows.filter(function(r){return r.pct<=70}).length;var warning=rows.filter(function(r){return r.pct>70&&r.pct<=100}).length;var overB=rows.filter(function(r){return r.pct>100}).length;
@@ -917,7 +920,7 @@ function InvP(p){
   var _f=useState({name:'',type:'stock',amount:'',current_value:'',purchase_date:td()}),f=_f[0],sF=_f[1];
   function oA(){sF({name:'',type:'stock',amount:'',current_value:'',purchase_date:td()});sM({m:'add'})}
   function oE(i){sF({name:i.name||'',type:i.type||'stock',amount:String(i.amount||0),current_value:String(i.current_value||0),purchase_date:i.purchase_date||td()});sM({m:'edit',d:i})}
-  function save(){if(!f.name.trim()){t('Nama wajib','err');return}var pay={user_id:UID,name:f.name.trim(),type:f.type,amount:Number(f.amount)||0,current_value:Number(f.current_value)||0,purchase_date:f.purchase_date};(function(){if(mo.m==='add'){pay.user_id=UID;return sb.from('investments').insert(pay)}else{delete pay.user_id;return sb.from('investments').update(pay).eq('id',mo.d.id)}})().then(function(r){if(r.error){t(r.error.message,'err');return}t('OK');sM(null);rI()})}
+  function save(){if(!UID){t('Sesi habis','err');return}if(!f.name.trim()){t('Nama wajib','err');return}var pay={user_id:UID,name:f.name.trim(),type:f.type,amount:Number(f.amount)||0,current_value:Number(f.current_value)||0,purchase_date:f.purchase_date};(function(){if(mo.m==='add'){pay.user_id=UID;return sb.from('investments').insert(pay)}else{delete pay.user_id;return sb.from('investments').update(pay).eq('id',mo.d.id)}})().then(function(r){if(r.error){t(r.error.message,'err');return}t('OK');sM(null);rI()})}
   function del(i){cf('Hapus?').then(function(ok){if(!ok)return;sb.from('investments').delete().eq('id',i.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dihapus');rI()})})}
   var tI=I.reduce(function(s,i){return s+(Number(i.amount)||0)},0),tC=I.reduce(function(s,i){return s+(Number(i.current_value)||Number(i.amount)||0)},0),gl=tC-tI;
   var tl={stock:'Saham',crypto:'Crypto',mutual_fund:'Reksa Dana',gold:'Emas',property:'Properti',other:'Lainnya'};
