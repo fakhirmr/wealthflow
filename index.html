@@ -209,7 +209,7 @@ function App(){
   var _au=useState(null),user=_au[0],sUser=_au[1];
   var _ac=useState(true),authChecking=_ac[0],sAC=_ac[1];
   var _p=useState('dashboard'),pg=_p[0],sPg=_p[1];var _mb=useState(false),mob=_mb[0],sMb=_mb[1];
-  var _W=useState([]),W=_W[0],sW=_W[1];var _T=useState([]),T=_T[0],sT=_T[1];var _C=useState([]),C=_C[0],sC=_C[1];var _B=useState([]),B=_B[0],sB=_B[1];var _I=useState([]),I=_I[0],sI=_I[1];
+  var _W=useState([]),W=_W[0],sW=_W[1];var _T=useState([]),T=_T[0],sT=_T[1];var _C=useState([]),C=_C[0],sC=_C[1];var _B=useState([]),B=_B[0],sB=_B[1];var _I=useState([]),I=_I[0],sI=_I[1];var _D=useState([]),D=_D[0],sD=_D[1];var _DP=useState([]),DP=_DP[0],sDP=_DP[1];
   var _l=useState(false),ld=_l[0],sL=_l[1];var _e=useState(''),dbE=_e[0],sE=_e[1];var _sl=useState(false),slow=_sl[0],sSl=_sl[1];
   var initTheme='dark';try{initTheme=localStorage.getItem('wf_theme')||'dark'}catch(e){}
   var _th=useState(initTheme),theme=_th[0],sTh=_th[1];
@@ -238,21 +238,24 @@ function App(){
   useEffect(function(){
     if(!user)return;sL(true);
     var t1=setTimeout(function(){sSl(true)},3e3);var t2=setTimeout(function(){sL(false)},10e3);var errs=[],done=0;
-    function chk(){done++;if(done>=5){clearTimeout(t2);if(errs.length)sE(errs.join('; '));sL(false)}}
+    function chk(){done++;if(done>=7){clearTimeout(t2);if(errs.length)sE(errs.join('; '));sL(false)}}
     lt('wallets','created_at',true).then(function(r){sW(r.d);if(r.e)errs.push(r.e);chk()});
     lt('transactions','date',false).then(function(r){sT(r.d);if(r.e)errs.push(r.e);chk()});
     lt('categories','name',true).then(function(r){sC(r.d);if(r.e)errs.push(r.e);chk()});
     lt('budgets','created_at',true).then(function(r){sB(r.d);if(r.e)errs.push(r.e);chk()});
-    lt('investments','created_at',true).then(function(r){sI(r.d);if(r.e)errs.push(r.e);chk()});
+    lt('debts','created_at',false).then(function(r){sD(r.d);if(r.e)errs.push(r.e);chk()});
+    lt('debt_payments','paid_date',false).then(function(r){sDP(r.d);if(r.e)errs.push(r.e);chk()})
     return function(){clearTimeout(t1);clearTimeout(t2)}},[user]);
   function rW(){lt('wallets','created_at',true).then(function(r){sW(r.d)})}
   function rT(){lt('transactions','date',false).then(function(r){sT(r.d)})}
   function rC(){lt('categories','name',true).then(function(r){sC(r.d)})}
   function rB(){lt('budgets','created_at',true).then(function(r){sB(r.d)})}
   function rI(){lt('investments','created_at',true).then(function(r){sI(r.d)})}
+  function rD(){lt('debts','created_at',false).then(function(r){sD(r.d)})}
+  function rDP(){lt('debt_payments','paid_date',false).then(function(r){sDP(r.d)})}
 
   var nav=[{id:'dashboard',lb:'Dashboard',ic:'dashboard'},{id:'budgets',lb:'Anggaran',ic:'budget'},{id:'ai',lb:'AI Asisten',ic:'ai'},{id:'settings',lb:'Pengaturan',ic:'menu'}];
-  var sideNav=[{id:'dashboard',lb:'Dashboard',ic:'dashboard'},{id:'transactions',lb:'Transaksi',ic:'txn'},{id:'budgets',lb:'Anggaran',ic:'budget'},{id:'ai',lb:'AI Asisten',ic:'ai'},{id:'investments',lb:'Investasi',ic:'invest'},{id:'settings',lb:'Pengaturan',ic:'menu'}];
+  var sideNav=[{id:'dashboard',lb:'Dashboard',ic:'dashboard'},{id:'transactions',lb:'Transaksi',ic:'txn'},{id:'budgets',lb:'Anggaran',ic:'budget'},{id:'debts',lb:'Hutang & Piutang',ic:'invest'},{id:'ai',lb:'AI Asisten',ic:'ai'},{id:'investments',lb:'Investasi',ic:'invest'},{id:'settings',lb:'Pengaturan',ic:'menu'}];
   function go(p){sPg(p);sMb(false)}
   // Auth checking
   if(authChecking)return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%'}},h('div',{style:{textAlign:'center'}},h('div',{style:{width:56,height:56,background:'linear-gradient(135deg,var(--acc),var(--cyn))',borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px',fontSize:24,fontWeight:800,color:'#fff'}},'W'),h('h1',{style:{fontSize:'1.4rem',fontWeight:800,marginBottom:6}},'Wealth',h('span',{style:{color:'var(--acc)'}},'Flow')),h('p',{style:{color:'var(--t3)',fontSize:'.82rem'}},'Memuat...')));
@@ -261,7 +264,7 @@ function App(){
   // Loading data
   if(ld)return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%'}},h('div',{style:{textAlign:'center'}},h('div',{style:{width:56,height:56,background:'linear-gradient(135deg,var(--acc),var(--cyn))',borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px',fontSize:24,fontWeight:800,color:'#fff'}},'W'),h('h1',{style:{fontSize:'1.4rem',fontWeight:800,marginBottom:6}},'Wealth',h('span',{style:{color:'var(--acc)'}},'Flow')),h('p',{style:{color:'var(--t3)',fontSize:'.82rem'}},'Memuat data...',slow?h('button',{className:'btn bp',style:{marginTop:16},onClick:function(){sL(false)}},'Lewati'):null)));
 
-  var cx={W:W,T:T,C:C,B:B,I:I,rW:rW,rT:rT,rC:rC,rB:rB,rI:rI};
+  var cx={W:W,T:T,C:C,B:B,I:I,D:D,DP:DP,rW:rW,rT:rT,rC:rC,rB:rB,rI:rI,rD:rD,rDP:rDP};
   return h(F,null,
     h('aside',{className:'sb'+(mob?' open':'')},h('div',{className:'sb-brand'},h('div',{className:'sb-logo'},'W'),h('h1',null,'Wealth',h('span',null,'Flow'))),
       h('nav',{className:'sb-nav'},sideNav.map(function(n){return h('button',{key:n.id,className:'nv'+(pg===n.id?' act':''),onClick:function(){go(n.id)}},h(Ic,{n:n.ic}),n.lb)})),
@@ -280,7 +283,7 @@ function App(){
       h('button',{className:'mni'+(pg==='settings'?' act':''),onClick:function(){go('settings')}},h(Ic,{n:'menu'}),h('span',null,'Pengaturan'))),
     h('main',{className:'main'},h('div',{className:'pg'},
       dbE?h('div',{style:{background:'var(--redbg)',border:'1px solid var(--red)',borderRadius:8,padding:'10px 14px',marginBottom:14,fontSize:'.8rem',color:'var(--red)'}},dbE):null,
-      pg==='dashboard'?h(Dash,cx):null,pg==='transactions'?h(TxnsP,cx):null,pg==='budgets'?h(BudgP,cx):null,pg==='ai'?h(AiP,cx):null,pg==='investments'?h(InvP,cx):null,pg==='settings'?h(SettingsP,Object.assign({},cx,{theme:theme,sTh:sTh,user:user})):null)),
+      pg==='dashboard'?h(Dash,cx):null,pg==='transactions'?h(TxnsP,cx):null,pg==='budgets'?h(BudgP,cx):null,pg==='debts'?h(DebtP,cx):null,pg==='ai'?h(AiP,cx):null,pg==='investments'?h(InvP,cx):null,pg==='settings'?h(SettingsP,Object.assign({},cx,{theme:theme,sTh:sTh,user:user})):null)),
     tfOpen?h(TransferMod,{W:W,rW:rW,rT:rT,onClose:function(){sTf(false)}}):null,
     fabOpen?h(QuickTxn,{W:W,C:C,rT:rT,rW:rW,onClose:function(){sFab(false)}}):null,
     h('button',{className:'fab',onClick:function(){sFab(true)},title:'Tambah Transaksi'},'+'))
@@ -852,6 +855,145 @@ function TxnsP(p){
               h('button',{className:'bi',style:{flexShrink:0,color:'var(--red)'},onClick:function(){del(tx)}},h(Ic,{n:'trash'})))
           }))
       })),
+    cfE)
+}
+
+/* ═══ HUTANG & PIUTANG ═══ */
+function DebtP(p){
+  var W=p.W,D=p.D,DP=p.DP,rD=p.rD,rDP=p.rDP,rW=p.rW;
+  var t=useContext(TCtx);var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
+  var _tab=useState('hutang'),tab=_tab[0],sTab=_tab[1];
+  var _mo=useState(null),mo=_mo[0],sMo=_mo[1];
+  var _pMo=useState(null),pMo=_pMo[0],sPMo=_pMo[1];
+  var _f=useState({type:'hutang',name:'',description:'',category:'personal',total_amount:'',remaining_amount:'',monthly_payment:'',interest_rate:'',start_date:td(),due_date:'',wallet_id:''}),f=_f[0],sF=_f[1];
+  var _pf=useState({amount:'',paid_date:td(),wallet_id:'',notes:''}),pf=_pf[0],sPf=_pf[1];
+  var CATS={kpr:'🏠 KPR/Rumah',kendaraan:'🚗 Kendaraan',personal:'👤 Personal',usaha:'💼 Usaha',pendidikan:'🎓 Pendidikan',lainnya:'📦 Lainnya'};
+
+  function ufx(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
+  function ufp(k,v){var n={};for(var x in pf)n[x]=f[x];n[k]=v;sPf(n)}
+
+  function openAdd(){sF({type:tab,name:'',description:'',category:'personal',total_amount:'',remaining_amount:'',monthly_payment:'',interest_rate:'',start_date:td(),due_date:'',wallet_id:''});sMo({m:'add'})}
+  function openEdit(d){sF({type:d.type,name:d.name||'',description:d.description||'',category:d.category||'personal',total_amount:String(d.total_amount||0),remaining_amount:String(d.remaining_amount||0),monthly_payment:String(d.monthly_payment||0),interest_rate:String(d.interest_rate||0),start_date:d.start_date||td(),due_date:d.due_date||'',wallet_id:d.wallet_id||''});sMo({m:'edit',d:d})}
+  function openPay(d){sPf({amount:String(d.monthly_payment||0),paid_date:td(),wallet_id:W.length?W[0].id:'',notes:''});sPMo(d)}
+
+  function saveDebt(){
+    if(!UID){t('Sesi habis','err');return}
+    if(!f.name.trim()){t('Nama wajib','err');return}
+    var pay={user_id:UID,type:f.type,name:f.name.trim(),description:f.description,category:f.category,total_amount:Number(f.total_amount)||0,remaining_amount:Number(f.remaining_amount)||Number(f.total_amount)||0,monthly_payment:Number(f.monthly_payment)||0,interest_rate:Number(f.interest_rate)||0,start_date:f.start_date||null,due_date:f.due_date||null,wallet_id:f.wallet_id||null,status:'active'};
+    if(mo.m==='add'){sb.from('debts').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}t('Ditambahkan');sMo(null);rD()})}
+    else{delete pay.user_id;sb.from('debts').update(pay).eq('id',mo.d.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Diperbarui');sMo(null);rD()})}
+  }
+
+  function payDebt(){
+    if(!UID){t('Sesi habis','err');return}
+    var amt=Number(pf.amount)||0;if(amt<=0){t('Jumlah > 0','err');return}
+    var debt=pMo;var newRem=Math.max((Number(debt.remaining_amount)||0)-amt,0);
+    var newStatus=newRem<=0?'paid':'active';
+    // Insert payment record
+    sb.from('debt_payments').insert({user_id:UID,debt_id:debt.id,amount:amt,paid_date:pf.paid_date,wallet_id:pf.wallet_id||null,notes:pf.notes}).then(function(r){
+      if(r.error){t(r.error.message,'err');return}
+      // Update remaining amount
+      sb.from('debts').update({remaining_amount:newRem,status:newStatus}).eq('id',debt.id).then(function(r2){
+        if(r2.error){t(r2.error.message,'err');return}
+        // Deduct from wallet if selected
+        if(pf.wallet_id){var w=fid(W,pf.wallet_id);if(w){var nb=(Number(w.balance)||0)-(debt.type==='hutang'?amt:-amt);sb.from('wallets').update({balance:nb}).eq('id',pf.wallet_id).then(function(){rW()})}}
+        t(newRem<=0?'Lunas! 🎉':'Pembayaran tercatat');sPMo(null);rD();rDP()
+      })
+    })
+  }
+
+  function delDebt(d){cf('Hapus "'+d.name+'"?').then(function(ok){if(!ok)return;sb.from('debts').delete().eq('id',d.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dihapus');rD();rDP()})})}
+
+  var hutang=D.filter(function(d){return d.type==='hutang'});
+  var piutang=D.filter(function(d){return d.type==='piutang'});
+  var shown=tab==='hutang'?hutang:piutang;
+  var totalHutang=hutang.filter(function(d){return d.status!=='paid'}).reduce(function(s,d){return s+(Number(d.remaining_amount)||0)},0);
+  var totalPiutang=piutang.filter(function(d){return d.status!=='paid'}).reduce(function(s,d){return s+(Number(d.remaining_amount)||0)},0);
+  var monthlyTotal=hutang.filter(function(d){return d.status==='active'}).reduce(function(s,d){return s+(Number(d.monthly_payment)||0)},0);
+
+  function getPayments(id){return DP.filter(function(p){return p.debt_id===id}).slice(0,5)}
+  function paidPct(d){return Number(d.total_amount)>0?Math.round(((Number(d.total_amount)-Number(d.remaining_amount))/Number(d.total_amount))*100):0}
+
+  return h('div',null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Hutang & Piutang')),h('button',{className:'btn bp',onClick:openAdd},h(Ic,{n:'plus'}),' Tambah')),
+
+    // Summary cards
+    h('div',{className:'sg',style:{marginBottom:16}},
+      h('div',{className:'cd st',style:{borderTop:'3px solid var(--red)'}},
+        h('div',{className:'lb'},'Total Hutang'),h('div',{className:'vl',style:{color:'var(--red)'}},fmt(totalHutang)),h('div',{className:'sub'},monthlyTotal>0?'Cicilan/bln: '+fmt(monthlyTotal):hutang.length+' item')),
+      h('div',{className:'cd st',style:{borderTop:'3px solid var(--acc)'}},
+        h('div',{className:'lb'},'Total Piutang'),h('div',{className:'vl',style:{color:'var(--acc)'}},fmt(totalPiutang)),h('div',{className:'sub'},piutang.length+' item')),
+      h('div',{className:'cd st',style:{borderTop:'3px solid var(--blu)'}},
+        h('div',{className:'lb'},'Selisih Bersih'),h('div',{className:'vl',style:{color:totalPiutang-totalHutang>=0?'var(--acc)':'var(--red)'}},fmt(totalPiutang-totalHutang)))),
+
+    // Tabs
+    h('div',{className:'tabs',style:{marginBottom:14}},
+      h('button',{className:'tab'+(tab==='hutang'?' act':''),onClick:function(){sTab('hutang')}},'Hutang (',hutang.filter(function(d){return d.status!=='paid'}).length,')'),
+      h('button',{className:'tab'+(tab==='piutang'?' act':''),onClick:function(){sTab('piutang')}},'Piutang (',piutang.filter(function(d){return d.status!=='paid'}).length,')')),
+
+    // Debt list
+    shown.length===0?h('div',{className:'cd'},h('div',{className:'empty'},h('div',{className:'ei'},tab==='hutang'?'💳':'💰'),h('h3',null,'Belum ada '+tab))):
+    shown.map(function(d){
+      var pct=paidPct(d);var isPaid=d.status==='paid';var isOver=d.due_date&&new Date(d.due_date)<new Date()&&!isPaid;
+      var payments=getPayments(d.id);
+      return h('div',{key:d.id,className:'cd',style:{marginBottom:10,opacity:isPaid?.7:1}},
+        // Header
+        h('div',{style:{display:'flex',alignItems:'flex-start',gap:10,marginBottom:12}},
+          h('div',{style:{flex:1}},
+            h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:4}},
+              h('span',{style:{fontSize:'.75rem',background:isPaid?'var(--accbg)':isOver?'var(--redbg)':'var(--blubg)',color:isPaid?'var(--acc)':isOver?'var(--red)':'var(--blu)',padding:'2px 8px',borderRadius:10,fontWeight:600}},isPaid?'✅ Lunas':isOver?'⚠️ Lewat jatuh tempo':'Active'),
+              h('span',{style:{fontSize:'.72rem',color:'var(--t3)'}},CATS[d.category]||d.category)),
+            h('div',{style:{fontSize:'1rem',fontWeight:700}},d.name),
+            d.description?h('div',{style:{fontSize:'.78rem',color:'var(--t3)',marginTop:2}},d.description):null),
+          h('div',{style:{display:'flex',gap:4}},
+            !isPaid?h('button',{className:'btn bp',style:{fontSize:'.78rem',padding:'5px 10px'},onClick:function(){openPay(d)}},'Bayar'):null,
+            h('button',{className:'bi',onClick:function(){openEdit(d)}},h(Ic,{n:'edit'})),
+            h('button',{className:'bi',style:{color:'var(--red)'},onClick:function(){delDebt(d)}},h(Ic,{n:'trash'})))),
+        // Progress bar
+        h('div',{style:{marginBottom:10}},
+          h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.75rem',marginBottom:4}},
+            h('span',{style:{color:'var(--t3)'}},'Sisa: ',h('span',{style:{fontWeight:700,color:isPaid?'var(--acc)':'var(--red)'}},fmt(d.remaining_amount))),
+            h('span',{style:{color:'var(--t3)'}},'Lunas ',pct,'%',' dari ',fmt(d.total_amount))),
+          h('div',{style:{height:8,background:'var(--bgi)',borderRadius:4,overflow:'hidden'}},
+            h('div',{style:{height:'100%',width:pct+'%',background:isPaid?'var(--acc)':'var(--blu)',borderRadius:4,transition:'width .5s'}}))),
+        // Info row
+        h('div',{style:{display:'flex',gap:16,fontSize:'.75rem',color:'var(--t3)',flexWrap:'wrap',marginBottom:payments.length?10:0}},
+          d.monthly_payment?h('span',null,'📅 ',fmt(d.monthly_payment),'/bln'):null,
+          d.interest_rate?h('span',null,'💹 ',d.interest_rate,'%/thn'):null,
+          d.due_date?h('span',{style:{color:isOver?'var(--red)':'var(--t3)'}},'🗓 ',new Date(d.due_date).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})):null,
+          d.wallet_id?h('span',null,'💳 ',wn(W,d.wallet_id)):null),
+        // Recent payments
+        payments.length>0?h('div',{style:{borderTop:'1px solid var(--brd)',paddingTop:10}},
+          h('div',{style:{fontSize:'.72rem',fontWeight:600,color:'var(--t3)',marginBottom:6}},'Riwayat Pembayaran'),
+          payments.map(function(pay,i){
+            return h('div',{key:pay.id,style:{display:'flex',justifyContent:'space-between',fontSize:'.78rem',padding:'4px 0',borderBottom:i<payments.length-1?'1px solid var(--brd)':''}},
+              h('span',{style:{color:'var(--t3)'}},new Date(pay.paid_date).toLocaleDateString('id-ID',{day:'numeric',month:'short'})),
+              pay.notes?h('span',{style:{flex:1,marginLeft:8,color:'var(--t2)'}},pay.notes):null,
+              h('span',{style:{fontWeight:600,color:'var(--acc)'}},fmt(pay.amount)))})):null)
+    }),
+
+    // Add/Edit modal
+    h(Mod,{open:!!mo,onClose:function(){sMo(null)},title:mo&&mo.m==='add'?'Tambah '+tab:'Edit',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sMo(null)}},'Batal'),h('button',{className:'btn bp',onClick:saveDebt},'Simpan'))},
+      h('div',{className:'fg'},h('label',null,'Tipe'),h('div',{className:'tabs'},h('button',{className:'tab'+(f.type==='hutang'?' act':''),onClick:function(){ufx('type','hutang')}},'Hutang'),h('button',{className:'tab'+(f.type==='piutang'?' act':''),onClick:function(){ufx('type','piutang')}},'Piutang'))),
+      h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Nama'),h('input',{className:'fi',placeholder:'cth: KPR BCA, Pinjaman ke Budi...',value:f.name,onChange:function(e){ufx('name',e.target.value)}})),h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category,onChange:function(e){ufx('category',e.target.value)}},Object.keys(CATS).map(function(k){return h('option',{key:k,value:k},CATS[k])})))),
+      h('div',{className:'fg'},h('label',null,'Deskripsi'),h('input',{className:'fi',placeholder:'Keterangan (opsional)',value:f.description,onChange:function(e){ufx('description',e.target.value)}})),
+      h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Total Pinjaman'),h(NumInput,{value:f.total_amount,onChange:function(v){ufx('total_amount',v)}})),h('div',{className:'fg'},h('label',null,'Sisa Hutang'),h(NumInput,{value:f.remaining_amount,onChange:function(v){ufx('remaining_amount',v)}}))),
+      h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Cicilan/Bulan'),h(NumInput,{value:f.monthly_payment,onChange:function(v){ufx('monthly_payment',v)}})),h('div',{className:'fg'},h('label',null,'Bunga (%/thn)'),h('input',{className:'fi',type:'number',step:'0.1',value:f.interest_rate,onChange:function(e){ufx('interest_rate',e.target.value)}}))),
+      h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Tgl Mulai'),h('input',{className:'fi',type:'date',value:f.start_date,onChange:function(e){ufx('start_date',e.target.value)}})),h('div',{className:'fg'},h('label',null,'Jatuh Tempo'),h('input',{className:'fi',type:'date',value:f.due_date,onChange:function(e){ufx('due_date',e.target.value)}}))),
+      h('div',{className:'fg'},h('label',null,'Dompet Terkait'),h('select',{className:'fi',value:f.wallet_id,onChange:function(e){ufx('wallet_id',e.target.value)}},h('option',{value:''},'-- Tidak ada --'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name)})))),
+
+    // Payment modal
+    h(Mod,{open:!!pMo,onClose:function(){sPMo(null)},title:'💳 Bayar: '+(pMo?pMo.name:''),footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sPMo(null)}},'Batal'),h('button',{className:'btn bp',onClick:payDebt},'Bayar'))},
+      pMo?h(F,null,
+        h('div',{style:{background:'var(--bgi)',borderRadius:8,padding:'10px 14px',marginBottom:14}},
+          h('div',{style:{fontSize:'.78rem',color:'var(--t3)'}},'Sisa hutang'),
+          h('div',{style:{fontSize:'1.2rem',fontWeight:700,color:'var(--red)'}},fmt(pMo.remaining_amount)),
+          pMo.monthly_payment?h('div',{style:{fontSize:'.75rem',color:'var(--t3)',marginTop:2}},'Cicilan normal: ',fmt(pMo.monthly_payment)):null),
+        h('div',{className:'fg'},h('label',null,'Jumlah Bayar'),h(NumInput,{value:pf.amount,onChange:function(v){var n={};for(var x in pf)n[x]=pf[x];n.amount=v;sPf(n)}})),
+        h('div',{className:'fr'},
+          h('div',{className:'fg'},h('label',null,'Tanggal Bayar'),h('input',{className:'fi',type:'date',value:pf.paid_date,onChange:function(e){var n={};for(var x in pf)n[x]=pf[x];n.paid_date=e.target.value;sPf(n)}})),
+          h('div',{className:'fg'},h('label',null,'Dari Dompet'),h('select',{className:'fi',value:pf.wallet_id,onChange:function(e){var n={};for(var x in pf)n[x]=pf[x];n.wallet_id=e.target.value;sPf(n)}},h('option',{value:''},'-- Manual --'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name+' ('+fmt(w.balance)+')')})))),
+        h('div',{className:'fg'},h('label',null,'Catatan'),h('input',{className:'fi',placeholder:'cth: Cicilan ke-3',value:pf.notes,onChange:function(e){var n={};for(var x in pf)n[x]=pf[x];n.notes=e.target.value;sPf(n)}}))):null),
     cfE)
 }
 
