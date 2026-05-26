@@ -341,16 +341,22 @@ function QuickTxn(p){
 
 /* ═══ DASHBOARD (with budget charts) ═══ */
 function Dash(p){
-  var W=p.W,T=p.T,C=p.C,B=p.B,I=p.I;
+  var W=p.W,T=p.T,C=p.C,B=p.B,I=p.I,D=p.D||[];
   var now=new Date();
   var moName=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][now.getMonth()];
   var moTxns=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()});
   var inc=moTxns.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
   var exp=moTxns.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
   var savings=inc-exp;var savingsRate=inc>0?Math.round((savings/inc)*100):0;
-  var bal=W.reduce(function(s,w){return s+(Number(w.balance)||0)},0);
-  var assets=W.filter(function(w){return(Number(w.balance)||0)>0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0);
-  var liab=W.filter(function(w){return(Number(w.balance)||0)<0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0);
+
+  // Debt integration
+  var debtLiab=D.filter(function(d){return d.type==='hutang'&&d.status!=='paid'}).reduce(function(s,d){return s+(Number(d.remaining_amount)||0)},0);
+  var debtAsset=D.filter(function(d){return d.type==='piutang'&&d.status!=='paid'}).reduce(function(s,d){return s+(Number(d.remaining_amount)||0)},0);
+
+  var walletBal=W.reduce(function(s,w){return s+(Number(w.balance)||0)},0);
+  var bal=walletBal+debtAsset-debtLiab;
+  var assets=W.filter(function(w){return(Number(w.balance)||0)>0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0)+debtAsset;
+  var liab=W.filter(function(w){return(Number(w.balance)||0)<0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0)-debtLiab;
 
   // Income vs Expense ring
   var R=46;var C2=2*Math.PI*R;var total=inc+exp||1;
@@ -688,8 +694,11 @@ function WalletsP(p){
       t('Dompet dihapus');rW()
     })
   })}  var grouped={};var groupTotals={};W.forEach(function(w){var g=w.group_type||'others';if(!grouped[g])grouped[g]=[];grouped[g].push(w);groupTotals[g]=(groupTotals[g]||0)+(Number(w.balance)||0)});
-  var totalAssets=W.filter(function(w){return(Number(w.balance)||0)>=0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0);
-  var totalLiab=W.filter(function(w){return(Number(w.balance)||0)<0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0);
+  var D=p.D||[];
+  var debtLiab=D.filter(function(d){return d.type==='hutang'&&d.status!=='paid'}).reduce(function(s,d){return s+(Number(d.remaining_amount)||0)},0);
+  var debtAsset=D.filter(function(d){return d.type==='piutang'&&d.status!=='paid'}).reduce(function(s,d){return s+(Number(d.remaining_amount)||0)},0);
+  var totalAssets=W.filter(function(w){return(Number(w.balance)||0)>=0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0)+debtAsset;
+  var totalLiab=W.filter(function(w){return(Number(w.balance)||0)<0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0)-debtLiab;
 
   return h(F,null,
     h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Dompet')),h('div',{style:{display:'flex',gap:8}},h('button',{className:'btn bs',onClick:function(){sTf(true)}},h(Ic,{n:'transfer'}),' Transfer'),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah'))),
@@ -699,10 +708,12 @@ function WalletsP(p){
       h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,textAlign:'center'}},
         h('div',null,
           h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:4}},'Aset'),
-          h('div',{style:{fontWeight:700,fontSize:'.88rem',color:'var(--blu)',wordBreak:'break-all'}},fmt(totalAssets))),
+          h('div',{style:{fontWeight:700,fontSize:'.88rem',color:'var(--blu)',wordBreak:'break-all'}},fmt(totalAssets)),
+          debtAsset>0?h('div',{style:{fontSize:'.62rem',color:'var(--acc)',marginTop:2}},'+ piutang ',fmt(debtAsset)):null),
         h('div',null,
           h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:4}},'Liabilitas'),
-          h('div',{style:{fontWeight:700,fontSize:'.88rem',color:'var(--red)',wordBreak:'break-all'}},fmt(totalLiab))),
+          h('div',{style:{fontWeight:700,fontSize:'.88rem',color:'var(--red)',wordBreak:'break-all'}},fmt(totalLiab)),
+          debtLiab>0?h('div',{style:{fontSize:'.62rem',color:'var(--red)',marginTop:2}},'incl. hutang ',fmt(debtLiab)):null),
         h('div',null,
           h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:4}},'Bersih'),
           h('div',{style:{fontWeight:700,fontSize:'.88rem',wordBreak:'break-all'}},fmt(totalAssets+totalLiab))))),
@@ -858,6 +869,23 @@ function TxnsP(p){
     cfE)
 }
 
+
+function DebtAddSection(p){
+  var f=p.f,ufx=p.ufx,W=p.W;
+  if(!f.record_txn)return h('div',{style:{borderTop:'1px solid var(--brd)',paddingTop:12,marginTop:4}},
+    h('div',{style:{display:'flex',alignItems:'center',gap:10,cursor:'pointer'},onClick:function(){ufx('record_txn',true)}},
+      h('div',{style:{width:40,height:22,borderRadius:11,background:'var(--brd)',position:'relative',flexShrink:0}},h('div',{style:{width:16,height:16,borderRadius:'50%',background:'#fff',position:'absolute',top:3,left:3}})),
+      h('span',{style:{fontSize:'.84rem',fontWeight:600}},f.type==='hutang'?'Uang sudah diterima':'Uang sudah dikirimkan')));
+  return h('div',{style:{borderTop:'1px solid var(--brd)',paddingTop:12,marginTop:4}},
+    h('div',{style:{display:'flex',alignItems:'center',gap:10,cursor:'pointer',marginBottom:10},onClick:function(){ufx('record_txn',false)}},
+      h('div',{style:{width:40,height:22,borderRadius:11,background:'var(--acc)',position:'relative',flexShrink:0}},h('div',{style:{width:16,height:16,borderRadius:'50%',background:'#fff',position:'absolute',top:3,left:21}})),
+      h('span',{style:{fontSize:'.84rem',fontWeight:600,color:'var(--acc)'}},f.type==='hutang'?'Uang sudah diterima':'Uang sudah dikirimkan')),
+    h('div',{className:'fg'},h('label',null,f.type==='hutang'?'Dompet Tujuan Dana':'Dompet Sumber Dana'),
+      h('select',{className:'fi',value:f.txn_wallet_id,onChange:function(e){ufx('txn_wallet_id',e.target.value)}},
+        h('option',{value:''},'-- Pilih dompet --'),
+        W.map(function(w){return h('option',{key:w.id,value:w.id},w.name+' ('+fmt(w.balance)+')')}))));
+}
+
 /* ═══ HUTANG & PIUTANG ═══ */
 function DebtP(p){
   var W=p.W,D=p.D,DP=p.DP,rD=p.rD,rDP=p.rDP,rW=p.rW;
@@ -865,22 +893,72 @@ function DebtP(p){
   var _tab=useState('hutang'),tab=_tab[0],sTab=_tab[1];
   var _mo=useState(null),mo=_mo[0],sMo=_mo[1];
   var _pMo=useState(null),pMo=_pMo[0],sPMo=_pMo[1];
-  var _f=useState({type:'hutang',name:'',description:'',category:'personal',total_amount:'',remaining_amount:'',monthly_payment:'',interest_rate:'',start_date:td(),due_date:'',wallet_id:''}),f=_f[0],sF=_f[1];
+  var _f=useState({type:'hutang',name:'',description:'',category:'personal',total_amount:'',remaining_amount:'',monthly_payment:'',interest_rate:'',interest_model:'flat',tenor:'',start_date:td(),due_date:'',wallet_id:'',record_txn:true,txn_wallet_id:''}),f=_f[0],sF=_f[1];
   var _pf=useState({amount:'',paid_date:td(),wallet_id:'',notes:''}),pf=_pf[0],sPf=_pf[1];
   var CATS={kpr:'🏠 KPR/Rumah',kendaraan:'🚗 Kendaraan',personal:'👤 Personal',usaha:'💼 Usaha',pendidikan:'🎓 Pendidikan',lainnya:'📦 Lainnya'};
+  var IMODELS={flat:'Flat (Bunga Tetap)',anuitas:'Anuitas (Efektif)',simple:'Simple (Sekali Bayar)'};
+
+  // Interest calculation engine
+  function calcInterest(pokok,rate,tenor,model){
+    var p=Number(pokok)||0,r=Number(rate)||0,n=Number(tenor)||1;
+    if(r===0||n===0)return{totalBunga:0,totalBayar:p,cicilanPerBulan:n>0?p/n:p,model:model};
+    if(model==='flat'){
+      var tb=p*(r/100)*(n/12);
+      var total=p+tb;
+      return{totalBunga:tb,totalBayar:total,cicilanPerBulan:total/n,model:'flat'};
+    }
+    if(model==='anuitas'){
+      var mr=r/100/12;
+      var cicilan=p*(mr*Math.pow(1+mr,n))/(Math.pow(1+mr,n)-1);
+      var total=cicilan*n;
+      return{totalBunga:total-p,totalBayar:total,cicilanPerBulan:cicilan,model:'anuitas'};
+    }
+    if(model==='simple'){
+      var total=p*(1+r/100);
+      return{totalBunga:total-p,totalBayar:total,cicilanPerBulan:0,model:'simple'};
+    }
+    return{totalBunga:0,totalBayar:p,cicilanPerBulan:p/n,model:model};
+  }
 
   function ufx(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
   function ufp(k,v){var n={};for(var x in pf)n[x]=f[x];n[k]=v;sPf(n)}
 
-  function openAdd(){sF({type:tab,name:'',description:'',category:'personal',total_amount:'',remaining_amount:'',monthly_payment:'',interest_rate:'',start_date:td(),due_date:'',wallet_id:''});sMo({m:'add'})}
-  function openEdit(d){sF({type:d.type,name:d.name||'',description:d.description||'',category:d.category||'personal',total_amount:String(d.total_amount||0),remaining_amount:String(d.remaining_amount||0),monthly_payment:String(d.monthly_payment||0),interest_rate:String(d.interest_rate||0),start_date:d.start_date||td(),due_date:d.due_date||'',wallet_id:d.wallet_id||''});sMo({m:'edit',d:d})}
+  function openAdd(){sF({type:tab,name:'',description:'',category:'personal',total_amount:'',remaining_amount:'',monthly_payment:'',interest_rate:'',interest_model:'flat',tenor:'',start_date:td(),due_date:'',wallet_id:'',record_txn:true,txn_wallet_id:W.length?W[0].id:''});sMo({m:'add'})}
+  function openEdit(d){sF({type:d.type,name:d.name||'',description:d.description||'',category:d.category||'personal',total_amount:String(d.total_amount||0),remaining_amount:String(d.remaining_amount||0),monthly_payment:String(d.monthly_payment||0),interest_rate:String(d.interest_rate||0),interest_model:d.interest_model||'flat',tenor:String(d.tenor||0),start_date:d.start_date||td(),due_date:d.due_date||'',wallet_id:d.wallet_id||'',record_txn:false,txn_wallet_id:''});sMo({m:'edit',d:d})}
   function openPay(d){sPf({amount:String(d.monthly_payment||0),paid_date:td(),wallet_id:W.length?W[0].id:'',notes:''});sPMo(d)}
 
   function saveDebt(){
     if(!UID){t('Sesi habis','err');return}
     if(!f.name.trim()){t('Nama wajib','err');return}
-    var pay={user_id:UID,type:f.type,name:f.name.trim(),description:f.description,category:f.category,total_amount:Number(f.total_amount)||0,remaining_amount:Number(f.remaining_amount)||Number(f.total_amount)||0,monthly_payment:Number(f.monthly_payment)||0,interest_rate:Number(f.interest_rate)||0,start_date:f.start_date||null,due_date:f.due_date||null,wallet_id:f.wallet_id||null,status:'active'};
-    if(mo.m==='add'){sb.from('debts').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}t('Ditambahkan');sMo(null);rD()})}
+    var amt=Number(f.total_amount)||0;
+    var calc=calcInterest(amt,f.interest_rate,f.tenor,f.interest_model);
+    var pay={user_id:UID,type:f.type,name:f.name.trim(),description:f.description,category:f.category,total_amount:amt,remaining_amount:Number(f.remaining_amount)||calc.totalBayar,monthly_payment:Number(f.monthly_payment)||Math.round(calc.cicilanPerBulan),interest_rate:Number(f.interest_rate)||0,interest_model:f.interest_model||'flat',tenor:Number(f.tenor)||0,total_with_interest:calc.totalBayar,start_date:f.start_date||null,due_date:f.due_date||null,wallet_id:f.wallet_id||null,status:'active'};
+    if(mo.m==='add'){
+      sb.from('debts').insert(pay).then(function(r){
+        if(r.error){t(r.error.message,'err');return}
+        // Double-entry: update wallet balance + record transaction
+        if(f.record_txn&&f.txn_wallet_id&&amt>0){
+          var w=fid(W,f.txn_wallet_id);
+          if(w){
+            // hutang = uang masuk ke dompet (aset naik, liabilitas naik)
+            // piutang = uang keluar dari dompet (aset turun, piutang/aset lain naik)
+            var isHutang=f.type==='hutang';
+            var nb=isHutang?(Number(w.balance)||0)+amt:(Number(w.balance)||0)-amt;
+            sb.from('wallets').update({balance:nb}).eq('id',f.txn_wallet_id).then(function(){rW()});
+            sb.from('transactions').insert({
+              user_id:UID,
+              type:isHutang?'income':'expense',
+              wallet_id:f.txn_wallet_id,
+              amount:amt,
+              date:f.start_date||td(),
+              description:(isHutang?'Pinjaman masuk: ':'Dana dipinjamkan: ')+f.name.trim(),
+              category_id:null
+            }).then(function(){rT()})
+          }
+        }
+        t('Ditambahkan');sMo(null);rD()
+      })
+    }
     else{delete pay.user_id;sb.from('debts').update(pay).eq('id',mo.d.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Diperbarui');sMo(null);rD()})}
   }
 
@@ -912,7 +990,11 @@ function DebtP(p){
   var monthlyTotal=hutang.filter(function(d){return d.status==='active'}).reduce(function(s,d){return s+(Number(d.monthly_payment)||0)},0);
 
   function getPayments(id){return DP.filter(function(p){return p.debt_id===id}).slice(0,5)}
-  function paidPct(d){return Number(d.total_amount)>0?Math.round(((Number(d.total_amount)-Number(d.remaining_amount))/Number(d.total_amount))*100):0}
+  function paidPct(d){
+    var base=Number(d.total_with_interest)||Number(d.total_amount)||1;
+    var paid=base-Number(d.remaining_amount);
+    return Math.max(0,Math.round((paid/base)*100));
+  }
 
   return h('div',null,
     h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Hutang & Piutang')),h('button',{className:'btn bp',onClick:openAdd},h(Ic,{n:'plus'}),' Tambah')),
@@ -959,7 +1041,10 @@ function DebtP(p){
         // Info row
         h('div',{style:{display:'flex',gap:16,fontSize:'.75rem',color:'var(--t3)',flexWrap:'wrap',marginBottom:payments.length?10:0}},
           d.monthly_payment?h('span',null,'📅 ',fmt(d.monthly_payment),'/bln'):null,
-          d.interest_rate?h('span',null,'💹 ',d.interest_rate,'%/thn'):null,
+          d.interest_rate?h('span',{style:{color:'var(--org)'}},'💹 ',d.interest_rate,'%/thn',(d.interest_model&&d.interest_model!=='flat')?' ('+{anuitas:'Anuitas',simple:'Simple'}[d.interest_model]+')':''):null,
+          d.tenor?h('span',null,'⏱ ',d.tenor,' bln'):null,
+          (d.total_with_interest&&d.total_with_interest>d.total_amount)?h('span',{style:{color:'var(--org)'}},
+            'Bunga: ',fmt(Math.round(d.total_with_interest-d.total_amount))):null,
           d.due_date?h('span',{style:{color:isOver?'var(--red)':'var(--t3)'}},'🗓 ',new Date(d.due_date).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})):null,
           d.wallet_id?h('span',null,'💳 ',wn(W,d.wallet_id)):null),
         // Recent payments
@@ -979,8 +1064,24 @@ function DebtP(p){
       h('div',{className:'fg'},h('label',null,'Deskripsi'),h('input',{className:'fi',placeholder:'Keterangan (opsional)',value:f.description,onChange:function(e){ufx('description',e.target.value)}})),
       h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Total Pinjaman'),h(NumInput,{value:f.total_amount,onChange:function(v){ufx('total_amount',v)}})),h('div',{className:'fg'},h('label',null,'Sisa Hutang'),h(NumInput,{value:f.remaining_amount,onChange:function(v){ufx('remaining_amount',v)}}))),
       h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Cicilan/Bulan'),h(NumInput,{value:f.monthly_payment,onChange:function(v){ufx('monthly_payment',v)}})),h('div',{className:'fg'},h('label',null,'Bunga (%/thn)'),h('input',{className:'fi',type:'number',step:'0.1',value:f.interest_rate,onChange:function(e){ufx('interest_rate',e.target.value)}}))),
+      h('div',{className:'fr'},
+        h('div',{className:'fg'},h('label',null,'Model Bunga'),h('select',{className:'fi',value:f.interest_model,onChange:function(e){ufx('interest_model',e.target.value)}},Object.keys(IMODELS).map(function(k){return h('option',{key:k,value:k},IMODELS[k])}))),
+        h('div',{className:'fg'},h('label',null,'Tenor (bulan)'),h('input',{className:'fi',type:'number',min:'1',placeholder:'cth: 12',value:f.tenor,onChange:function(e){ufx('tenor',e.target.value)}}))),
+      // Auto-calculator preview
+      (Number(f.total_amount)>0&&Number(f.interest_rate)>0&&Number(f.tenor)>0)?h('div',{style:{background:'linear-gradient(135deg,var(--accbg),var(--blubg))',borderRadius:10,padding:'12px 16px',marginTop:4}},function(){
+        var c=calcInterest(f.total_amount,f.interest_rate,f.tenor,f.interest_model);
+        return h(F,null,
+          h('div',{style:{fontWeight:700,fontSize:'.82rem',marginBottom:8,color:'var(--t2)'}},'Kalkulasi Otomatis'),
+          h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}},
+            h('div',{style:{background:'rgba(255,255,255,.1)',borderRadius:6,padding:'8px 10px'}},h('div',{style:{fontSize:'.68rem',color:'var(--t3)'}},'Pokok'),h('div',{style:{fontWeight:700,fontSize:'.85rem'}},fmt(Number(f.total_amount)))),
+            h('div',{style:{background:'rgba(255,255,255,.1)',borderRadius:6,padding:'8px 10px'}},h('div',{style:{fontSize:'.68rem',color:'var(--t3)'}},'Total Bunga'),h('div',{style:{fontWeight:700,fontSize:'.85rem',color:'var(--org)'}},fmt(Math.round(c.totalBunga)))),
+            h('div',{style:{background:'rgba(255,255,255,.1)',borderRadius:6,padding:'8px 10px'}},h('div',{style:{fontSize:'.68rem',color:'var(--t3)'}},'Total Bayar'),h('div',{style:{fontWeight:700,fontSize:'.85rem',color:'var(--acc)'}},fmt(Math.round(c.totalBayar)))),
+            c.cicilanPerBulan>0?h('div',{style:{background:'rgba(255,255,255,.1)',borderRadius:6,padding:'8px 10px'}},h('div',{style:{fontSize:'.68rem',color:'var(--t3)'}},'Cicilan/Bulan'),h('div',{style:{fontWeight:700,fontSize:'.85rem',color:'var(--blu)'}},fmt(Math.round(c.cicilanPerBulan)))):null),
+          h('button',{className:'btn bs',style:{marginTop:8,width:'100%',fontSize:'.78rem'},onClick:function(){var c2=calcInterest(f.total_amount,f.interest_rate,f.tenor,f.interest_model);var n={};for(var x in f)n[x]=f[x];n.remaining_amount=String(Math.round(c2.totalBayar));n.monthly_payment=String(Math.round(c2.cicilanPerBulan));sF(n)}},'⬆ Terapkan ke form'))
+      }()):null,
       h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Tgl Mulai'),h('input',{className:'fi',type:'date',value:f.start_date,onChange:function(e){ufx('start_date',e.target.value)}})),h('div',{className:'fg'},h('label',null,'Jatuh Tempo'),h('input',{className:'fi',type:'date',value:f.due_date,onChange:function(e){ufx('due_date',e.target.value)}}))),
-      h('div',{className:'fg'},h('label',null,'Dompet Terkait'),h('select',{className:'fi',value:f.wallet_id,onChange:function(e){ufx('wallet_id',e.target.value)}},h('option',{value:''},'-- Tidak ada --'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name)})))),
+      h('div',{className:'fg'},h('label',null,'Dompet Terkait (untuk cicilan)'),h('select',{className:'fi',value:f.wallet_id,onChange:function(e){ufx('wallet_id',e.target.value)}},h('option',{value:''},'-- Tidak ada --'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name)}))),
+      mo&&mo.m==='add'?h(DebtAddSection,{f:f,ufx:ufx,W:W}):null),
 
     // Payment modal
     h(Mod,{open:!!pMo,onClose:function(){sPMo(null)},title:'💳 Bayar: '+(pMo?pMo.name:''),footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sPMo(null)}},'Batal'),h('button',{className:'btn bp',onClick:payDebt},'Bayar'))},
