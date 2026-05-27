@@ -343,184 +343,155 @@ function QuickTxn(p){
 function Dash(p){
   var W=p.W,T=p.T,C=p.C,B=p.B,I=p.I,D=p.D||[];
   var now=new Date();
-  var moName=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][now.getMonth()];
-  var moTxns=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear()});
-  var inc=moTxns.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
-  var exp=moTxns.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
-  var savings=inc-exp;var savingsRate=inc>0?Math.round((savings/inc)*100):0;
+  var mo=now.getMonth(),yr=now.getFullYear();
+  var MO=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
-  // Debt integration
+  // Debt calculations
   var debtLiab=D.filter(function(d){return d.type==='hutang'&&d.status!=='paid'}).reduce(function(s,d){return s+(Number(d.remaining_amount)||0)},0);
   var debtAsset=D.filter(function(d){return d.type==='piutang'&&d.status!=='paid'}).reduce(function(s,d){return s+(Number(d.remaining_amount)||0)},0);
-
   var walletBal=W.reduce(function(s,w){return s+(Number(w.balance)||0)},0);
-  var bal=walletBal+debtAsset-debtLiab;
-  var assets=W.filter(function(w){return(Number(w.balance)||0)>0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0)+debtAsset;
-  var liab=W.filter(function(w){return(Number(w.balance)||0)<0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0)-debtLiab;
+  var invBal=I.reduce(function(s,i){return s+(Number(i.current_value)||0)},0);
+  var totalAssets=W.filter(function(w){return(Number(w.balance)||0)>0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0)+invBal+debtAsset;
+  var totalLiab=W.filter(function(w){return(Number(w.balance)||0)<0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0)-debtLiab;
+  var netWorth=totalAssets+totalLiab;
 
-  // Income vs Expense ring
-  var R=46;var C2=2*Math.PI*R;var total=inc+exp||1;
-  var incArc=C2*(inc/total);var expArc=C2*(exp/total);
+  // Monthly cashflow
+  var moTxns=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===mo&&d.getFullYear()===yr});
+  var inc=moTxns.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+  var exp=moTxns.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+  var savRate=inc>0?Math.round(((inc-exp)/inc)*100):0;
 
-  // Budget
+  // Budget progress
   var totalBudget=B.reduce(function(s,b){return s+(Number(b.amount)||0)},0);
-  var budgetSpent=B.reduce(function(s,b){var sp=moTxns.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(ss,t){return ss+(Number(t.amount)||0)},0);return s+sp},0);
-  var budgetPct=totalBudget>0?Math.round((budgetSpent/totalBudget)*100):0;
-  var bR=38;var bC=2*Math.PI*bR;var bArc=bC*(Math.min(budgetPct,100)/100);
-  var bCol=budgetPct>100?'var(--red)':budgetPct>70?'var(--org)':'var(--acc)';
+  var budgetSpent=B.reduce(function(s,b){
+    var sp=moTxns.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(ss,t){return ss+(Number(t.amount)||0)},0);
+    return s+sp;
+  },0);
+  var budgetPct=totalBudget>0?Math.min(Math.round((budgetSpent/totalBudget)*100),100):0;
+  var bCol=budgetPct>=100?'var(--red)':budgetPct>=80?'var(--org)':'var(--acc)';
 
-  // Top categories
-  var parents=C.filter(function(c){return !c.parent_id&&c.type==='expense'});
-  var topCats=[];
-  parents.forEach(function(cat){var sp=moTxns.filter(function(t){return t.type==='expense'&&t.category_id===cat.id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);if(sp>0)topCats.push({name:cat.name,icon:cat.icon||'',color:cat.color||'#3b82f6',spent:sp})});
-  topCats.sort(function(a,b){return b.spent-a.spent});var top5=topCats.slice(0,5);var maxCat=top5.length?top5[0].spent:1;
+  // Per-budget breakdown (top 5 by spending)
+  var budgetItems=B.map(function(b){
+    var cat=fid(C,b.category_id);
+    var sp=moTxns.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    var pct=Number(b.amount)>0?Math.min(Math.round((sp/Number(b.amount))*100),100):0;
+    return{cat:cat,budget:Number(b.amount),spent:sp,pct:pct,over:sp>Number(b.amount)};
+  }).filter(function(x){return x.cat}).sort(function(a,b){return b.pct-a.pct}).slice(0,5);
 
   // 3-month trend
-  var trend=[];
-  for(var m=2;m>=0;m--){
-    var tm=(now.getMonth()-m+12)%12;var ty=now.getMonth()-m<0?now.getFullYear()-1:now.getFullYear();
-    var mT=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===tm&&d.getFullYear()===ty});
-    var mI=mT.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
-    var mE=mT.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
-    trend.push({m:['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][tm],i:mI,e:mE});
-  }
+  var trend=[-2,-1,0].map(function(offset){
+    var tm=(mo+offset+12)%12;var ty=mo+offset<0?yr-1:yr;
+    var mt=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===tm&&d.getFullYear()===ty});
+    return{lb:['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][tm],i:mt.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0),e:mt.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0)};
+  });
   var tMax=Math.max.apply(null,trend.map(function(t){return Math.max(t.i,t.e,1)}));
 
-  var rec=T.slice(0,6);
+  // Top 5 wallets by balance
+  var topW=W.slice().sort(function(a,b){return(Number(b.balance)||0)-(Number(a.balance)||0)}).slice(0,5);
+
+  // Recent transactions
+  var rec=T.filter(function(t){return t.type!=='transfer_in'}).slice(0,5);
 
   return h('div',null,
-    // Header
-    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Dashboard'),h('p',null,moName+' '+now.getFullYear()))),
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Dashboard'),h('p',null,MO[mo]+' '+yr))),
 
-    // === ROW 1: 4 stat pills ===
-    h('div',{className:'dg4'},
-      h('div',{className:'cd',style:{padding:'14px 16px'}},
-        h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:4,fontWeight:500}},'Total Kekayaan'),
-        h('div',{style:{fontSize:'1.15rem',fontWeight:800,lineHeight:1.1}},fmt(bal)),
-        h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginTop:4}},W.length+' dompet')),
-      h('div',{className:'cd',style:{padding:'14px 16px',borderTop:'3px solid var(--acc)'}},
-        h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:4,fontWeight:500}},'Pemasukan'),
-        h('div',{style:{fontSize:'1.15rem',fontWeight:800,color:'var(--acc)',lineHeight:1.1}},fmt(inc)),
-        h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginTop:4}},moTxns.filter(function(t){return t.type==='income'}).length+' transaksi')),
-      h('div',{className:'cd',style:{padding:'14px 16px',borderTop:'3px solid var(--red)'}},
-        h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:4,fontWeight:500}},'Pengeluaran'),
-        h('div',{style:{fontSize:'1.15rem',fontWeight:800,color:'var(--red)',lineHeight:1.1}},fmt(exp)),
-        h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginTop:4}},moTxns.filter(function(t){return t.type==='expense'}).length+' transaksi')),
-      h('div',{className:'cd',style:{padding:'14px 16px',borderTop:'3px solid '+(savingsRate>=0?'var(--blu)':'var(--red)')}},
-        h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:4,fontWeight:500}},'Tabungan Bersih'),
-        h('div',{style:{fontSize:'1.15rem',fontWeight:800,color:savingsRate>=0?'var(--acc)':'var(--red)',lineHeight:1.1}},fmt(savings)),
-        h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginTop:4}},savingsRate+'% dari pemasukan'))),
+    // === NET WORTH HERO CARD ===
+    h('div',{className:'cd',style:{marginBottom:10,padding:'20px',background:'linear-gradient(135deg,#0f4c35,#1a6b4a)',color:'#fff',border:'none'}},
+      h('div',{style:{fontSize:'.78rem',opacity:.7,marginBottom:6,letterSpacing:'.04em'}},'TOTAL KEKAYAAN BERSIH'),
+      h('div',{style:{fontSize:'clamp(1.5rem,4vw,2rem)',fontWeight:800,marginBottom:12,letterSpacing:'-1px'}},fmt(netWorth)),
+      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}},
+        h('div',{style:{background:'rgba(255,255,255,.12)',borderRadius:8,padding:'10px 12px'}},
+          h('div',{style:{fontSize:'.68rem',opacity:.7,marginBottom:2}},'ASET'),
+          h('div',{style:{fontWeight:700,fontSize:'.9rem'}},fmt(totalAssets))),
+        h('div',{style:{background:'rgba(255,255,255,.12)',borderRadius:8,padding:'10px 12px'}},
+          h('div',{style:{fontSize:'.68rem',opacity:.7,marginBottom:2}},'HUTANG'),
+          h('div',{style:{fontWeight:700,fontSize:'.9rem',color:'#fca5a5'}},fmt(Math.abs(totalLiab)))),
+        h('div',{style:{background:'rgba(255,255,255,.12)',borderRadius:8,padding:'10px 12px'}},
+          h('div',{style:{fontSize:'.68rem',opacity:.7,marginBottom:2}},'INVESTASI'),
+          h('div',{style:{fontWeight:700,fontSize:'.9rem',color:'#86efac'}},fmt(invBal))))),
 
-    // === ROW 2: 3 columns ===
-    h('div',{className:'dg3'},
+    // === ROW 2: CASHFLOW + BUDGET ===
+    h('div',{className:'dg2w',style:{marginBottom:10}},
 
-      // Col 1: Top spending
+      // Cashflow card
       h('div',{className:'cd',style:{padding:'16px 18px'}},
-        h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:12,display:'flex',justifyContent:'space-between',alignItems:'center'}},
-          'Top Pengeluaran',h('span',{style:{fontSize:'.72rem',color:'var(--t3)',fontWeight:400}},moName)),
-        top5.length===0?h('div',{style:{color:'var(--t3)',fontSize:'.82rem',textAlign:'center',padding:12}},'Belum ada'):
-        top5.map(function(c,i){var w=maxCat>0?(c.spent/maxCat*100):0;
-          return h('div',{key:i,style:{marginBottom:10}},
-            h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.8rem',marginBottom:3}},
-              h('span',{style:{fontWeight:600,display:'flex',alignItems:'center',gap:4}},c.icon,' ',c.name),
-              h('span',{style:{color:'var(--red)',fontWeight:700}},fmt(c.spent))),
+        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}},
+          h('div',{style:{fontWeight:700,fontSize:'.88rem'}},'Arus Kas — ',MO[mo]),
+          h('div',{style:{fontSize:'.75rem',fontWeight:700,color:savRate>=0?'var(--acc)':'var(--red)',background:'var(--bgi)',padding:'2px 8px',borderRadius:10}},savRate>=0?'+'+savRate+'%':savRate+'%',' tabungan')),
+        h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}},
+          h('div',{style:{textAlign:'center',background:'var(--accbg)',borderRadius:8,padding:'10px 6px'}},
+            h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:2}},'Pemasukan'),
+            h('div',{style:{fontWeight:700,color:'var(--acc)',fontSize:'.85rem'}},fmt(inc))),
+          h('div',{style:{textAlign:'center',background:'var(--redbg)',borderRadius:8,padding:'10px 6px'}},
+            h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:2}},'Pengeluaran'),
+            h('div',{style:{fontWeight:700,color:'var(--red)',fontSize:'.85rem'}},fmt(exp))),
+          h('div',{style:{textAlign:'center',background:(inc-exp)>=0?'var(--accbg)':'var(--redbg)',borderRadius:8,padding:'10px 6px'}},
+            h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:2}},'Selisih'),
+            h('div',{style:{fontWeight:700,color:(inc-exp)>=0?'var(--acc)':'var(--red)',fontSize:'.85rem'}},fmt(inc-exp)))),
+        // Mini trend bars
+        h('div',{style:{display:'flex',gap:6,alignItems:'flex-end',height:44}},
+          trend.map(function(t,i){
+            var iH=Math.max(tMax>0?(t.i/tMax*36):0,2);var eH=Math.max(tMax>0?(t.e/tMax*36):0,2);
+            return h('div',{key:i,style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}},
+              h('div',{style:{display:'flex',gap:2,alignItems:'flex-end',height:36}},
+                h('div',{style:{width:8,height:iH,background:'var(--acc)',borderRadius:'2px 2px 0 0',opacity:.85}}),
+                h('div',{style:{width:8,height:eH,background:'var(--red)',borderRadius:'2px 2px 0 0',opacity:.85}})),
+              h('div',{style:{fontSize:'.6rem',color:'var(--t3)'}},t.lb))}))),
+
+      // Budget card
+      h('div',{className:'cd',style:{padding:'16px 18px'}},
+        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
+          h('div',{style:{fontWeight:700,fontSize:'.88rem'}},'Anggaran'),
+          h('div',{style:{fontSize:'.78rem',fontWeight:700,color:bCol}},budgetPct+'%',' terpakai')),
+        // Overall budget bar
+        h('div',{style:{height:8,background:'var(--bgi)',borderRadius:4,overflow:'hidden',marginBottom:4}},
+          h('div',{style:{height:'100%',width:budgetPct+'%',background:bCol,borderRadius:4,transition:'width .5s'}})),
+        h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.72rem',color:'var(--t3)',marginBottom:14}},
+          h('span',null,'Rp',fmt(budgetSpent),' terpakai'),
+          h('span',null,'Sisa ',fmt(totalBudget-budgetSpent))),
+        // Per-category budget
+        B.length===0?h('div',{style:{fontSize:'.8rem',color:'var(--t3)',textAlign:'center',padding:'8px 0'}},'Belum ada anggaran'):
+        budgetItems.map(function(b,i){
+          return h('div',{key:i,style:{marginBottom:8}},
+            h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.75rem',marginBottom:3}},
+              h('span',{style:{fontWeight:600,display:'flex',alignItems:'center',gap:4}},(b.cat.icon||''),' ',b.cat.name),
+              h('span',{style:{color:b.over?'var(--red)':b.pct>=80?'var(--org)':'var(--t3)',fontWeight:b.over?700:400}},b.pct+'%',(b.over?' ↑':''))),
             h('div',{style:{height:5,background:'var(--bgi)',borderRadius:3,overflow:'hidden'}},
-              h('div',{style:{height:'100%',width:w+'%',background:c.color,borderRadius:3}})))})),
+              h('div',{style:{height:'100%',width:b.pct+'%',background:b.over?'var(--red)':b.pct>=80?'var(--org)':(b.cat.color||'var(--acc)'),borderRadius:3}})))}))),
 
-      // Col 2: Budget ring + stats
-      h('div',{className:'cd',style:{padding:'16px 18px'}},
-        h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:14}},'Anggaran'),
-        h('div',{style:{display:'flex',alignItems:'center',gap:14,marginBottom:14}},
-          h('div',{style:{position:'relative',width:88,height:88,flexShrink:0}},
-            h('svg',{viewBox:'0 0 90 90',style:{width:'100%',height:'100%',transform:'rotate(-90deg)'}},
-              h('circle',{cx:45,cy:45,r:bR,fill:'none',stroke:'var(--bgi)',strokeWidth:8}),
-              h('circle',{cx:45,cy:45,r:bR,fill:'none',stroke:bCol,strokeWidth:8,strokeDasharray:bC,strokeDashoffset:bC-bArc,strokeLinecap:'round'})),
-            h('div',{style:{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}},
-              h('div',{style:{fontSize:'1.1rem',fontWeight:800,color:bCol}},budgetPct+'%'),
-              h('div',{style:{fontSize:'.58rem',color:'var(--t3)'}},'pakai'))),
-          h('div',{style:{flex:1,fontSize:'.78rem'}},
-            h('div',{style:{marginBottom:6}},h('span',{style:{color:'var(--t3)'}},'Budget '),h('span',{style:{fontWeight:700}},fmt(totalBudget))),
-            h('div',{style:{marginBottom:6}},h('span',{style:{color:'var(--t3)'}},'Pakai '),h('span',{style:{fontWeight:700,color:bCol}},fmt(budgetSpent))),
-            h('div',null,h('span',{style:{color:'var(--t3)'}},'Sisa '),h('span',{style:{fontWeight:700,color:totalBudget-budgetSpent>=0?'var(--acc)':'var(--red)'}},fmt(totalBudget-budgetSpent))))),
-        // Budget per category mini bars
-        B.slice(0,4).map(function(b){
-          var cat=fid(C,b.category_id);if(!cat)return null;
-          var sp=moTxns.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
-          var pct=Number(b.amount)>0?Math.min(Math.round((sp/Number(b.amount))*100),100):0;
-          var ov=sp>Number(b.amount);
-          return h('div',{key:b.id,style:{marginBottom:6}},
-            h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.72rem',marginBottom:2}},
-              h('span',null,cat.icon||'',cat.name),
-              h('span',{style:{color:ov?'var(--red)':'var(--t3)'}},pct+'%')),
-            h('div',{style:{height:4,background:'var(--bgi)',borderRadius:2,overflow:'hidden'}},
-              h('div',{style:{height:'100%',width:pct+'%',background:ov?'var(--red)':cat.color||'var(--blu)',borderRadius:2}})))})),
-
-      // Col 3: Tren + income/expense ring
-      h('div',{className:'cd',style:{padding:'16px 18px'}},
-        h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:14}},'Kas Bulan Ini'),
-        h('div',{style:{display:'flex',gap:16,alignItems:'center',marginBottom:10}},
-          h('div',{style:{position:'relative',width:90,height:90,flexShrink:0}},
-            h('svg',{viewBox:'0 0 100 100',style:{width:'100%',height:'100%',transform:'rotate(-90deg)'}},
-              h('circle',{cx:50,cy:50,r:R,fill:'none',stroke:'var(--acc)',strokeWidth:8,strokeDasharray:incArc+' '+C2,opacity:.85}),
-              h('circle',{cx:50,cy:50,r:R,fill:'none',stroke:'var(--red)',strokeWidth:8,strokeDasharray:expArc+' '+C2,strokeDashoffset:-incArc,opacity:.85})),
-            h('div',{style:{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}},
-              h('div',{style:{fontSize:'.55rem',color:'var(--t3)'}},'selisih'),
-              h('div',{style:{fontSize:'.78rem',fontWeight:700,color:savings>=0?'var(--acc)':'var(--red)'}},savings>=0?'+':'-',fmt(Math.abs(savings))))),
-          h('div',{style:{flex:1}},
-            h('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:6}},
-              h('div',{style:{fontSize:'.75rem'}},h('div',{style:{width:8,height:8,borderRadius:2,background:'var(--acc)',display:'inline-block',marginRight:4}}),h('span',{style:{color:'var(--t3)'}},'Masuk'),h('div',{style:{fontWeight:700,color:'var(--acc)',fontSize:'.78rem'}},fmt(inc))),
-              h('div',{style:{fontSize:'.75rem',textAlign:'right'}},h('div',{style:{width:8,height:8,borderRadius:2,background:'var(--red)',display:'inline-block',marginRight:4}}),h('span',{style:{color:'var(--t3)'}},'Keluar'),h('div',{style:{fontWeight:700,color:'var(--red)',fontSize:'.78rem'}},fmt(exp))))),
-        h('div',{style:{borderTop:'1px solid var(--brd)',paddingTop:10}},
-          h('div',{style:{fontWeight:600,fontSize:'.72rem',marginBottom:6,color:'var(--t2)'}},'Tren 3 Bulan'),
-          h('div',{style:{display:'flex',gap:8,alignItems:'flex-end',height:50}},
-            trend.map(function(t,i){
-              var iH=tMax>0?(t.i/tMax*42):0;var eH=tMax>0?(t.e/tMax*42):0;
-              return h('div',{key:i,style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:2}},
-                h('div',{style:{display:'flex',gap:2,alignItems:'flex-end',height:42}},
-                  h('div',{style:{width:9,height:Math.max(iH,2),background:'var(--acc)',borderRadius:'2px 2px 0 0',opacity:.8}}),
-                  h('div',{style:{width:9,height:Math.max(eH,2),background:'var(--red)',borderRadius:'2px 2px 0 0',opacity:.8}})),
-                h('div',{style:{fontSize:'.58rem',color:'var(--t3)'}},t.m))})))))),
-
-    // === ROW 3: Aset overview + Recent transactions ===
+    // === ROW 3: TOP WALLETS + RECENT TXN ===
     h('div',{className:'dg2w'},
-
-      // Wallet summary
+      // Top wallets
       h('div',{className:'cd',style:{padding:'16px 18px'}},
-        h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:12}},'Ringkasan Aset'),
-        h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}},
-          h('div',{style:{background:'var(--accbg)',borderRadius:8,padding:'10px 12px'}},
-            h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:2}},'Aset'),
-            h('div',{style:{fontSize:'.92rem',fontWeight:700,color:'var(--acc)'}},fmt(assets))),
-          h('div',{style:{background:'var(--redbg)',borderRadius:8,padding:'10px 12px'}},
-            h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:2}},'Liabilitas'),
-            h('div',{style:{fontSize:'.92rem',fontWeight:700,color:'var(--red)'}},fmt(liab)))),
-        // Top 4 wallets by balance
-        W.slice().sort(function(a,b){return(Number(b.balance)||0)-(Number(a.balance)||0)}).slice(0,5).map(function(w,i){
-          var wb=Number(w.balance)||0;var g=fid(W.map(function(){return null}),null);
-          return h('div',{key:w.id,style:{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:i<4?'1px solid var(--brd)':''}},
+        h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:12}},'Dompet Utama'),
+        h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:topW.length>2?10:0}},
+          h('div',{style:{background:'var(--bgi)',borderRadius:8,padding:'10px 12px'}},
+            h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:2}},'Aset Dompet'),
+            h('div',{style:{fontWeight:700,color:'var(--acc)'}},fmt(W.filter(function(w){return(Number(w.balance)||0)>0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0)))),
+          h('div',{style:{background:'var(--bgi)',borderRadius:8,padding:'10px 12px'}},
+            h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:2}},'Total Dompet'),
+            h('div',{style:{fontWeight:700}},fmt(walletBal)))),
+        topW.map(function(w,i){var wb=Number(w.balance)||0;
+          return h('div',{key:w.id,style:{display:'flex',alignItems:'center',gap:8,padding:'7px 0',borderTop:'1px solid var(--brd)'}},
             h('div',{style:{width:8,height:8,borderRadius:'50%',background:w.color||'var(--acc)',flexShrink:0}}),
             h('span',{style:{flex:1,fontSize:'.82rem',fontWeight:500}},w.name),
-            h('span',{style:{fontSize:'.82rem',fontWeight:700,color:wb>=0?'var(--acc)':'var(--red)'}},fmt(wb)))})),
+            h('span',{style:{fontWeight:700,fontSize:'.82rem',color:wb>=0?'var(--acc)':'var(--red)'}},fmt(wb)))})),
 
       // Recent transactions
       h('div',{className:'cd',style:{padding:'16px 18px'}},
-        h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:12,display:'flex',justifyContent:'space-between',alignItems:'center'}},
-          'Transaksi Terbaru',h('span',{style:{fontSize:'.72rem',color:'var(--t3)',fontWeight:400}},rec.length+' terakhir')),
-        rec.length===0?h('div',{style:{color:'var(--t3)',textAlign:'center',padding:20}},'Belum ada transaksi'):
-        rec.map(function(t){
-          var isInc=t.type==='income';var isTr=t.type==='transfer_in'||t.type==='transfer_out';
+        h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:12}},'Transaksi Terbaru'),
+        rec.length===0?h('div',{style:{color:'var(--t3)',textAlign:'center',padding:16,fontSize:'.82rem'}},'Belum ada'):
+        rec.map(function(tx){
+          var isInc=tx.type==='income';var isTr=tx.type==='transfer_in'||tx.type==='transfer_out';
           var col=isInc?'var(--acc)':isTr?'var(--blu)':'var(--red)';
-          var sign=isInc?'+':isTr?'':'-';
-          return h('div',{key:t.id,style:{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--brd)'}},
-            h('div',{style:{width:32,height:32,borderRadius:8,background:isInc?'var(--accbg)':isTr?'var(--blubg)':'var(--redbg)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:13}},isInc?'↗':isTr?'↔':'↘'),
+          return h('div',{key:tx.id,style:{display:'flex',alignItems:'center',gap:8,padding:'7px 0',borderBottom:'1px solid var(--brd)'}},
+            h('div',{style:{width:28,height:28,borderRadius:7,background:isInc?'var(--accbg)':isTr?'var(--blubg)':'var(--redbg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:col,flexShrink:0}},isInc?'↗':isTr?'↔':'↘'),
             h('div',{style:{flex:1,minWidth:0}},
-              h('div',{style:{fontSize:'.84rem',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},t.description||cn(C,t.category_id)||'-'),
-              h('div',{style:{fontSize:'.7rem',color:'var(--t3)',display:'flex',gap:6,marginTop:1}},
-                h('span',null,fdt(t.date)),
-                t.wallet_id?h('span',null,'· ',wn(W,t.wallet_id)):null)),
-            h('div',{style:{fontWeight:700,fontSize:'.85rem',color:col,flexShrink:0}},sign,fmt(t.amount)))
-        }))))
+              h('div',{style:{fontSize:'.82rem',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},tx.description||cn(C,tx.category_id)||'-'),
+              h('div',{style:{fontSize:'.68rem',color:'var(--t3)'}},fdt(tx.date),' · ',wn(W,tx.wallet_id))),
+            h('div',{style:{fontWeight:700,fontSize:'.82rem',color:col,flexShrink:0}},(isInc?'+':isTr?'':'-'),fmt(tx.amount)))}))))
 }
+
 
 
 /* ═══ SETTINGS PAGE ═══ */
@@ -822,14 +793,25 @@ function TxnsP(p){
   return h(F,null,
     h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Transaksi')),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah')),
     h('div',{className:'tabs',style:{marginBottom:14}},h('button',{className:'tab act',onClick:function(){sTxPg('list')}},'Daftar'),h('button',{className:'tab',onClick:function(){sTxPg('stats')}},'Statistik')),
-    h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10,gap:8}},
-      h('div',{style:{display:'flex',alignItems:'center',gap:8}},
-        h('button',{className:'btn bs',style:{padding:'5px 10px',fontSize:'.8rem'},onClick:prevMo},'◀'),
-        h('span',{style:{fontWeight:700,fontSize:'.9rem',minWidth:120,textAlign:'center'}},MOS[vMn],' ',vYr),
-        h('button',{className:'btn bs',style:{padding:'5px 10px',fontSize:'.8rem'},onClick:nextMo},'▶')),
-      h('div',{style:{display:'flex',gap:10,fontSize:'.78rem'}},
-        h('span',{style:{color:'var(--acc)',fontWeight:600}},'+',fmt(moInc)),
-        h('span',{style:{color:'var(--red)',fontWeight:600}},'-',fmt(moExp)))),
+    // Month navigator + cashflow summary
+    h('div',{style:{marginBottom:10}},
+      h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
+        h('div',{style:{display:'flex',alignItems:'center',gap:6}},
+          h('button',{className:'btn bs',style:{padding:'4px 10px',fontSize:'.8rem'},onClick:prevMo},'◀'),
+          h('span',{style:{fontWeight:700,fontSize:'.9rem',minWidth:130,textAlign:'center'}},MOS[vMn],' ',vYr),
+          h('button',{className:'btn bs',style:{padding:'4px 10px',fontSize:'.8rem'},onClick:nextMo},'▶')),
+        h('span',{style:{fontSize:'.72rem',color:'var(--t3)'}},list.length,' transaksi')),
+      // Cashflow pills
+      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}},
+        h('div',{style:{background:'var(--accbg)',borderRadius:8,padding:'8px 10px',textAlign:'center'}},
+          h('div',{style:{fontSize:'.65rem',color:'var(--t3)',marginBottom:2}},'Pemasukan'),
+          h('div',{style:{fontWeight:700,color:'var(--acc)',fontSize:'.82rem'}},fmt(moInc))),
+        h('div',{style:{background:'var(--redbg)',borderRadius:8,padding:'8px 10px',textAlign:'center'}},
+          h('div',{style:{fontSize:'.65rem',color:'var(--t3)',marginBottom:2}},'Pengeluaran'),
+          h('div',{style:{fontWeight:700,color:'var(--red)',fontSize:'.82rem'}},fmt(moExp))),
+        h('div',{style:{background:(moInc-moExp)>=0?'var(--accbg)':'var(--redbg)',borderRadius:8,padding:'8px 10px',textAlign:'center'}},
+          h('div',{style:{fontSize:'.65rem',color:'var(--t3)',marginBottom:2}},'Selisih'),
+          h('div',{style:{fontWeight:700,color:(moInc-moExp)>=0?'var(--acc)':'var(--red)',fontSize:'.82rem'}},fmt(moInc-moExp))))),
     h('div',{className:'fbar'},
       h('input',{className:'fi',placeholder:'Cari semua...',value:q,onChange:function(e){sQ(e.target.value)},style:{maxWidth:180}}),
       h('select',{className:'fi',value:fTy,onChange:function(e){sFT(e.target.value)},style:{maxWidth:130}},h('option',{value:'all'},'Semua'),h('option',{value:'income'},'Masuk'),h('option',{value:'expense'},'Keluar'),h('option',{value:'transfer_out'},'Transfer')),
