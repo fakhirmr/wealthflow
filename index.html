@@ -807,16 +807,18 @@ function TxnsP(p){
   var relC=C.filter(function(c){return c.type===f.type&&!c.parent_id});
   var selW=fid(W,f.wallet_id);var canInst=selW&&(selW.group_type==='card')&&f.type==='expense';
   var mAmt=f.is_installment&&Number(f.amount)>0?Math.ceil(Number(f.amount)/f.installment_count):0;
-  if(txPg==='stats')return h(F,null,
-    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Transaksi')),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah')),
-    h('div',{className:'tabs',style:{marginBottom:16}},h('button',{className:'tab',onClick:function(){sTxPg('list')}},'Daftar'),h('button',{className:'tab act',onClick:function(){sTxPg('stats')}},'Statistik')),
-    h(StatsP,p),cfE);
+  // ⚠ These must be BEFORE any early return (React hooks rule)
   var grouped=useMemo(function(){
     var g={};list.forEach(function(tx){var d=tx.date||'';if(!g[d])g[d]=[];g[d].push(tx)});
     return Object.keys(g).sort(function(a,b){return b.localeCompare(a)}).map(function(d){return{date:d,txns:g[d]}});
   },[list]);
   var moInc=list.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
   var moExp=list.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+  function oAList(){sTxPg('list');setTimeout(oA,50)}
+  if(txPg==='stats')return h(F,null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Transaksi')),h('button',{className:'btn bp',onClick:oAList},h(Ic,{n:'plus'}),' Tambah')),
+    h('div',{className:'tabs',style:{marginBottom:16}},h('button',{className:'tab',onClick:function(){sTxPg('list')}},'Daftar'),h('button',{className:'tab act',onClick:function(){sTxPg('stats')}},'Statistik')),
+    h(StatsP,p),cfE);
   return h(F,null,
     h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Transaksi')),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah')),
     h('div',{className:'tabs',style:{marginBottom:14}},h('button',{className:'tab act',onClick:function(){sTxPg('list')}},'Daftar'),h('button',{className:'tab',onClick:function(){sTxPg('stats')}},'Statistik')),
