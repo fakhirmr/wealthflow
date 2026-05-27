@@ -1138,26 +1138,313 @@ function StatsP(p){
 
 /* ═══ AI ASSISTANT ═══ */
 function AiP(p){
-  var T=p.T,C=p.C,W=p.W,B=p.B;
+  var T=p.T,C=p.C,W=p.W,B=p.B,D=p.D||[],I=p.I||[],rT=p.rT,rW=p.rW;
   var saved='';try{saved=localStorage.getItem('wf_groq_key')||''}catch(e){}
   var _k=useState(saved),key=_k[0],sK=_k[1];var keySet=!!key;
-  var _ms=useState([{role:'sys',text:saved?'✅ Key tersimpan. Tanya apa saja! 🤖':'Masukkan API key Groq (gratis).\n🔑 console.groq.com/keys'}]),ms=_ms[0],sMs=_ms[1];
-  var _q=useState(''),q=_q[0],sQ=_q[1];var _ld=useState(false),ld=_ld[0],sLd=_ld[1];var ref=React.useRef(null);
+
+  // Feature 7: Conversation Memory — stored in localStorage
+  var MEM_KEY='wf_ai_memory';
+  function loadMem(){try{return JSON.parse(localStorage.getItem(MEM_KEY)||'[]')}catch(e){return[]}}
+  function saveMem(msgs){try{localStorage.setItem(MEM_KEY,JSON.stringify(msgs.slice(-30)))}catch(e){}}
+  function clearMem(){try{localStorage.removeItem(MEM_KEY)}catch(e){}}
+
+  var initMsgs=function(){
+    var mem=loadMem();
+    if(mem.length>0)return mem;
+    return [{role:'sys',text:saved?'✅ API key tersimpan.\n\n🤖 Halo! Saya WealthFlow AI. Saya ingat percakapan kita sebelumnya dan punya akses ke data keuanganmu.\n\nCoba:\n• Tanya kondisi keuangan\n• Tulis transaksi natural\n• Minta laporan / forecast / analisis':'Masukkan API key Groq untuk mengaktifkan AI.\n\n🔑 Ambil gratis di console.groq.com/keys'}];
+  };
+  var _ms=useState(initMsgs),ms=_ms[0],sMs=_ms[1];
+  var _q=useState(''),q=_q[0],sQ=_q[1];
+  var _ld=useState(false),ld=_ld[0],sLd=_ld[1];
+  var _busy=useState(false),busy=_busy[0],sBusy=_busy[1];
+  var _pendingTx=useState(null),pendingTx=_pendingTx[0],sPendingTx=_pendingTx[1];
+  var _tab=useState('chat'),tab=_tab[0],sTab=_tab[1];
+  var _goals=useState(function(){try{return JSON.parse(localStorage.getItem('wf_goals')||'[]')}catch(e){return[]}}),goals=_goals[0],sGoals=_goals[1];
+  var _anomalies=useState(null),anomalies=_anomalies[0],sAnomalies=_anomalies[1];
+  var _forecast=useState(null),forecast=_forecast[0],sForecast=_forecast[1];
+  var ref=React.useRef(null);
   useEffect(function(){if(ref.current)ref.current.scrollTop=ref.current.scrollHeight},[ms]);
-  function ctx(){var now=new Date();var mo=now.getMonth();var yr=now.getFullYear();var mt=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===mo&&d.getFullYear()===yr});var mi=mt.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);var me=mt.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);var cb=[];C.filter(function(c){return !c.parent_id}).forEach(function(c){var a=mt.filter(function(t){return t.type==='expense'&&t.category_id===c.id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);if(a>0)cb.push(c.name+':Rp'+a.toLocaleString('id-ID'))});return 'Bulan ini: Masuk Rp'+mi.toLocaleString('id-ID')+', Keluar Rp'+me.toLocaleString('id-ID')+'. Breakdown: '+cb.join(', ')+'. Total '+T.length+' transaksi, '+W.length+' dompet.'}
-  function send(){if(!q.trim()||ld)return;if(!keySet){var k=q.trim();sK(k);try{localStorage.setItem('wf_groq_key',k)}catch(e){}sMs(function(m){return m.concat({role:'sys',text:'✅ Key tersimpan!'})});sQ('');return}
-    var msg=q.trim();sQ('');sMs(function(m){return m.concat({role:'user',text:msg})});sLd(true);
-    fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1500,messages:[{role:'system',content:'Asisten keuangan. Bahasa Indonesia. Emoji. Rupiah. Ringkas.\n\n'+ctx()},{role:'user',content:msg}]})}).then(function(r){return r.json()}).then(function(d){sLd(false);if(d.error){sMs(function(m){return m.concat({role:'sys',text:'❌ '+d.error.message})});return}var r=d.choices&&d.choices[0]&&d.choices[0].message?d.choices[0].message.content:'?';sMs(function(m){return m.concat({role:'ai',text:r})})}).catch(function(e){sLd(false);sMs(function(m){return m.concat({role:'sys',text:'❌ '+e.message})})})}
-  function rst(){try{localStorage.removeItem('wf_groq_key')}catch(e){}sK('');sMs(function(m){return m.concat({role:'sys',text:'Key dihapus.'})})}
-  var qs=['Kondisi keuangan?','Pengeluaran terbesar?','Tips hemat?','Budget on track?'];
-  return h(F,null,
-    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'🤖 AI Asisten'),h('p',null,'Groq (Gratis)'))),
-    h('div',{className:'cd chat-box'},
-      h('div',{className:'chat-msgs',ref:ref},ms.map(function(m,i){return h('div',{key:i,className:'chat-msg '+m.role},m.text)}),ld?h('div',{style:{color:'var(--blu)',fontSize:'.8rem',padding:6}},'🤔 Menganalisis...'):null),
-      keySet?h('div',{style:{display:'flex',gap:4,flexWrap:'wrap',paddingTop:6}},qs.map(function(q,i){return h('button',{key:i,className:'btn bs',style:{fontSize:'.72rem',padding:'3px 8px'},onClick:function(){sQ(q)}},q)})):null,
-      h('div',{className:'chat-input'},h('input',{className:'fi',placeholder:keySet?'Tanya...':'Paste API key Groq...',value:q,onChange:function(e){sQ(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')send()}}),h('button',{className:'btn bp',onClick:send,disabled:ld},keySet?'Kirim':'Set')),
-      keySet?h('div',{style:{display:'flex',justifyContent:'space-between',marginTop:4}},h('span',{style:{fontSize:'.68rem',color:'var(--t3)'}},'Key di browser'),h('button',{className:'btn bs',style:{fontSize:'.68rem',padding:'2px 6px'},onClick:rst},'Hapus')):h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginTop:4}},'🔑 ',h('a',{href:'https://console.groq.com/keys',target:'_blank',style:{color:'var(--blu)'}},'Ambil key gratis'))))
+
+  // Auto-compute anomalies on load
+  useEffect(function(){
+    if(T.length<10)return;
+    var now=new Date();var mo=now.getMonth();var yr=now.getFullYear();
+    var moTxns=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===mo&&d.getFullYear()===yr});
+    var alerts=[];
+    C.filter(function(c){return !c.parent_id&&c.type==='expense'}).forEach(function(cat){
+      var history=[];
+      for(var m=1;m<=4;m++){var pm=(mo-m+12)%12;var py=mo-m<0?yr-1:yr;var s=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===pm&&d.getFullYear()===py&&t.type==='expense'&&t.category_id===cat.id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);if(s>0)history.push(s)}
+      if(history.length<2)return;
+      var avg=history.reduce(function(s,v){return s+v},0)/history.length;
+      var cur=moTxns.filter(function(t){return t.type==='expense'&&t.category_id===cat.id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+      if(cur>avg*1.5&&cur>50000)alerts.push({cat:cat.name,icon:cat.icon||'',cur:cur,avg:avg,pct:Math.round((cur/avg-1)*100)});
+    });
+    sAnomalies(alerts.sort(function(a,b){return b.pct-a.pct}));
+  },[T]);
+
+  // Auto-compute forecast on load
+  useEffect(function(){
+    if(T.length<20)return;
+    var now=new Date();var mo=now.getMonth();var yr=now.getFullYear();
+    var rows=[];
+    for(var m=0;m<4;m++){var pm=(mo-1-m+12)%12;var py=(mo-1-m)<0?yr-1:yr;var mt=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===pm&&d.getFullYear()===py});rows.push({i:mt.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0),e:mt.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0)})}
+    if(rows.length===0)return;
+    var avgI=rows.reduce(function(s,r){return s+r.i},0)/rows.length;
+    var avgE=rows.reduce(function(s,r){return s+r.e},0)/rows.length;
+    var moTxns=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===mo&&d.getFullYear()===yr});
+    var curE=moTxns.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    var daysInMo=new Date(yr,mo+1,0).getDate();var today=now.getDate();
+    var projE=today>0?Math.round((curE/today)*daysInMo):avgE;
+    sForecast({avgI:Math.round(avgI),avgE:Math.round(avgE),projE:projE,daysLeft:daysInMo-today,dailyAvg:today>0?Math.round(curE/today):0,curE:curE});
+  },[T]);
+
+  // Build financial context
+  function buildCtx(){
+    var now=new Date();var mo=now.getMonth();var yr=now.getFullYear();
+    var MO=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    var moTxns=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===mo&&d.getFullYear()===yr});
+    var prevTxns=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);var pm=(mo-1+12)%12;var py=mo===0?yr-1:yr;return d.getMonth()===pm&&d.getFullYear()===py});
+    var inc=moTxns.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    var exp=moTxns.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    var pInc=prevTxns.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    var pExp=prevTxns.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    var cats=[];C.filter(function(c){return !c.parent_id&&c.type==='expense'}).forEach(function(c){var s=moTxns.filter(function(t){return t.type==='expense'&&t.category_id===c.id}).reduce(function(ss,t){return ss+(Number(t.amount)||0)},0);if(s>0)cats.push(c.name+': '+fmt(s))});
+    var netWorth=W.reduce(function(s,w){return s+(Number(w.balance)||0)},0)+I.reduce(function(s,i){return s+(Number(i.current_value)||0)},0)-D.filter(function(d){return d.type==='hutang'&&d.status!=='paid'}).reduce(function(s,d){return s+(Number(d.remaining_amount)||0)},0);
+    var savGoals=goals.map(function(g){return g.name+' target '+fmt(g.amount)+(g.deadline?' deadline '+g.deadline:'')}).join('; ');
+    return '=== DATA KEUANGAN '+MO[mo]+' '+yr+' ===\n'+
+      'Net Worth: '+fmt(netWorth)+'\n'+
+      'Dompet: '+W.map(function(w){return w.name+' '+fmt(Number(w.balance)||0)}).join(', ')+'\n'+
+      'Bulan ini — Masuk: '+fmt(inc)+', Keluar: '+fmt(exp)+', Selisih: '+fmt(inc-exp)+'\n'+
+      'Bulan lalu — Masuk: '+fmt(pInc)+', Keluar: '+fmt(pExp)+'\n'+
+      'Pengeluaran: '+cats.join(', ')+'\n'+
+      (B.length?'Anggaran: '+B.map(function(b){var c=fid(C,b.category_id);var s=moTxns.filter(function(t){return t.category_id===b.category_id&&t.type==='expense'}).reduce(function(ss,t){return ss+(Number(t.amount)||0)},0);return(c?c.name:'?')+' '+fmt(s)+'/'+fmt(Number(b.amount))}).join(', ')+'\n':'')+
+      (D.filter(function(d){return d.status==='active'}).length?'Hutang: '+D.filter(function(d){return d.status==='active'}).map(function(d){return d.name+' sisa '+fmt(Number(d.remaining_amount)||0)+' cicilan '+fmt(Number(d.monthly_payment)||0)+'/bln'}).join('; ')+'\n':'')+
+      (I.length?'Investasi: '+I.map(function(i){return i.name+' '+fmt(Number(i.current_value)||0)}).join(', ')+'\n':'')+
+      (forecast?'Proyeksi pengeluaran akhir bulan: '+fmt(forecast.projE)+'\n':'')+
+      (savGoals?'Tujuan tabungan: '+savGoals+'\n':'');
+  }
+
+  // Build history for memory
+  function buildHistory(){
+    var chatMsgs=ms.filter(function(m){return m.role==='user'||m.role==='ai'}).slice(-8);
+    return chatMsgs.map(function(m){return{role:m.role==='user'?'user':'assistant',content:m.text}});
+  }
+
+  // Send chat
+  function send(){
+    if(!q.trim()||ld)return;
+    if(!keySet){var k=q.trim();sK(k);try{localStorage.setItem('wf_groq_key',k)}catch(e){}
+      var nm=ms.concat({role:'sys',text:'✅ Key tersimpan!'});sMs(nm);saveMem(nm);sQ('');return}
+    var msg=q.trim();sQ('');var nm=ms.concat({role:'user',text:msg});sMs(nm);saveMem(nm);sLd(true);
+    var hist=buildHistory();
+    hist.push({role:'user',content:msg});
+    fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1500,
+        messages:[{role:'system',content:'Kamu WealthFlow AI, asisten keuangan pribadi. Bahasa Indonesia. Emoji. Format rapi. Ingat percakapan sebelumnya.\n\n'+buildCtx()}].concat(hist)})
+    }).then(function(r){return r.json()}).then(function(d){
+      sLd(false);if(d.error){var em=nm.concat({role:'sys',text:'❌ '+d.error.message});sMs(em);saveMem(em);return}
+      var r=d.choices[0].message.content;var fm=nm.concat({role:'ai',text:r});sMs(fm);saveMem(fm);
+    }).catch(function(e){sLd(false);var em=nm.concat({role:'sys',text:'❌ '+e.message});sMs(em);saveMem(em)})
+  }
+
+  // Feature 2: Parse natural language transaction
+  function parseTransaction(){
+    if(!q.trim()||busy||!keySet)return;
+    var input=q.trim();sQ('');sBusy(true);
+    var nm=ms.concat({role:'user',text:'💬 [Catat]: '+input});sMs(nm);
+    var wList=W.map(function(w){return w.id+'='+w.name}).join(',');
+    var cList=C.filter(function(c){return !c.parent_id}).map(function(c){return c.id+'='+c.name+'('+c.type+')'}).join(',');
+    fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:200,
+        messages:[{role:'system',content:'Parser transaksi. Jawab HANYA JSON. Format: {"type":"expense"|"income","amount":number,"description":"string","date":"YYYY-MM-DD","wallet_id":"id atau null","category_id":"id atau null"}\nDompet: '+wList+'\nKategori: '+cList+'\nHari ini: '+td()},{role:'user',content:input}]})
+    }).then(function(r){return r.json()}).then(function(d){
+      sBusy(false);if(d.error){var em=nm.concat({role:'sys',text:'❌ '+d.error.message});sMs(em);saveMem(em);return}
+      try{
+        var tx=JSON.parse(d.choices[0].message.content.replace(/```json|```/g,'').trim());
+        sPendingTx(tx);
+        var preview='📋 Transaksi terdeteksi:\n'+(tx.type==='income'?'💚 Pemasukan':'💸 Pengeluaran')+'\nJumlah: '+fmt(tx.amount)+'\nKeterangan: '+(tx.description||'-')+'\nDompet: '+(tx.wallet_id?wn(W,tx.wallet_id):'—')+'\nKategori: '+(tx.category_id?cn(C,tx.category_id):'—')+'\nTanggal: '+tx.date;
+        var fm=nm.concat({role:'ai',text:preview});sMs(fm);saveMem(fm);
+      }catch(e){var em=nm.concat({role:'sys',text:'⚠️ Gagal parse transaksi'});sMs(em);saveMem(em)}
+    }).catch(function(e){sBusy(false)})
+  }
+
+  function confirmTx(){
+    if(!pendingTx||!UID)return;
+    var tx=pendingTx;sPendingTx(null);
+    sb.from('transactions').insert({user_id:UID,type:tx.type,amount:Number(tx.amount)||0,description:tx.description||'',date:tx.date||td(),wallet_id:tx.wallet_id||null,category_id:tx.category_id||null,sub_category_id:null}).then(function(r){
+      if(r.error){var em=ms.concat({role:'sys',text:'❌ '+r.error.message});sMs(em);saveMem(em);return}
+      if(tx.wallet_id){var w=fid(W,tx.wallet_id);if(w){var nb=(Number(w.balance)||0)+(tx.type==='income'?Number(tx.amount):-Number(tx.amount));sb.from('wallets').update({balance:nb}).eq('id',tx.wallet_id).then(function(){rW()})}}
+      var fm=ms.concat({role:'sys',text:'✅ Tersimpan!'});sMs(fm);saveMem(fm);rT();
+    })
+  }
+
+  // Feature 3: Savings Goal
+  function addGoal(name,amount,deadline){
+    var g=goals.concat({id:Date.now(),name:name,amount:amount,deadline:deadline});
+    sGoals(g);try{localStorage.setItem('wf_goals',JSON.stringify(g))}catch(e){}
+  }
+  function removeGoal(id){var g=goals.filter(function(g){return g.id!==id});sGoals(g);try{localStorage.setItem('wf_goals',JSON.stringify(g))}catch(e){}}
+  function analyzeGoal(goal){
+    if(!keySet||ld)return;sLd(true);sTab('chat');
+    var msg='Analisis tujuan tabungan: "'+goal.name+'" target '+fmt(goal.amount)+(goal.deadline?' dalam waktu sampai '+goal.deadline:'');
+    var nm=ms.concat({role:'user',text:msg});sMs(nm);saveMem(nm);
+    var hist=buildHistory();hist.push({role:'user',content:msg+'.\nBeri analisis: apakah realistis? berapa lama? berapa nabung/bln yang dibutuhkan? rekomendasi cara mencapainya.'});
+    fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1000,messages:[{role:'system',content:'WealthFlow AI. Bahasa Indonesia. Emoji.\n\n'+buildCtx()}].concat(hist)})
+    }).then(function(r){return r.json()}).then(function(d){
+      sLd(false);if(d.error)return;
+      var fm=nm.concat({role:'ai',text:d.choices[0].message.content});sMs(fm);saveMem(fm);
+    }).catch(function(){sLd(false)})
+  }
+
+  // Feature 5: Weekly Digest
+  function genDigest(){
+    if(!keySet||ld)return;sLd(true);sTab('chat');
+    var msg='📅 Buat weekly digest keuangan minggu ini';
+    var nm=ms.concat({role:'user',text:msg});sMs(nm);saveMem(nm);
+    var now=new Date();var wkStart=new Date(now);wkStart.setDate(now.getDate()-7);
+    var wkTxns=T.filter(function(t){return t.date&&new Date(t.date)>=wkStart});
+    var wkCtx='Transaksi 7 hari terakhir ('+wkTxns.length+' transaksi): '+wkTxns.slice(0,20).map(function(t){return t.date+' '+t.type+' '+fmt(t.amount)+' '+cn(C,t.category_id)}).join('; ');
+    fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1200,
+        messages:[{role:'system',content:'WealthFlow AI. Bahasa Indonesia. Buat weekly digest singkat tapi informatif.\n\n'+buildCtx()+'\n\n'+wkCtx},{role:'user',content:'Buat ringkasan minggu ini: total pengeluaran, kategori terbesar, transaksi notable, perbandingan dengan minggu lalu (estimasi), dan 2-3 saran untuk minggu depan.'}]})
+    }).then(function(r){return r.json()}).then(function(d){
+      sLd(false);if(d.error)return;
+      var fm=nm.concat({role:'ai',text:d.choices[0].message.content});sMs(fm);saveMem(fm);
+    }).catch(function(){sLd(false)})
+  }
+
+  function rst(){try{localStorage.removeItem('wf_groq_key')}catch(e){}sK('');var nm=ms.concat({role:'sys',text:'🔑 Key dihapus.'});sMs(nm)}
+  function clearChat(){var init=[{role:'sys',text:'🔄 Percakapan direset. Memori juga dihapus.'}];sMs(init);clearMem()}
+
+  var quickP=[
+    {lb:'Kondisi keuangan',q:'Bagaimana kondisi keuangan aku bulan ini secara keseluruhan?'},
+    {lb:'Boros di mana?',q:'Di kategori apa aku paling boros bulan ini? Bandingkan dengan bulan lalu.'},
+    {lb:'Budget status',q:'Status budget per kategori. Yang mana sudah over atau hampir habis?'},
+    {lb:'Strategi hutang',q:'Strategi terbaik melunasi hutang aku lebih cepat berdasarkan kondisi keuangan sekarang?'},
+    {lb:'Tips hemat',q:'Berikan 5 tips hemat yang spesifik berdasarkan pola pengeluaran aku.'},
+  ];
+
+  // Anomaly section
+  function AnomalyCard(){
+    if(!anomalies||anomalies.length===0)return h('div',{style:{fontSize:'.8rem',color:'var(--acc)',textAlign:'center',padding:'8px 0'}},'✅ Tidak ada anomali pengeluaran terdeteksi');
+    return h('div',null,
+      anomalies.slice(0,4).map(function(a,i){
+        return h('div',{key:i,style:{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--brd)'}},
+          h('div',{style:{width:32,height:32,borderRadius:8,background:'var(--redbg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,flexShrink:0}},a.icon||'⚠️'),
+          h('div',{style:{flex:1}},
+            h('div',{style:{fontSize:'.84rem',fontWeight:600}},a.cat),
+            h('div',{style:{fontSize:'.72rem',color:'var(--t3)'}},'Rata-rata: ',fmt(Math.round(a.avg)),' · Bulan ini: ',fmt(Math.round(a.cur)))),
+          h('div',{style:{fontWeight:700,color:'var(--red)',fontSize:'.82rem',flexShrink:0}},'+',a.pct,'%'))
+      }),
+      keySet?h('button',{className:'btn bs',style:{width:'100%',marginTop:8,fontSize:'.78rem'},onClick:function(){sQ('Analisis anomali pengeluaran aku dan berikan rekomendasi penghematan');sTab('chat');setTimeout(send,50)}},'🤖 Minta analisis AI →'):null
+    )
+  }
+
+  // Forecast section
+  function ForecastCard(){
+    if(!forecast)return h('div',{style:{fontSize:'.8rem',color:'var(--t3)',textAlign:'center',padding:'8px 0'}},'Data kurang untuk forecast');
+    var safe=forecast.dailyAvg*forecast.daysLeft;
+    return h('div',null,
+      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}},
+        h('div',{style:{background:'var(--bgi)',borderRadius:8,padding:'10px 12px'}},
+          h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:2}},'Pengeluaran harian'),
+          h('div',{style:{fontWeight:700,fontSize:'.9rem',color:'var(--red)'}},fmt(forecast.dailyAvg))),
+        h('div',{style:{background:'var(--bgi)',borderRadius:8,padding:'10px 12px'}},
+          h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:2}},'Proyeksi akhir bulan'),
+          h('div',{style:{fontWeight:700,fontSize:'.9rem',color:forecast.projE>forecast.avgE*1.1?'var(--red)':'var(--acc)'}},fmt(forecast.projE))),
+        h('div',{style:{background:'var(--bgi)',borderRadius:8,padding:'10px 12px'}},
+          h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:2}},'Rata-rata bulanan'),
+          h('div',{style:{fontWeight:700,fontSize:'.9rem'}},fmt(forecast.avgE))),
+        h('div',{style:{background:'var(--bgi)',borderRadius:8,padding:'10px 12px'}},
+          h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:2}},'Estimasi sisa bulan'),
+          h('div',{style:{fontWeight:700,fontSize:'.9rem',color:'var(--blu)'}},fmt(safe)))),
+      h('div',{style:{fontSize:'.75rem',padding:'8px 12px',background:forecast.projE>forecast.avgE*1.1?'var(--redbg)':'var(--accbg)',borderRadius:8,color:forecast.projE>forecast.avgE*1.1?'var(--red)':'var(--acc)'}},
+        forecast.projE>forecast.avgE*1.1?'⚠️ Proyeksi '+Math.round((forecast.projE/forecast.avgE-1)*100)+'% lebih tinggi dari rata-rata':'✅ Pengeluaran bulan ini terkontrol'),
+      keySet?h('button',{className:'btn bs',style:{width:'100%',marginTop:8,fontSize:'.78rem'},onClick:function(){sQ('Berikan analisis cash flow forecast dan saran untuk '+forecast.daysLeft+' hari ke depan bulan ini');sTab('chat');setTimeout(send,50)}},'🤖 Minta saran AI →'):null
+    )
+  }
+
+  // Goals section
+  var _gName=useState(''),gName=_gName[0],sGName=_gName[1];
+  var _gAmt=useState(''),gAmt=_gAmt[0],sGAmt=_gAmt[1];
+  var _gDl=useState(''),gDl=_gDl[0],sGDl=_gDl[1];
+
+  function GoalsCard(){
+    var now=new Date();var mo=now.getMonth();var yr=now.getFullYear();
+    var moTxns=T.filter(function(t){if(!t.date)return false;var d=new Date(t.date);return d.getMonth()===mo&&d.getFullYear()===yr});
+    var inc=moTxns.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    var exp=moTxns.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+    var monthlySav=Math.max(0,inc-exp);
+    return h('div',null,
+      goals.length===0?h('div',{style:{fontSize:'.8rem',color:'var(--t3)',textAlign:'center',padding:'8px 0'}},'Belum ada tujuan. Tambah di bawah.'):
+      goals.map(function(g,i){
+        var months=monthlySav>0?Math.ceil(g.amount/monthlySav):null;
+        return h('div',{key:g.id,style:{padding:'10px 12px',background:'var(--bgi)',borderRadius:8,marginBottom:8}},
+          h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}},
+            h('div',{style:{fontWeight:600,fontSize:'.85rem'}},g.name),
+            h('button',{className:'bi',style:{color:'var(--red)'},onClick:function(){removeGoal(g.id)}},h(Ic,{n:'trash'}))),
+          h('div',{style:{fontSize:'.8rem',color:'var(--acc)',fontWeight:700,marginBottom:2}},fmt(g.amount)),
+          h('div',{style:{fontSize:'.72rem',color:'var(--t3)'}},
+            months?'Estimasi: '+months+' bulan ('+Math.round(months/12*10)/10+' tahun) dengan tabungan saat ini':'Tambah pemasukan untuk hitung estimasi',
+            g.deadline?' · Deadline: '+g.deadline:''),
+          keySet?h('button',{className:'btn bs',style:{width:'100%',marginTop:6,fontSize:'.72rem'},onClick:function(){analyzeGoal(g)}},'🤖 Analisis AI →'):null)
+      }),
+      h('div',{style:{borderTop:'1px solid var(--brd)',paddingTop:10,marginTop:4}},
+        h('div',{style:{fontWeight:600,fontSize:'.82rem',marginBottom:8}},'Tambah Tujuan'),
+        h('input',{className:'fi',placeholder:'Nama tujuan (cth: DP Rumah, Mobil...)',value:gName,onChange:function(e){sGName(e.target.value)},style:{marginBottom:6}}),
+        h('div',{style:{display:'flex',gap:6}},
+          h(NumInput,{value:gAmt,onChange:sGAmt,placeholder:'Target (Rp)'}),
+          h('input',{className:'fi',type:'month',value:gDl,onChange:function(e){sGDl(e.target.value)},style:{maxWidth:130}})),
+        h('button',{className:'btn bp',style:{width:'100%',marginTop:8,fontSize:'.85rem'},onClick:function(){if(gName&&gAmt){addGoal(gName,Number(gAmt),gDl);sGName('');sGAmt('');sGDl('')}}},'+ Tambah Tujuan')))
+  }
+
+  return h('div',null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'AI Asisten'),h('p',null,'Keuangan pintar berbasis data'))),
+    // Action bar
+    h('div',{style:{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}},
+      [{id:'chat',lb:'💬 Chat'},{id:'anomaly',lb:'⚠️ Anomali'},{id:'forecast',lb:'📈 Forecast'},{id:'goals',lb:'🎯 Goals'}].map(function(tb){
+        return h('button',{key:tb.id,className:'btn '+(tab===tb.id?'bp':'bs'),style:{fontSize:'.8rem',padding:'5px 12px'},onClick:function(){sTab(tb.id)}},tb.lb)
+      }),
+      keySet?h('button',{className:'btn bs',style:{fontSize:'.8rem',padding:'5px 12px'},onClick:genDigest},'📅 Weekly Digest'):null),
+
+    // CHAT TAB
+    tab==='chat'?h('div',{className:'cd',style:{marginBottom:0,display:'flex',flexDirection:'column'}},
+      h('div',{className:'chat-msgs',ref:ref,style:{maxHeight:360,overflowY:'auto',marginBottom:8}},
+        ms.map(function(m,i){return h('div',{key:i,className:'chat-msg '+m.role,style:{whiteSpace:'pre-wrap'}},m.text)}),
+        ld||busy?h('div',{style:{display:'flex',alignItems:'center',gap:6,padding:'6px 0',color:'var(--blu)',fontSize:'.8rem'}},'🤔 ',busy?'Menganalisis transaksi...':'Menganalisis...'):null),
+      pendingTx?h('div',{style:{background:'var(--accbg)',border:'1px solid var(--acc)',borderRadius:8,padding:'8px 12px',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}},
+        h('span',{style:{fontSize:'.82rem',fontWeight:600,color:'var(--acc)'}},'💾 Simpan transaksi ini?'),
+        h('div',{style:{display:'flex',gap:6}},
+          h('button',{className:'btn bs',style:{fontSize:'.75rem',padding:'3px 8px'},onClick:function(){sPendingTx(null)}},'Batal'),
+          h('button',{className:'btn bp',style:{fontSize:'.75rem',padding:'3px 8px'},onClick:confirmTx},'✅ Simpan'))):null,
+      h('div',{className:'chat-input'},
+        h('input',{className:'fi',placeholder:keySet?'Tanya atau tulis transaksi...':'Paste API key Groq...',value:q,onChange:function(e){sQ(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')send()},style:{flex:1}}),
+        keySet?h('button',{className:'btn bs',style:{flexShrink:0,padding:'0 10px'},onClick:parseTransaction,disabled:busy,title:'Catat transaksi'},'📝'):null,
+        h('button',{className:'btn bp',style:{flexShrink:0},onClick:send,disabled:ld||busy},keySet?'Kirim':'Set')),
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:6}},
+        h('div',{style:{display:'flex',gap:4,flexWrap:'wrap',flex:1}},keySet?quickP.map(function(qp,i){return h('button',{key:i,className:'btn bs',style:{fontSize:'.68rem',padding:'2px 7px'},onClick:function(){sQ(qp.q);setTimeout(send,30)}},qp.lb)}):h('a',{href:'https://console.groq.com/keys',target:'_blank',style:{fontSize:'.75rem',color:'var(--blu)'}},'🔑 Ambil key gratis')),
+        keySet?h('div',{style:{display:'flex',gap:4,flexShrink:0}},
+          h('button',{className:'btn bs',style:{fontSize:'.65rem',padding:'2px 6px'},onClick:clearChat},'Reset'),
+          h('button',{className:'btn bs',style:{fontSize:'.65rem',padding:'2px 6px'},onClick:rst},'Key')):null)):null,
+
+    // ANOMALY TAB
+    tab==='anomaly'?h('div',{className:'cd'},
+      h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:12}},'⚠️ Anomali Pengeluaran',h('span',{style:{fontSize:'.72rem',fontWeight:400,color:'var(--t3)',marginLeft:8}},'vs rata-rata 4 bulan lalu')),
+      h(AnomalyCard)):null,
+
+    // FORECAST TAB
+    tab==='forecast'?h('div',{className:'cd'},
+      h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:12}},'📈 Cash Flow Forecast'),
+      h(ForecastCard)):null,
+
+    // GOALS TAB
+    tab==='goals'?h('div',{className:'cd'},
+      h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:12}},'🎯 Tujuan Keuangan'),
+      h(GoalsCard)):null)
 }
+
+
 
 /* ═══ CATEGORIES ═══ */
 function CatsP(p){
