@@ -208,7 +208,10 @@ function useCf(){var s=useState(null),st=s[0],sS=s[1];var cf=useCallback(functio
 function App(){
   var _au=useState(null),user=_au[0],sUser=_au[1];
   var _ac=useState(true),authChecking=_ac[0],sAC=_ac[1];
-  var _p=useState('dashboard'),pg=_p[0],sPg=_p[1];var _mb=useState(false),mob=_mb[0],sMb=_mb[1];
+  var initPg='dashboard';try{initPg=localStorage.getItem('wf_pg')||'dashboard'}catch(e){}
+  var _p=useState(initPg),pg=_p[0],_sPg=_p[1];
+  function sPg(v){_sPg(v);try{localStorage.setItem('wf_pg',v)}catch(e){}}
+  var _mb=useState(false),mob=_mb[0],sMb=_mb[1];
   var _W=useState([]),W=_W[0],sW=_W[1];var _T=useState([]),T=_T[0],sT=_T[1];var _C=useState([]),C=_C[0],sC=_C[1];var _B=useState([]),B=_B[0],sB=_B[1];var _I=useState([]),I=_I[0],sI=_I[1];var _D=useState([]),D=_D[0],sD=_D[1];var _DP=useState([]),DP=_DP[0],sDP=_DP[1];
   var _l=useState(false),ld=_l[0],sL=_l[1];var _e=useState(''),dbE=_e[0],sE=_e[1];var _sl=useState(false),slow=_sl[0],sSl=_sl[1];
   var initTheme='dark';try{initTheme=localStorage.getItem('wf_theme')||'dark'}catch(e){}
@@ -233,6 +236,23 @@ function App(){
     });
     return function(){clearTimeout(timeout);if(sub&&sub.data&&sub.data.subscription)sub.data.subscription.unsubscribe()};
   },[]);
+
+  // Refresh data when app returns to foreground (mobile tab switching)
+  useEffect(function(){
+    var lastHidden=0;
+    function onVis(){
+      if(document.visibilityState==='hidden'){lastHidden=Date.now();}
+      else if(document.visibilityState==='visible'&&user){
+        var away=Date.now()-lastHidden;
+        // If away >2 min, refresh wallets + transactions silently
+        if(away>120000){rW();rT();}
+        // If away >10 min, refresh all data
+        if(away>600000){rC();rB();rD();rI();}
+      }
+    }
+    document.addEventListener('visibilitychange',onVis);
+    return function(){document.removeEventListener('visibilitychange',onVis)};
+  },[user]);
 
   // Load data when user changes
   useEffect(function(){
@@ -320,14 +340,17 @@ function TransferMod(p){
 /* ═══ QUICK ADD TRANSACTION (FAB) ═══ */
 function QuickTxn(p){
   var W=p.W,C=p.C,rT=p.rT,rW=p.rW;var t=useContext(TCtx);
-  var _f=useState({type:'expense',wallet_id:W.length?W[0].id:'',category_id:'',sub_category_id:'',amount:'',description:'',date:td()}),f=_f[0],sF=_f[1];
+  var DRAFT='wf_draft_quick';
+  var initF=function(){try{var d=JSON.parse(sessionStorage.getItem(DRAFT)||'null');if(d&&d.date&&d.date===td())return d}catch(e){}return{type:'expense',wallet_id:W.length?W[0].id:'',category_id:'',sub_category_id:'',amount:'',description:'',date:td()}};
+  var _f=useState(initF),f=_f[0],sF=_f[1];
   var relC=C.filter(function(c){return c.type===f.type&&!c.parent_id});
-  function ufx(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;if(k==='type')n.category_id='';if(k==='category_id')n.sub_category_id='';sF(n)}
+  function ufx(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;if(k==='type')n.category_id='';if(k==='category_id')n.sub_category_id='';sF(n);try{sessionStorage.setItem(DRAFT,JSON.stringify(n))}catch(e){}}
   function save(){
     if(!f.amount||Number(f.amount)<=0){t('Jumlah > 0','err');return}
     if(!UID){t('Sesi habis','err');return}var pay={user_id:UID,type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,sub_category_id:f.sub_category_id||null,amount:Number(f.amount),description:f.description.trim(),date:f.date};
     sb.from('transactions').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}
       if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(){rW()})}}
+      try{sessionStorage.removeItem(DRAFT)}catch(e){}
       t('Transaksi ditambahkan');rT();p.onClose()})
   }
   return h(Mod,{open:true,onClose:p.onClose,title:'➕ Transaksi Cepat',footer:h(F,null,h('button',{className:'btn bs',onClick:p.onClose},'Batal'),h('button',{className:'btn bp',onClick:save},'Simpan'))},
