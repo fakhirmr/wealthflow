@@ -133,15 +133,7 @@ function AuthPage(p){
   var _ok=useState(''),ok=_ok[0],sOk=_ok[1];
   var _loading=useState(false),loading=_loading[0],sLoading=_loading[1];
 
-  // Detect password reset redirect from Supabase email link
-  useEffect(function(){
-    var hash=window.location.hash;
-    if(hash&&hash.includes('type=recovery')){
-      sTab('reset_password');
-      // Clean URL without reload
-      history.replaceState(null,'',window.location.pathname);
-    }
-  },[]);
+  // Password reset redirect is now handled at App level via onAuthStateChange PASSWORD_RECOVERY event
 
   function doLogin(){
     if(!email||!pass){sErr('Email dan password wajib diisi');return}
@@ -272,10 +264,55 @@ function Mod(p){if(!p.open)return null;return h('div',{className:'mo',onClick:p.
 /* CONFIRM */
 function useCf(){var s=useState(null),st=s[0],sS=s[1];var cf=useCallback(function(msg){return new Promise(function(r){sS({msg:msg,r:r})})},[]);var el=st?h('div',{className:'mo',onClick:function(){st.r(false);sS(null)}},h('div',{className:'moc',onClick:function(e){e.stopPropagation()}},h('div',{className:'moh'},h('h3',null,'Konfirmasi')),h('div',{className:'mob'},h('p',{style:{color:'var(--t2)',lineHeight:1.5}},st.msg)),h('div',{className:'mof'},h('button',{className:'btn bs',onClick:function(){st.r(false);sS(null)}},'Batal'),h('button',{className:'btn bd',onClick:function(){st.r(true);sS(null)}},'Hapus')))):null;return[cf,el]}
 
+/* ═══════════════════ RESET PASSWORD PAGE ═══════════════════ */
+function ResetPasswordPage(p){
+  var _pass=useState(''),pass=_pass[0],sPass=_pass[1];
+  var _confirm=useState(''),confirm=_confirm[0],sConfirm=_confirm[1];
+  var _err=useState(''),err=_err[0],sErr=_err[1];
+  var _ok=useState(''),ok=_ok[0],sOk=_ok[1];
+  var _loading=useState(false),loading=_loading[0],sLoading=_loading[1];
+
+  function doReset(){
+    if(!pass){sErr('Masukkan password baru');return}
+    if(pass.length<6){sErr('Password minimal 6 karakter');return}
+    if(pass!==confirm){sErr('Konfirmasi password tidak cocok');return}
+    sLoading(true);sErr('');
+    sb.auth.updateUser({password:pass}).then(function(r){
+      sLoading(false);
+      if(r.error){sErr(r.error.message);return}
+      sOk('Password berhasil diubah! Mengalihkan...');
+      setTimeout(function(){if(p.onDone)p.onDone()},2000);
+    })
+  }
+
+  return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%',padding:20}},
+    h('div',{style:{maxWidth:400,width:'100%'}},
+      h('div',{style:{textAlign:'center',marginBottom:32}},
+        h('div',{style:{width:56,height:56,background:'linear-gradient(135deg,var(--acc),var(--cyn))',borderRadius:14,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:24,fontWeight:800,color:'#fff',marginBottom:12}},'W'),
+        h('h1',{style:{fontSize:'1.6rem',fontWeight:800}},'Wealth',h('span',{style:{color:'var(--acc)'}},'Flow'))),
+      h('div',{className:'cd',style:{padding:28}},
+        h('div',{style:{textAlign:'center',marginBottom:20}},
+          h('div',{style:{fontSize:40,marginBottom:8}},'🔐'),
+          h('h2',{style:{fontSize:'1.15rem',fontWeight:700}},'Buat Password Baru'),
+          h('p',{style:{color:'var(--t3)',fontSize:'.8rem',marginTop:4}},'Pilih password yang kuat dan mudah diingat')),
+        err?h('div',{style:{background:'var(--redbg)',border:'1px solid var(--red)',borderRadius:8,padding:'10px 14px',marginBottom:14,fontSize:'.82rem',color:'var(--red)'}},err):null,
+        ok?h('div',{style:{background:'var(--accbg)',border:'1px solid var(--acc)',borderRadius:8,padding:'10px 14px',marginBottom:14,fontSize:'.82rem',color:'var(--acc)'}},'✅ ',ok):null,
+        h('div',{className:'fg'},
+          h('label',null,'Password Baru'),
+          h('input',{className:'fi',type:'password',placeholder:'Minimal 6 karakter',value:pass,onChange:function(e){sPass(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')doReset()},autoFocus:true})),
+        h('div',{className:'fg'},
+          h('label',null,'Konfirmasi Password'),
+          h('input',{className:'fi',type:'password',placeholder:'Ulangi password baru',value:confirm,onChange:function(e){sConfirm(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')doReset()}})),
+        // Password strength hint
+        pass.length>0?h('div',{style:{marginBottom:10,padding:'6px 10px',background:'var(--bgi)',borderRadius:6,fontSize:'.72rem',color:pass.length<6?'var(--red)':pass.length<10?'var(--org)':'var(--acc)'}},pass.length<6?'⚠️ Terlalu pendek':pass.length<10?'👍 Cukup kuat':'💪 Sangat kuat'):null,
+        h('button',{className:'btn bp',style:{width:'100%',justifyContent:'center',padding:'12px',fontSize:'.9rem'},onClick:doReset,disabled:loading||!!ok},loading?'Menyimpan...':'Simpan Password Baru'))))
+}
+
 /* ═══════════════════ APP ═══════════════════ */
 function App(){
   var _au=useState(null),user=_au[0],sUser=_au[1];
   var _ac=useState(true),authChecking=_ac[0],sAC=_ac[1];
+  var _rm=useState(false),resetMode=_rm[0],sResetMode=_rm[1];
   var initPg='dashboard';try{initPg=localStorage.getItem('wf_pg')||'dashboard'}catch(e){}
   var _p=useState(initPg),pg=_p[0],_sPg=_p[1];
   function sPg(v){_sPg(v);try{localStorage.setItem('wf_pg',v)}catch(e){}}
@@ -299,8 +336,15 @@ function App(){
       sAC(false);
     }).catch(function(){clearTimeout(timeout);sAC(false)});
     var sub=sb.auth.onAuthStateChange(function(event,session){
-      if(session&&session.user){UID=session.user.id;sUser(session.user)}
-      else{UID=null;sUser(null);sW([]);sT([]);sC([]);sB([]);sI([])}
+      if(event==='PASSWORD_RECOVERY'){
+        // User clicked reset link — show reset form
+        sResetMode(true);sAC(false);
+        if(session&&session.user){UID=session.user.id;sUser(session.user)}
+      } else if(session&&session.user){
+        UID=session.user.id;sUser(session.user);
+      } else {
+        UID=null;sUser(null);sW([]);sT([]);sC([]);sB([]);sI([]);
+      }
     });
     return function(){clearTimeout(timeout);if(sub&&sub.data&&sub.data.subscription)sub.data.subscription.unsubscribe()};
   },[]);
@@ -349,6 +393,7 @@ function App(){
   if(authChecking)return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%'}},h('div',{style:{textAlign:'center'}},h('div',{style:{width:56,height:56,background:'linear-gradient(135deg,var(--acc),var(--cyn))',borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px',fontSize:24,fontWeight:800,color:'#fff'}},'W'),h('h1',{style:{fontSize:'1.4rem',fontWeight:800,marginBottom:6}},'Wealth',h('span',{style:{color:'var(--acc)'}},'Flow')),h('p',{style:{color:'var(--t3)',fontSize:'.82rem'}},'Memuat...')));
   // Not logged in
   if(!user)return h(AuthPage,{onAuth:function(u){UID=u.id;sUser(u)}});
+  if(resetMode)return h(ResetPasswordPage,{onDone:function(){sResetMode(false)}});
   // Loading data
   if(ld)return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%'}},h('div',{style:{textAlign:'center'}},h('div',{style:{width:56,height:56,background:'linear-gradient(135deg,var(--acc),var(--cyn))',borderRadius:14,display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px',fontSize:24,fontWeight:800,color:'#fff'}},'W'),h('h1',{style:{fontSize:'1.4rem',fontWeight:800,marginBottom:6}},'Wealth',h('span',{style:{color:'var(--acc)'}},'Flow')),h('p',{style:{color:'var(--t3)',fontSize:'.82rem'}},'Memuat data...',slow?h('button',{className:'btn bp',style:{marginTop:16},onClick:function(){sL(false)}},'Lewati'):null)));
 
