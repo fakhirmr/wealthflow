@@ -128,8 +128,20 @@ function AuthPage(p){
   var _tab=useState('login'),tab=_tab[0],sTab=_tab[1];
   var _email=useState(''),email=_email[0],sEmail=_email[1];
   var _pass=useState(''),pass=_pass[0],sPass=_pass[1];
+  var _newPass=useState(''),newPass=_newPass[0],sNewPass=_newPass[1];
   var _err=useState(''),err=_err[0],sErr=_err[1];
+  var _ok=useState(''),ok=_ok[0],sOk=_ok[1];
   var _loading=useState(false),loading=_loading[0],sLoading=_loading[1];
+
+  // Detect password reset redirect from Supabase email link
+  useEffect(function(){
+    var hash=window.location.hash;
+    if(hash&&hash.includes('type=recovery')){
+      sTab('reset_password');
+      // Clean URL without reload
+      history.replaceState(null,'',window.location.pathname);
+    }
+  },[]);
 
   function doLogin(){
     if(!email||!pass){sErr('Email dan password wajib diisi');return}
@@ -151,32 +163,88 @@ function AuthPage(p){
       else if(p.onAuth)p.onAuth(r.data.user);
     })
   }
+  function doForgot(){
+    if(!email){sErr('Masukkan email kamu');return}
+    sLoading(true);sErr('');sOk('');
+    var url=window.location.origin+window.location.pathname;
+    sb.auth.resetPasswordForEmail(email,{redirectTo:url}).then(function(r){
+      sLoading(false);
+      if(r.error){sErr(r.error.message);return}
+      sOk('Link reset password dikirim ke '+email+'. Cek inbox & folder spam.');
+    })
+  }
+  function doResetPassword(){
+    if(!newPass||newPass.length<6){sErr('Password minimal 6 karakter');return}
+    sLoading(true);sErr('');
+    sb.auth.updateUser({password:newPass}).then(function(r){
+      sLoading(false);
+      if(r.error){sErr(r.error.message);return}
+      sOk('Password berhasil diubah!');
+      setTimeout(function(){sTab('login');sOk('');sNewPass('')},2000);
+    })
+  }
 
+  // Logo header - reusable
+  var Logo=h('div',{style:{textAlign:'center',marginBottom:32}},
+    h('div',{style:{width:56,height:56,background:'linear-gradient(135deg,var(--acc),var(--cyn))',borderRadius:14,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:24,fontWeight:800,color:'#fff',marginBottom:12}},'W'),
+    h('h1',{style:{fontSize:'1.6rem',fontWeight:800}},'Wealth',h('span',{style:{color:'var(--acc)'}},'Flow')),
+    h('p',{style:{color:'var(--t3)',fontSize:'.85rem',marginTop:4}},'Personal Finance Manager'));
+
+  var AlertBox=function(msg,type){return h('div',{style:{background:type==='ok'?'var(--accbg)':'var(--redbg)',border:'1px solid '+(type==='ok'?'var(--acc)':'var(--red)'),borderRadius:8,padding:'10px 14px',marginBottom:14,fontSize:'.82rem',color:type==='ok'?'var(--acc)':'var(--red)'}},msg)};
+
+  // === VERIFY EMAIL ===
   if(tab==='verify')return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%',padding:20}},
-    h('div',{className:'cd',style:{maxWidth:400,width:'100%',textAlign:'center',padding:32}},
-      h('div',{style:{fontSize:48,marginBottom:16}},'📧'),
-      h('h2',{style:{marginBottom:8}},'Cek Email Kamu'),
-      h('p',{style:{color:'var(--t2)',marginBottom:16}},'Link verifikasi telah dikirim ke ',h('strong',null,email)),
-      h('p',{style:{color:'var(--t3)',fontSize:'.82rem'}},'Klik link di email, lalu kembali ke sini dan login.'),
-      h('button',{className:'btn bp',style:{marginTop:16},onClick:function(){sTab('login')}},'Ke Halaman Login')));
+    h('div',{style:{maxWidth:400,width:'100%'}},Logo,
+      h('div',{className:'cd',style:{padding:28,textAlign:'center'}},
+        h('div',{style:{fontSize:48,marginBottom:16}},'📧'),
+        h('h2',{style:{marginBottom:8}},'Cek Email Kamu'),
+        h('p',{style:{color:'var(--t2)',marginBottom:8}},'Link verifikasi dikirim ke ',h('strong',null,email)),
+        h('p',{style:{color:'var(--t3)',fontSize:'.82rem',marginBottom:16}},'Klik link di email, lalu kembali ke sini dan login.'),
+        h('button',{className:'btn bp',style:{width:'100%',justifyContent:'center'},onClick:function(){sTab('login')}},'Ke Halaman Login'))));
 
+  // === FORGOT PASSWORD ===
+  if(tab==='forgot')return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%',padding:20}},
+    h('div',{style:{maxWidth:400,width:'100%'}},Logo,
+      h('div',{className:'cd',style:{padding:28}},
+        h('div',{style:{textAlign:'center',marginBottom:20}},
+          h('div',{style:{fontSize:36,marginBottom:8}},'🔑'),
+          h('h2',{style:{fontSize:'1.2rem',fontWeight:700}},'Lupa Password'),
+          h('p',{style:{color:'var(--t3)',fontSize:'.82rem',marginTop:4}},'Masukkan email kamu. Kami kirim link untuk reset password.')),
+        err?AlertBox(err,'err'):null,
+        ok?AlertBox(ok,'ok'):null,
+        h('div',{className:'fg'},h('label',null,'Email'),h('input',{className:'fi',type:'email',placeholder:'email@contoh.com',value:email,onChange:function(e){sEmail(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')doForgot()},autoFocus:true})),
+        h('button',{className:'btn bp',style:{width:'100%',justifyContent:'center',padding:'12px',fontSize:'.9rem',marginTop:4},onClick:doForgot,disabled:loading||!!ok},loading?'Mengirim...':ok?'Email Terkirim ✓':'Kirim Link Reset'),
+        h('button',{style:{width:'100%',marginTop:12,padding:'8px',background:'none',border:'none',color:'var(--acc)',cursor:'pointer',fontSize:'.82rem'},onClick:function(){sTab('login');sErr('');sOk('')}},'← Kembali ke Login'))));
+
+  // === RESET PASSWORD (from email link) ===
+  if(tab==='reset_password')return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%',padding:20}},
+    h('div',{style:{maxWidth:400,width:'100%'}},Logo,
+      h('div',{className:'cd',style:{padding:28}},
+        h('div',{style:{textAlign:'center',marginBottom:20}},
+          h('div',{style:{fontSize:36,marginBottom:8}},'🔐'),
+          h('h2',{style:{fontSize:'1.2rem',fontWeight:700}},'Buat Password Baru')),
+        err?AlertBox(err,'err'):null,
+        ok?AlertBox(ok,'ok'):null,
+        h('div',{className:'fg'},h('label',null,'Password Baru'),h('input',{className:'fi',type:'password',placeholder:'Minimal 6 karakter',value:newPass,onChange:function(e){sNewPass(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')doResetPassword()},autoFocus:true})),
+        h('button',{className:'btn bp',style:{width:'100%',justifyContent:'center',padding:'12px',fontSize:'.9rem',marginTop:4},onClick:doResetPassword,disabled:loading||!!ok},loading?'Menyimpan...':'Simpan Password Baru'))));
+
+  // === LOGIN / REGISTER ===
   return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',width:'100%',padding:20}},
     h('div',{style:{maxWidth:400,width:'100%'}},
-      // Logo
-      h('div',{style:{textAlign:'center',marginBottom:32}},
-        h('div',{style:{width:56,height:56,background:'linear-gradient(135deg,var(--acc),var(--cyn))',borderRadius:14,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:24,fontWeight:800,color:'#fff',marginBottom:12}},'W'),
-        h('h1',{style:{fontSize:'1.6rem',fontWeight:800}},'Wealth',h('span',{style:{color:'var(--acc)'}},'Flow')),
-        h('p',{style:{color:'var(--t3)',fontSize:'.85rem',marginTop:4}},'Personal Finance Manager')),
-      // Card
+      Logo,
       h('div',{className:'cd',style:{padding:28}},
         h('div',{className:'tabs',style:{marginBottom:20,width:'100%'}},
           h('button',{className:'tab'+(tab==='login'?' act':''),style:{flex:1,textAlign:'center'},onClick:function(){sTab('login');sErr('')}},'Login'),
           h('button',{className:'tab'+(tab==='register'?' act':''),style:{flex:1,textAlign:'center'},onClick:function(){sTab('register');sErr('')}},'Register')),
-        err?h('div',{style:{background:'var(--redbg)',border:'1px solid var(--red)',borderRadius:8,padding:'10px 14px',marginBottom:14,fontSize:'.82rem',color:'var(--red)'}},err):null,
+        err?AlertBox(err,'err'):null,
+        ok?AlertBox(ok,'ok'):null,
         h('div',{className:'fg'},h('label',null,'Email'),h('input',{className:'fi',type:'email',placeholder:'email@contoh.com',value:email,onChange:function(e){sEmail(e.target.value)},onKeyDown:function(e){if(e.key==='Enter'){tab==='login'?doLogin():doRegister()}}})),
         h('div',{className:'fg'},h('label',null,'Password'),h('input',{className:'fi',type:'password',placeholder:'Minimal 6 karakter',value:pass,onChange:function(e){sPass(e.target.value)},onKeyDown:function(e){if(e.key==='Enter'){tab==='login'?doLogin():doRegister()}}})),
         h('button',{className:'btn bp',style:{width:'100%',justifyContent:'center',padding:'12px',fontSize:'.9rem'},onClick:tab==='login'?doLogin:doRegister,disabled:loading},loading?'Memproses...':tab==='login'?'Login':'Buat Akun'),
-        tab==='login'?h('p',{style:{textAlign:'center',fontSize:'.78rem',color:'var(--t3)',marginTop:14}},'Belum punya akun? ',h('button',{style:{color:'var(--acc)',background:'none',border:'none',fontWeight:600,cursor:'pointer'},onClick:function(){sTab('register');sErr('')}},'Daftar')):
+        tab==='login'?h('div',{style:{marginTop:14,textAlign:'center'}},
+          h('button',{style:{color:'var(--t3)',background:'none',border:'none',cursor:'pointer',fontSize:'.78rem'},onClick:function(){sTab('forgot');sErr('');sOk('')}},'Lupa password?'),
+          h('span',{style:{color:'var(--t3)',fontSize:'.78rem',margin:'0 8px'}},'·'),
+          h('button',{style:{color:'var(--acc)',background:'none',border:'none',fontWeight:600,cursor:'pointer',fontSize:'.78rem'},onClick:function(){sTab('register');sErr('')}},'Daftar akun')):
         h('p',{style:{textAlign:'center',fontSize:'.78rem',color:'var(--t3)',marginTop:14}},'Sudah punya akun? ',h('button',{style:{color:'var(--acc)',background:'none',border:'none',fontWeight:600,cursor:'pointer'},onClick:function(){sTab('login');sErr('')}},'Login')))))
 }
 var sb=window.supabase.createClient('https://wkhjxgrjkrakfhwckriu.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraGp4Z3Jqa3Jha2Zod2Nrcml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjQyOTUsImV4cCI6MjA5NDMwMDI5NX0.Prtzf84zL-MvJuWF6Qk9HrJLzb2wmxxRD_OA094ulck');
