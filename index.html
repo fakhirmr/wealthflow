@@ -1685,88 +1685,163 @@ function CatsP(p){
 
 /* ═══ BUDGETS ═══ */
 function BudgP(p){
-  var B=p.B,C=p.C,T=p.T,rB=p.rB;var t=useContext(TCtx);var _m=useState(null),mo=_m[0],sM=_m[1];var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
+  var W=p.W,T=p.T,C=p.C,B=p.B,rB=p.rB;var t=useContext(TCtx);
+  var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
+  var _mo=useState(null),mo=_mo[0],sMo=_mo[1];
   var _f=useState({category_id:'',amount:'',period:'monthly'}),f=_f[0],sF=_f[1];
-  var now=new Date();var _yr=useState(now.getFullYear()),yr=_yr[0],sYr=_yr[1];var _mn=useState(now.getMonth()),mn=_mn[0],sMn=_mn[1];
-  var mos=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-  var eC=C.filter(function(c){return c.type==='expense'&&!c.parent_id});
-  var moTxns=T.filter(function(tx){if(!tx.date)return false;var d=new Date(tx.date);return d.getMonth()===mn&&d.getFullYear()===yr&&tx.type==='expense'});
-  var totalBudget=B.reduce(function(s,b){return s+(Number(b.amount)||0)},0);var totalSpent=0;
-  var rows=B.map(function(b){var cat=fid(C,b.category_id);var nm=cat?cat.name:'-';var ico=cat?(cat.icon||'📋'):'📋';var col=cat?(cat.color||'#3b82f6'):'#3b82f6';
-    var sp=moTxns.filter(function(tx){return tx.category_id===b.category_id}).reduce(function(s,tx){return s+(Number(tx.amount)||0)},0);totalSpent+=sp;
-    var amt=Number(b.amount)||0;var pct=amt>0?Math.round((sp/amt)*100):0;return{id:b.id,name:nm,icon:ico,color:col,budget:amt,spent:sp,rem:amt-sp,pct:pct,over:sp>amt,cid:b.category_id}}).sort(function(a,b){return b.pct-a.pct});
-  function pM(){if(mn===0){sMn(11);sYr(yr-1)}else sMn(mn-1)}function nM(){if(mn===11){sMn(0);sYr(yr+1)}else sMn(mn+1)}
-  function oA(){sF({category_id:eC.length?eC[0].id:'',amount:'',period:'monthly'});sM({m:'add'})}
-  function oE(r){sF({category_id:r.cid||'',amount:String(r.budget||0),period:'monthly'});sM({m:'edit',d:{id:r.id}})}
+  var _exp=useState({}),exp=_exp[0],sExp=_exp[1]; // expanded parent categories
   function ufb(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
-  function save(){if(!UID){t('Sesi habis','err');return}if(!f.amount||Number(f.amount)<=0){t('> 0','err');return}var pay={user_id:UID,category_id:f.category_id||null,amount:Number(f.amount),period:f.period,year:now.getFullYear(),month:now.getMonth()+1};(function(){if(mo.m==='add'){pay.user_id=UID;return sb.from('budgets').insert(pay)}else{delete pay.user_id;return sb.from('budgets').update(pay).eq('id',mo.d.id)}})().then(function(r){if(r.error){t(r.error.message,'err');return}t('OK');sM(null);rB()})}
-  function del(r){cf('Hapus?').then(function(ok){if(!ok)return;sb.from('budgets').delete().eq('id',r.id).then(function(r2){if(r2.error){t(r2.error.message,'err');return}t('Dihapus');rB()})})}
-  var tRem=totalBudget-totalSpent;var tPct=totalBudget>0?Math.round((totalSpent/totalBudget)*100):0;
-  var onTrack=rows.filter(function(r){return r.pct<=70}).length;var warning=rows.filter(function(r){return r.pct>70&&r.pct<=100}).length;var overB=rows.filter(function(r){return r.pct>100}).length;
-  // Donut chart SVG values
-  var radius=54;var circ=2*Math.PI*radius;var usedArc=circ*(Math.min(tPct,100)/100);var donutColor=tPct>100?'var(--red)':tPct>70?'var(--org)':'var(--acc)';
-  // Pie segments for categories
-  var pieData=rows.slice(0,8);var pieTotal=pieData.reduce(function(s,r){return s+r.spent},0);
-  return h(F,null,
-    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Anggaran'),h('p',null,mos[mn]+' '+yr)),h('div',{style:{display:'flex',gap:8}},h('button',{className:'btn bs',onClick:pM},'◀'),h('button',{className:'btn bs',onClick:nM},'▶'),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah'))),
+  function oA(){sF({category_id:'',amount:'',period:'monthly'});sMo({m:'add'})}
+  function oE(b){sF({category_id:b.category_id||'',amount:String(b.amount||0),period:b.period||'monthly'});sMo({m:'edit',d:b})}
+  function save(){
+    if(!UID){t('Sesi habis','err');return}
+    if(!f.category_id){t('Pilih kategori','err');return}
+    if(!f.amount||Number(f.amount)<=0){t('Jumlah > 0','err');return}
+    var now=new Date();
+    var pay={category_id:f.category_id,amount:Number(f.amount),period:f.period,year:now.getFullYear(),month:now.getMonth()+1};
+    if(mo.m==='add'){
+      pay.user_id=UID;
+      sb.from('budgets').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}t('Anggaran ditambahkan');sMo(null);rB()})
+    }else{
+      sb.from('budgets').update(pay).eq('id',mo.d.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Diperbarui');sMo(null);rB()})
+    }
+  }
+  function del(b){cf('Hapus anggaran ini?').then(function(ok){if(!ok)return;sb.from('budgets').delete().eq('id',b.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Dihapus');rB()})})}
 
-    // Top section: Donut + Stats (responsive)
-    h('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',gap:16,marginBottom:20}},
-      // Donut Chart centered
-      h('div',{style:{position:'relative',width:180,height:180}},
-        h('svg',{viewBox:'0 0 120 120',style:{width:'100%',height:'100%',transform:'rotate(-90deg)'}},
-          h('circle',{cx:60,cy:60,r:radius,fill:'none',stroke:'var(--bgi)',strokeWidth:9}),
-          h('circle',{cx:60,cy:60,r:radius,fill:'none',stroke:donutColor,strokeWidth:9,strokeDasharray:circ,strokeDashoffset:circ-usedArc,strokeLinecap:'round',style:{transition:'stroke-dashoffset .8s ease'}})),
-        h('div',{style:{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}},
-          h('div',{style:{fontSize:'2.2rem',fontWeight:800,color:donutColor}},tPct+'%'),
-          h('div',{style:{fontSize:'.85rem',color:'var(--t3)'}},'terpakai'))),
-      // Stats row
-      h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:10,width:'100%'}},
-        h('div',{className:'cd',style:{padding:'16px',textAlign:'center'}},h('div',{style:{fontSize:'.78rem',color:'var(--t3)',marginBottom:6}},'Total Budget'),h('div',{style:{fontSize:'1.35rem',fontWeight:700}},fmt(totalBudget))),
-        h('div',{className:'cd',style:{padding:'16px',textAlign:'center'}},h('div',{style:{fontSize:'.78rem',color:'var(--t3)',marginBottom:6}},'Terpakai'),h('div',{style:{fontSize:'1.35rem',fontWeight:700,color:tPct>100?'var(--red)':'var(--blu)'}},fmt(totalSpent))),
-        h('div',{className:'cd',style:{padding:'16px',textAlign:'center'}},h('div',{style:{fontSize:'.78rem',color:'var(--t3)',marginBottom:6}},'Sisa'),h('div',{style:{fontSize:'1.35rem',fontWeight:700,color:tRem>=0?'var(--acc)':'var(--red)'}},fmt(tRem))),
-        h('div',{className:'cd',style:{padding:'14px',display:'flex',alignItems:'center',justifyContent:'center',gap:16}},
-          h('span',{style:{fontSize:'.9rem'}},'✅ ',onTrack),h('span',{style:{fontSize:'.9rem'}},'⚠️ ',warning),h('span',{style:{fontSize:'.9rem'}},'🔴 ',overB)))),
+  var now=new Date();var mo2=now.getMonth();var yr=now.getFullYear();
+  var moTxns=T.filter(function(tx){if(!tx.date)return false;var d=new Date(tx.date);return d.getMonth()===mo2&&d.getFullYear()===yr&&tx.type==='expense'});
 
-    // Spending by category bar chart
-    pieData.length>0?h('div',{className:'cd',style:{marginBottom:16}},
-      h('h3',{style:{fontSize:'.88rem',fontWeight:700,marginBottom:14}},'Distribusi Pengeluaran'),
-      h('div',{style:{display:'flex',height:28,borderRadius:8,overflow:'hidden',marginBottom:14}},
-        pieData.map(function(r,i){var w=pieTotal>0?(r.spent/pieTotal*100):0;return w>0?h('div',{key:i,title:r.name+': '+fmt(r.spent),style:{width:w+'%',background:r.color,minWidth:w>3?'auto':2,transition:'width .5s',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'.55rem',color:'#fff',fontWeight:600,overflow:'hidden'}},w>8?r.icon:''):null})),
-      h('div',{style:{display:'flex',flexWrap:'wrap',gap:8}},
-        pieData.map(function(r,i){return h('div',{key:i,style:{display:'flex',alignItems:'center',gap:4,fontSize:'.72rem'}},
-          h('div',{style:{width:8,height:8,borderRadius:2,background:r.color,flexShrink:0}}),h('span',{style:{color:'var(--t2)'}},r.icon,' ',r.name))}))):null,
+  // Spent for any category_id
+  function spent(catId){return moTxns.filter(function(tx){return tx.category_id===catId||tx.sub_category_id===catId}).reduce(function(s,tx){return s+(Number(tx.amount)||0)},0)}
 
-    // Per-category budget rows
-    rows.length===0?h('div',{className:'cd'},h('div',{className:'empty'},h('div',{className:'ei'},'📊'),h('h3',null,'Tambahkan anggaran'))):
-    h('div',{style:{display:'flex',flexDirection:'column',gap:8}},rows.map(function(r){
-      var status=r.pct>100?'🔴':r.pct>70?'⚠️':'✅';var barCol=r.over?'var(--red)':r.pct>70?'var(--org)':'var(--blu)';
-      return h('div',{key:r.id,className:'cd',style:{padding:'18px 20px'}},
-        h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}},
-          h('div',{style:{display:'flex',alignItems:'center',gap:8}},
-            h('span',{style:{fontSize:24}},r.icon),
-            h('div',null,
-              h('div',{style:{fontWeight:600,fontSize:'1rem',display:'flex',alignItems:'center',gap:6}},r.name,' ',h('span',{style:{fontSize:12}},status)),
-              h('div',{style:{fontSize:'.7rem',color:'var(--t3)'}},'Budget: ',fmt(r.budget)))),
-          h('div',{style:{display:'flex',alignItems:'center',gap:4}},
-            h('div',{style:{textAlign:'right'}},
-              h('div',{style:{fontWeight:700,fontSize:'1.15rem',color:barCol}},fmt(r.spent)),
-              h('div',{style:{fontSize:'.68rem',color:r.rem>=0?'var(--t3)':'var(--red)'}},r.rem>=0?'sisa '+fmt(r.rem):'over '+fmt(Math.abs(r.rem)))),
-            h('button',{className:'bi',style:{width:26,height:26},onClick:function(){oE(r)}},h(Ic,{n:'edit'})),
-            h('button',{className:'bi',style:{width:26,height:26,color:'var(--red)'},onClick:function(){del(r)}},h(Ic,{n:'trash'})))),
-        // Progress bar with gradient
-        h('div',{style:{position:'relative',height:14,background:'var(--bgi)',borderRadius:7,overflow:'hidden'}},
-          h('div',{style:{height:'100%',width:Math.min(r.pct,100)+'%',background:'linear-gradient(90deg, '+barCol+', '+(r.over?'#dc2626':r.pct>70?'#ea580c':barCol)+')',borderRadius:5,transition:'width .6s ease'}}),
-          r.pct>=100?h('div',{style:{position:'absolute',right:4,top:0,bottom:0,display:'flex',alignItems:'center',fontSize:'.6rem',color:'#fff',fontWeight:700}},r.pct+'%'):null),
-        h('div',{style:{display:'flex',justifyContent:'space-between',marginTop:4,fontSize:'.68rem',color:'var(--t3)'}},
-          h('span',null,'Rp 0'),
-          h('span',{style:{fontWeight:600,color:barCol}},r.pct+'%'),
-          h('span',null,fmt(r.budget))))})),
+  // Get all parent categories that have budgets OR have sub-category budgets
+  var parents=C.filter(function(c){return !c.parent_id&&c.type==='expense'});
+  var budgetedParents=parents.filter(function(par){
+    var hasDirect=B.some(function(b){return b.category_id===par.id});
+    var hasSub=C.filter(function(c){return c.parent_id===par.id}).some(function(sub){return B.some(function(b){return b.category_id===sub.id})});
+    return hasDirect||hasSub;
+  });
 
-    h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah Anggaran':'Edit Anggaran',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},'Simpan'))},
-      h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category_id,onChange:function(e){ufb('category_id',e.target.value)}},h('option',{value:''},'Pilih'),eC.map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))),
-      h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Batas (Rp)'),h(NumInput,{value:f.amount,onChange:function(v){ufb('amount',v)}})),h('div',{className:'fg'},h('label',null,'Periode'),h('select',{className:'fi',value:f.period,onChange:function(e){ufb('period',e.target.value)}},h('option',{value:'monthly'},'Bulanan'),h('option',{value:'yearly'},'Tahunan'))))),cfE)
+  // All categories for dropdown (parents + subs with type expense)
+  var allExpCats=C.filter(function(c){return c.type==='expense'});
+
+  // Total budget and spent
+  var totalBudget=B.reduce(function(s,b){return s+(Number(b.amount)||0)},0);
+  var totalSpent=B.reduce(function(s,b){return s+spent(b.category_id)},0);
+  var overallPct=totalBudget>0?Math.min(Math.round((totalSpent/totalBudget)*100),100):0;
+  var overallCol=overallPct>=100?'var(--red)':overallPct>=80?'var(--org)':'var(--acc)';
+
+  return h('div',null,
+    h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Anggaran'),h('p',null,'Budget per kategori & sub-kategori')),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah')),
+
+    // Overall summary
+    h('div',{className:'cd',style:{marginBottom:12,padding:'16px 18px'}},
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}},
+        h('span',{style:{fontWeight:700}},'Total Anggaran Bulan Ini'),
+        h('span',{style:{fontWeight:700,color:overallCol}},overallPct+'%')),
+      h('div',{style:{height:8,background:'var(--bgi)',borderRadius:4,overflow:'hidden',marginBottom:8}},
+        h('div',{style:{height:'100%',width:overallPct+'%',background:overallCol,borderRadius:4,transition:'width .5s'}})),
+      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}},
+        h('div',{style:{textAlign:'center'}},h('div',{style:{fontSize:'.7rem',color:'var(--t3)'}},'Budget'),h('div',{style:{fontWeight:700,fontSize:'.88rem'}},fmt(totalBudget))),
+        h('div',{style:{textAlign:'center'}},h('div',{style:{fontSize:'.7rem',color:'var(--t3)'}},'Terpakai'),h('div',{style:{fontWeight:700,fontSize:'.88rem',color:overallCol}},fmt(totalSpent))),
+        h('div',{style:{textAlign:'center'}},h('div',{style:{fontSize:'.7rem',color:'var(--t3)'}},'Sisa'),h('div',{style:{fontWeight:700,fontSize:'.88rem',color:totalBudget-totalSpent>=0?'var(--acc)':'var(--red)'}},fmt(totalBudget-totalSpent))))),
+
+    // Budget list grouped by parent category
+    B.length===0?h('div',{className:'cd'},h('div',{className:'empty'},h('div',{className:'ei'},'💰'),h('h3',null,'Belum ada anggaran'),h('p',null,'Klik "+ Tambah" untuk set budget per kategori'))):
+    h('div',null,
+      budgetedParents.map(function(par){
+        var subs=C.filter(function(c){return c.parent_id===par.id});
+        var subBudgets=B.filter(function(b){return subs.some(function(s){return s.id===b.category_id})});
+        var directBudget=B.find(function(b){return b.category_id===par.id});
+        var subBudgetTotal=subBudgets.reduce(function(s,b){return s+(Number(b.amount)||0)},0);
+        var effectiveBudget=subBudgets.length>0?subBudgetTotal:(directBudget?Number(directBudget.amount):0);
+        var parSpent=spent(par.id)+subs.reduce(function(s,sub){return s+spent(sub.id)},0);
+        var parPct=effectiveBudget>0?Math.min(Math.round((parSpent/effectiveBudget)*100),100):0;
+        var parCol=parPct>=100?'var(--red)':parPct>=80?'var(--org)':(par.color||'var(--acc)');
+        var isExp=exp[par.id];
+
+        return h('div',{key:par.id,className:'cd',style:{marginBottom:10,padding:0,overflow:'hidden'}},
+          // Parent header — clickable to expand
+          h('div',{style:{padding:'14px 16px',cursor:subs.length>0?'pointer':'default'},onClick:function(){if(subs.length>0){var n={};for(var x in exp)n[x]=exp[x];n[par.id]=!exp[par.id];sExp(n)}}},
+            h('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:8}},
+              h('div',{style:{width:32,height:32,borderRadius:8,background:par.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,flexShrink:0}},par.icon||'📋'),
+              h('div',{style:{flex:1}},
+                h('div',{style:{fontWeight:700,fontSize:'.9rem',display:'flex',alignItems:'center',gap:6}},par.name,
+                  subBudgets.length>0?h('span',{style:{fontSize:'.65rem',background:'var(--blubg)',color:'var(--blu)',padding:'1px 5px',borderRadius:4}},subBudgets.length+' sub'):null,
+                  subs.length>0?h('span',{style:{fontSize:.9,color:'var(--t3)',marginLeft:'auto'}},(isExp?'▲':'▼')):null),
+                h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginTop:1}},
+                  subBudgets.length>0?'Budget dari '+subBudgets.length+' sub-kategori':'Budget keseluruhan')),
+              h('div',{style:{textAlign:'right',flexShrink:0}},
+                h('div',{style:{fontWeight:700,color:parCol,fontSize:'.9rem'}},parPct+'%'),
+                h('div',{style:{fontSize:'.7rem',color:'var(--t3)'}},fmt(parSpent),' / ',fmt(effectiveBudget)))),
+            h('div',{style:{height:6,background:'var(--bgi)',borderRadius:3,overflow:'hidden'}},
+              h('div',{style:{height:'100%',width:parPct+'%',background:parCol,borderRadius:3,transition:'width .5s'}})),
+            directBudget&&subBudgets.length===0?
+              h('div',{style:{display:'flex',justifyContent:'flex-end',gap:6,marginTop:8}},
+                h('button',{className:'bi',onClick:function(e){e.stopPropagation();oE(directBudget)}},h(Ic,{n:'edit'})),
+                h('button',{className:'bi',style:{color:'var(--red)'},onClick:function(e){e.stopPropagation();del(directBudget)}},h(Ic,{n:'trash'}))):null,
+            subBudgets.length>0?h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginTop:6,padding:'4px 8px',background:'var(--bgi)',borderRadius:6}},'Total sub-budget: ',fmt(subBudgetTotal),' · ',subBudgets.length,' kategori'):null),
+
+          // Sub-category budgets (expanded)
+          isExp?h('div',{style:{borderTop:'1px solid var(--brd)'}},
+            subs.map(function(sub){
+              var subB=B.find(function(b){return b.category_id===sub.id});
+              var subSp=spent(sub.id);
+              var subPct=subB&&Number(subB.amount)>0?Math.min(Math.round((subSp/Number(subB.amount))*100),100):0;
+              var subCol=subPct>=100?'var(--red)':subPct>=80?'var(--org)':(par.color||'var(--acc)');
+              return h('div',{key:sub.id,style:{padding:'10px 16px 10px 24px',borderBottom:'1px solid var(--brd)'}},
+                h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:subB?6:0}},
+                  h('div',{style:{fontSize:12,flexShrink:0}},sub.icon||'↳'),
+                  h('span',{style:{flex:1,fontSize:'.84rem',fontWeight:500}},sub.name),
+                  subB?h('div',{style:{display:'flex',alignItems:'center',gap:6}},
+                    h('span',{style:{fontSize:'.8rem',color:subCol,fontWeight:700}},subPct+'%'),
+                    h('span',{style:{fontSize:'.72rem',color:'var(--t3)'}},fmt(subSp),' / ',fmt(Number(subB.amount))),
+                    h('button',{className:'bi',onClick:function(){oE(subB)}},h(Ic,{n:'edit'})),
+                    h('button',{className:'bi',style:{color:'var(--red)'},onClick:function(){del(subB)}},h(Ic,{n:'trash'}))):
+                  h('button',{className:'btn bs',style:{fontSize:'.72rem',padding:'2px 8px'},onClick:function(){sF({category_id:sub.id,amount:'',period:'monthly'});sMo({m:'add'})}},'+ Budget')),
+                subB?h('div',{style:{height:4,background:'var(--bgi)',borderRadius:2,overflow:'hidden'}},
+                  h('div',{style:{height:'100%',width:subPct+'%',background:subCol,borderRadius:2}})):null)
+            }),
+            // Add sub-budget button
+            h('div',{style:{padding:'8px 16px'}},
+              h('button',{className:'btn bs',style:{width:'100%',fontSize:'.78rem'},onClick:function(){
+                var availSubs=subs.filter(function(s){return !B.some(function(b){return b.category_id===s.id})});
+                sF({category_id:availSubs.length?availSubs[0].id:'',amount:'',period:'monthly'});sMo({m:'add'})
+              }},'+ Tambah Budget Sub-Kategori'))):null)
+      }),
+
+      // Categories without budgets (show as suggestion)
+      parents.filter(function(par){
+        var hasDirect=B.some(function(b){return b.category_id===par.id});
+        var hasSub=C.filter(function(c){return c.parent_id===par.id}).some(function(sub){return B.some(function(b){return b.category_id===sub.id})});
+        return !hasDirect&&!hasSub;
+      }).length>0?h('div',{style:{marginTop:4}},
+        h('div',{style:{fontSize:'.75rem',color:'var(--t3)',padding:'6px 0',marginBottom:6}},'Kategori belum punya budget:'),
+        h('div',{style:{display:'flex',flexWrap:'wrap',gap:6}},
+          parents.filter(function(par){
+            var hasDirect=B.some(function(b){return b.category_id===par.id});
+            var hasSub=C.filter(function(c){return c.parent_id===par.id}).some(function(sub){return B.some(function(b){return b.category_id===sub.id})});
+            return !hasDirect&&!hasSub;
+          }).map(function(par){
+            return h('button',{key:par.id,className:'btn bs',style:{fontSize:'.75rem',padding:'4px 10px'},onClick:function(){sF({category_id:par.id,amount:'',period:'monthly'});sMo({m:'add'})}},par.icon||'',' ',par.name)
+          }))):null),
+
+    // Modal
+    h(Mod,{open:!!mo,onClose:function(){sMo(null)},title:mo&&mo.m==='add'?'Tambah Anggaran':'Edit Anggaran',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sMo(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},'Simpan'))},
+      h('div',{className:'fg'},h('label',null,'Kategori / Sub-Kategori'),
+        h('select',{className:'fi',value:f.category_id,onChange:function(e){ufb('category_id',e.target.value)}},
+          h('option',{value:''},'-- Pilih --'),
+          parents.map(function(par){
+            var subs=C.filter(function(c){return c.parent_id===par.id&&c.type==='expense'});
+            return h(F,{key:par.id},
+              h('option',{value:par.id,style:{fontWeight:'bold'}},(par.icon||''),' ',par.name,' (Induk)'),
+              subs.map(function(sub){return h('option',{key:sub.id,value:sub.id},'   ↳ ',(sub.icon||''),' ',sub.name)}))
+          }))),
+      h('div',{className:'fg'},h('label',null,'Batas Budget (Rp)'),h(NumInput,{value:f.amount,onChange:function(v){ufb('amount',v)}})),
+      h('div',{className:'fg'},h('label',null,'Periode'),h('select',{className:'fi',value:f.period,onChange:function(e){ufb('period',e.target.value)}},h('option',{value:'monthly'},'Bulanan'),h('option',{value:'weekly'},'Mingguan')))),
+    cfE)
 }
+
 
 /* ═══ INVESTMENTS ═══ */
 function InvP(p){
