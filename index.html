@@ -1698,8 +1698,15 @@ function BudgP(p){
   function nextMo(){if(vMo===11){sVMo(0);sVYr(vYr+1)}else sVMo(vMo+1)}
   var _exp=useState({}),exp=_exp[0],sExp=_exp[1]; // expanded parent categories
   function ufb(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
-  function oA(){sF(defF());sMo({m:'add'})}
-  function oE(b){sF({category_id:b.category_id||'',amount:String(b.amount||0),period:b.period||'monthly',is_recurring:b.is_recurring!==false,target_month:b.month||mo2+1,target_year:b.year||yr});sMo({m:'edit',d:b})}
+  var _selPar=useState(null),selPar=_selPar[0],sSelPar=_selPar[1];
+  function oA(){sF(defF());sSelPar(null);sMo({m:'add'})}
+  function oE(b){
+    var cat=fid(C,b.category_id);
+    var parId=cat?(cat.parent_id||cat.id):null;
+    sSelPar(parId);
+    sF({category_id:b.category_id||'',amount:String(b.amount||0),period:b.period||'monthly',is_recurring:b.is_recurring!==false,target_month:b.month||mo2+1,target_year:b.year||yr});
+    sMo({m:'edit',d:b})
+  }
   function save(){
     if(!UID){t('Sesi habis','err');return}
     if(!f.category_id){t('Pilih kategori','err');return}
@@ -1847,15 +1854,49 @@ function BudgP(p){
 
     // Modal
     h(Mod,{open:!!mo,onClose:function(){sMo(null)},title:mo&&mo.m==='add'?'Tambah Anggaran':'Edit Anggaran',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sMo(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},'Simpan'))},
-      h('div',{className:'fg'},h('label',null,'Kategori / Sub-Kategori'),
-        h('select',{className:'fi',value:f.category_id,onChange:function(e){ufb('category_id',e.target.value)}},
-          h('option',{value:''},'-- Pilih --'),
-          parents.map(function(par){
-            var subs=C.filter(function(c){return c.parent_id===par.id&&c.type==='expense'});
-            return h(F,{key:par.id},
-              h('option',{value:par.id,style:{fontWeight:'bold'}},(par.icon||''),' ',par.name,' (Induk)'),
-              subs.map(function(sub){return h('option',{key:sub.id,value:sub.id},'   ↳ ',(sub.icon||''),' ',sub.name)}))
-          }))),
+      // === STEP 1 & 2: Two-step visual category picker ===
+      h('div',{className:'fg'},h('label',null,'Kategori'),
+        !selPar?
+          // STEP 1 — Grid of parent categories
+          h('div',null,
+            h('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}},
+              parents.map(function(par){
+                return h('button',{key:par.id,onClick:function(){sSelPar(par.id);ufb('category_id',par.id)},
+                  style:{padding:'12px 8px',border:'2px solid var(--brd)',borderRadius:10,background:'var(--bgc)',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:6,transition:'all .15s'}},
+                  h('div',{style:{width:38,height:38,borderRadius:10,background:par.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}},par.icon||'📋'),
+                  h('div',{style:{fontSize:'.72rem',fontWeight:600,textAlign:'center',color:'var(--t1)',lineHeight:1.2}},par.name),
+                  C.filter(function(c){return c.parent_id===par.id}).length>0?
+                    h('div',{style:{fontSize:'.62rem',color:'var(--t3)'}},C.filter(function(c){return c.parent_id===par.id}).length,' sub'):null)
+              }))):
+
+          // STEP 2 — Scope picker after parent selected
+          h('div',null,
+            // Back + selected parent display
+            h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:12}},
+              h('button',{className:'btn bs',style:{padding:'4px 10px',fontSize:'.78rem'},onClick:function(){sSelPar(null);ufb('category_id','')}},'← Ganti'),
+              h('div',{style:{display:'flex',alignItems:'center',gap:8,flex:1,padding:'8px 12px',background:'var(--bgi)',borderRadius:8}},
+                h('div',{style:{width:28,height:28,borderRadius:7,background:(fid(C,selPar)||{}).color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}},(fid(C,selPar)||{}).icon||'📋'),
+                h('span',{style:{fontWeight:600,fontSize:'.88rem'}},(fid(C,selPar)||{}).name))),
+            // Option A: whole category
+            h('div',{onClick:function(){ufb('category_id',selPar)},
+              style:{padding:'10px 14px',borderRadius:10,border:'2px solid '+(f.category_id===selPar?'var(--acc)':'var(--brd)'),background:f.category_id===selPar?'var(--accbg)':'var(--bgc)',cursor:'pointer',marginBottom:8,display:'flex',alignItems:'center',gap:10}},
+              h('div',{style:{width:18,height:18,borderRadius:9,border:'2px solid '+(f.category_id===selPar?'var(--acc)':'var(--brd)'),background:f.category_id===selPar?'var(--acc)':'transparent',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}},
+                f.category_id===selPar?h('div',{style:{width:8,height:8,borderRadius:4,background:'#fff'}}):null),
+              h('div',null,
+                h('div',{style:{fontWeight:600,fontSize:'.85rem'}},'🏷 Seluruh kategori'),
+                h('div',{style:{fontSize:'.72rem',color:'var(--t3)'}},'Budget mencakup semua pengeluaran ',((fid(C,selPar)||{}).name||'')))),
+            // Sub-categories (if any)
+            C.filter(function(c){return c.parent_id===selPar}).length>0?
+              h('div',null,
+                h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginBottom:6,fontWeight:600}},'ATAU sub-kategori spesifik:'),
+                h('div',{style:{display:'flex',flexWrap:'wrap',gap:6}},
+                  C.filter(function(c){return c.parent_id===selPar}).map(function(sub){
+                    var isSel=f.category_id===sub.id;
+                    return h('button',{key:sub.id,onClick:function(){ufb('category_id',sub.id)},
+                      style:{padding:'7px 12px',borderRadius:8,border:'2px solid '+(isSel?'var(--acc)':'var(--brd)'),background:isSel?'var(--accbg)':'var(--bgc)',cursor:'pointer',fontSize:'.8rem',fontWeight:isSel?700:400,color:isSel?'var(--acc)':'var(--t1)',display:'flex',alignItems:'center',gap:5,transition:'all .15s'}},
+                      h('span',null,sub.icon||'📋'),
+                      h('span',null,sub.name))
+                  }))):null)),
       h('div',{className:'fg'},h('label',null,'Batas Budget (Rp)'),h(NumInput,{value:f.amount,onChange:function(v){ufb('amount',v)}})),
       h('div',{className:'fg'},h('label',null,'Periode'),h('select',{className:'fi',value:f.period,onChange:function(e){ufb('period',e.target.value)}},h('option',{value:'monthly'},'Bulanan'),h('option',{value:'weekly'},'Mingguan'))),
       // Recurring toggle
