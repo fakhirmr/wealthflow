@@ -206,6 +206,15 @@ function AuthPage(p){
         ok?AlertBox(ok,'ok'):null,
         h('div',{className:'fg'},h('label',null,'Email'),h('input',{className:'fi',type:'email',placeholder:'email@contoh.com',value:email,onChange:function(e){sEmail(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')doForgot()},autoFocus:true})),
         h('button',{className:'btn bp',style:{width:'100%',justifyContent:'center',padding:'12px',fontSize:'.9rem',marginTop:4},onClick:doForgot,disabled:loading||!!ok},loading?'Mengirim...':ok?'Email Terkirim ✓':'Kirim Link Reset'),
+        // Tips
+        h('div',{style:{marginTop:16,padding:'12px 14px',background:'var(--bgi)',borderRadius:8,fontSize:'.75rem',color:'var(--t3)',lineHeight:1.6}},
+          h('div',{style:{fontWeight:600,marginBottom:4,color:'var(--t2)'}},'📬 Email tidak masuk?'),
+          h('div',null,'• Cek folder Spam / Junk'),
+          h('div',null,'• Pengirim: noreply@mail.app.supabase.io'),
+          h('div',null,'• Tunggu 1-2 menit'),
+          h('div',null,'• Maksimal 2 email per jam'),
+          h('div',{style:{marginTop:8,fontWeight:600,color:'var(--t2)'}},'💡 Alternatif:'),
+          h('div',null,'Login dulu, lalu ubah password di Pengaturan → Akun')),
         h('button',{style:{width:'100%',marginTop:12,padding:'8px',background:'none',border:'none',color:'var(--acc)',cursor:'pointer',fontSize:'.82rem'},onClick:function(){sTab('login');sErr('');sOk('')}},'← Kembali ke Login'))));
 
   // === RESET PASSWORD (from email link) ===
@@ -664,6 +673,24 @@ function SettingsP(p){
   var t=useContext(TCtx);
   var _tab=useState('wallets'),tab=_tab[0],sTab=_tab[1];
   var _imp=useState(false),impBusy=_imp[0],sImp=_imp[1];
+  // Password change state
+  var _curPw=useState(''),curPw=_curPw[0],sCurPw=_curPw[1];
+  var _newPw=useState(''),newPw=_newPw[0],sNewPw=_newPw[1];
+  var _cfmPw=useState(''),cfmPw=_cfmPw[0],sCfmPw=_cfmPw[1];
+  var _pwBusy=useState(false),pwBusy=_pwBusy[0],sPwBusy=_pwBusy[1];
+  var _pwMsg=useState(null),pwMsg=_pwMsg[0],sPwMsg=_pwMsg[1];
+
+  function changePassword(){
+    if(!newPw||newPw.length<6){sPwMsg({t:'err',m:'Password baru minimal 6 karakter'});return}
+    if(newPw!==cfmPw){sPwMsg({t:'err',m:'Konfirmasi password tidak cocok'});return}
+    sPwBusy(true);sPwMsg(null);
+    sb.auth.updateUser({password:newPw}).then(function(r){
+      sPwBusy(false);
+      if(r.error){sPwMsg({t:'err',m:r.error.message});return}
+      sPwMsg({t:'ok',m:'Password berhasil diubah!'});
+      sCurPw('');sNewPw('');sCfmPw('');
+    })
+  }
 
   // === EXPORT functions ===
   function dlFile(name,content,type){
@@ -778,10 +805,30 @@ function SettingsP(p){
       h('button',{className:'tab'+(tab==='wallets'?' act':''),onClick:function(){sTab('wallets')}},'Dompet'),
       h('button',{className:'tab'+(tab==='categories'?' act':''),onClick:function(){sTab('categories')}},'Kategori'),
       h('button',{className:'tab'+(tab==='investments'?' act':''),onClick:function(){sTab('investments')}},'Investasi'),
-      h('button',{className:'tab'+(tab==='data'?' act':''),onClick:function(){sTab('data')}},'Data')),
+      h('button',{className:'tab'+(tab==='data'?' act':''),onClick:function(){sTab('data')}},'Data'),
+      h('button',{className:'tab'+(tab==='akun'?' act':''),onClick:function(){sTab('akun')}},'Akun')),
     tab==='wallets'?h(WalletsP,p):null,
     tab==='categories'?h(CatsP,p):null,
     tab==='investments'?h(InvP,p):null,
+    // Akun tab
+    tab==='akun'?h('div',null,
+      h('div',{className:'cd',style:{marginBottom:12}},
+        h('h3',{style:{fontSize:'.95rem',fontWeight:700,marginBottom:14}},'🔐 Ubah Password'),
+        h('p',{style:{fontSize:'.78rem',color:'var(--t3)',marginBottom:14}},'Ubah password langsung tanpa perlu email. Minimal 6 karakter.'),
+        pwMsg?h('div',{style:{padding:'10px 14px',borderRadius:8,marginBottom:12,fontSize:'.82rem',background:pwMsg.t==='ok'?'var(--accbg)':'var(--redbg)',color:pwMsg.t==='ok'?'var(--acc)':'var(--red)',border:'1px solid '+(pwMsg.t==='ok'?'var(--acc)':'var(--red)')}},pwMsg.m):null,
+        h('div',{className:'fg'},h('label',null,'Password Baru'),h('input',{className:'fi',type:'password',placeholder:'Minimal 6 karakter',value:newPw,onChange:function(e){sNewPw(e.target.value)}})),
+        h('div',{className:'fg'},h('label',null,'Konfirmasi Password'),h('input',{className:'fi',type:'password',placeholder:'Ulangi password baru',value:cfmPw,onChange:function(e){sCfmPw(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')changePassword()}})),
+        newPw.length>0?h('div',{style:{marginBottom:10,padding:'6px 10px',background:'var(--bgi)',borderRadius:6,fontSize:'.72rem',color:newPw.length<6?'var(--red)':newPw.length<10?'var(--org)':'var(--acc)'}},newPw.length<6?'⚠️ Terlalu pendek':newPw.length<10?'👍 Cukup kuat':'💪 Sangat kuat'):null,
+        h('button',{className:'btn bp',style:{width:'100%',padding:'11px',justifyContent:'center'},onClick:changePassword,disabled:pwBusy},pwBusy?'Menyimpan...':'Simpan Password Baru')),
+      h('div',{className:'cd'},
+        h('h3',{style:{fontSize:'.95rem',fontWeight:700,marginBottom:14}},'📧 Informasi Akun'),
+        h('div',{style:{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'var(--bgi)',borderRadius:8,marginBottom:12}},
+          h('div',{style:{width:36,height:36,borderRadius:18,background:'linear-gradient(135deg,var(--acc),var(--cyn))',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,flexShrink:0}},user&&user.email?user.email[0].toUpperCase():'U'),
+          h('div',null,
+            h('div',{style:{fontWeight:600,fontSize:'.85rem'}},user&&user.email||'User'),
+            h('div',{style:{fontSize:'.7rem',color:'var(--t3)'}},'ID: ',(user?user.id:'').slice(0,8)+'...'))),
+        h('div',{style:{padding:'10px 14px',background:'var(--bgi)',borderRadius:8,fontSize:'.78rem',color:'var(--t3)'}},
+          '💡 Tidak perlu email untuk ubah password. Langsung ubah di form di atas. Fitur ini juga berguna jika email reset password tidak terkirim.'))):null,
     tab==='data'?h('div',null,
       // Export section
       h('div',{className:'cd',style:{marginBottom:12}},
