@@ -375,6 +375,7 @@ function App(){
     lt('transactions','date',false).then(function(r){sT(r.d);if(r.e)errs.push(r.e);chk()});
     lt('categories','name',true).then(function(r){sC(r.d);if(r.e)errs.push(r.e);chk()});
     lt('budgets','created_at',true).then(function(r){sB(r.d);if(r.e)errs.push(r.e);chk()});
+    lt('investments','created_at',true).then(function(r){sI(r.d);if(r.e)errs.push(r.e);chk()});
     lt('debts','created_at',false).then(function(r){sD(r.d);if(r.e)errs.push(r.e);chk()});
     lt('debt_payments','paid_date',false).then(function(r){sDP(r.d);if(r.e)errs.push(r.e);chk()})
     return function(){clearTimeout(t1);clearTimeout(t2)}},[user]);
@@ -481,7 +482,7 @@ function QuickTxn(p){
     if(!f.amount||Number(f.amount)<=0){t('Jumlah > 0','err');return}
     if(!UID){t('Sesi habis','err');return}var pay={user_id:UID,type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,sub_category_id:f.sub_category_id||null,amount:Number(f.amount),description:f.description.trim(),date:f.date};
     sb.from('transactions').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}
-      if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(){rW()})}}
+      if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(wr){if(wr&&wr.error)console.log('Bal err:',wr.error.message);rW()})}}
       try{sessionStorage.removeItem(DRAFT)}catch(e){}
       t('Transaksi ditambahkan');rT();p.onClose()})
   }
@@ -745,7 +746,7 @@ function SettingsP(p){
           return sb.from('transactions').insert({
             user_id:UID,date:cols[0]||td(),type:cols[1]||'expense',amount:Number(String(cols[2]).replace(/"/g,''))||0,
             description:(cols[3]||'').replace(/"/g,'').trim()
-          }).then(function(){})
+          }).then(function(r){if(r.error)console.log(r.error.message)})
         });
         Promise.all(ops).then(function(){
           sImp(false);t('Import '+(rows.length)+' transaksi selesai');rT()
@@ -901,7 +902,7 @@ function TxnsP(p){
   function oE(tx){sF({type:tx.type,wallet_id:tx.wallet_id||'',category_id:tx.category_id||'',sub_category_id:tx.sub_category_id||'',amount:String(tx.amount||0),description:tx.description||'',date:tx.date||td(),is_installment:!!tx.installment_count,installment_count:tx.installment_count||6});sM({m:'edit',d:{id:tx.id,wallet_id:tx.wallet_id,type:tx.type,amount:tx.amount}})}
   function save(){if(!UID){t('Sesi habis, login ulang','err');return}if(!f.amount||Number(f.amount)<=0){t('Jumlah > 0','err');return}var pay={user_id:UID,type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,sub_category_id:f.sub_category_id||null,amount:Number(f.amount),description:f.description.trim(),date:f.date};
     if(f.is_installment){pay.installment_count=f.installment_count;pay.installment_monthly=Math.ceil(Number(f.amount)/f.installment_count)}
-    if(mo.m==='add'){sb.from('transactions').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(){rW()})}}t('Ditambahkan');sM(null);rT()})}
+    if(mo.m==='add'){sb.from('transactions').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(wr){if(wr&&wr.error)console.log('Bal err:',wr.error.message);rW()})}}t('Ditambahkan');sM(null);rT()})}
     else{
       var oldTx=mo.d;var oldAmt=Number(oldTx.amount)||0;var newAmt=Number(f.amount)||0;
       var updPay={};for(var k in pay){if(k!=='user_id')updPay[k]=pay[k]}
@@ -925,7 +926,7 @@ function TxnsP(p){
   function del(tx){cf('Hapus transaksi ini?').then(function(ok){if(!ok)return;
     sb.from('transactions').delete().eq('id',tx.id).then(function(r){if(r.error){t(r.error.message,'err');return}
       if(tx.wallet_id){var w=fid(W,tx.wallet_id);if(w){var nb=tx.type==='income'?(Number(w.balance)||0)-Number(tx.amount):(Number(w.balance)||0)+Number(tx.amount);
-        sb.from('wallets').update({balance:nb}).eq('id',tx.wallet_id).then(function(){t('Dihapus');rT();rW()})
+        sb.from('wallets').update({balance:nb}).eq('id',tx.wallet_id).then(function(wr){if(wr&&wr.error){t('Saldo error','err')}t('Dihapus');rT();rW()})
       }else{t('Dihapus');rT();rW()}}
       else{t('Dihapus');rT();rW()}
     })
@@ -1092,7 +1093,7 @@ function DebtP(p){
             // piutang = uang keluar dari dompet (aset turun, piutang/aset lain naik)
             var isHutang=f.type==='hutang';
             var nb=isHutang?(Number(w.balance)||0)+amt:(Number(w.balance)||0)-amt;
-            sb.from('wallets').update({balance:nb}).eq('id',f.txn_wallet_id).then(function(){rW()});
+            sb.from('wallets').update({balance:nb}).eq('id',f.txn_wallet_id).then(function(wr){if(wr&&wr.error)console.log('Bal err:',wr.error.message);rW()});
             sb.from('transactions').insert({
               user_id:UID,
               type:isHutang?'income':'expense',
@@ -1101,7 +1102,7 @@ function DebtP(p){
               date:f.start_date||td(),
               description:(isHutang?'Pinjaman masuk: ':'Dana dipinjamkan: ')+f.name.trim(),
               category_id:null
-            }).then(function(){rT()})
+            }).then(function(r){if(r.error)console.log(r.error.message);rT()})
           }
         }
         t('Ditambahkan');sMo(null);rD()
@@ -1122,7 +1123,7 @@ function DebtP(p){
       sb.from('debts').update({remaining_amount:newRem,status:newStatus}).eq('id',debt.id).then(function(r2){
         if(r2.error){t(r2.error.message,'err');return}
         // Deduct from wallet if selected
-        if(pf.wallet_id){var w=fid(W,pf.wallet_id);if(w){var nb=(Number(w.balance)||0)-(debt.type==='hutang'?amt:-amt);sb.from('wallets').update({balance:nb}).eq('id',pf.wallet_id).then(function(){rW()})}}
+        if(pf.wallet_id){var w=fid(W,pf.wallet_id);if(w){var nb=(Number(w.balance)||0)-(debt.type==='hutang'?amt:-amt);sb.from('wallets').update({balance:nb}).eq('id',pf.wallet_id).then(function(wr){if(wr&&wr.error)console.log('Bal err:',wr.error.message);rW()})}}
         t(newRem<=0?'Lunas! 🎉':'Pembayaran tercatat');sPMo(null);rD();rDP()
       })
     })
@@ -1428,7 +1429,7 @@ function AiP(p){
     var tx=pendingTx;sPendingTx(null);
     sb.from('transactions').insert({user_id:UID,type:tx.type,amount:Number(tx.amount)||0,description:tx.description||'',date:tx.date||td(),wallet_id:tx.wallet_id||null,category_id:tx.category_id||null,sub_category_id:null}).then(function(r){
       if(r.error){var em=ms.concat({role:'sys',text:'❌ '+r.error.message});sMs(em);saveMem(em);return}
-      if(tx.wallet_id){var w=fid(W,tx.wallet_id);if(w){var nb=(Number(w.balance)||0)+(tx.type==='income'?Number(tx.amount):-Number(tx.amount));sb.from('wallets').update({balance:nb}).eq('id',tx.wallet_id).then(function(){rW()})}}
+      if(tx.wallet_id){var w=fid(W,tx.wallet_id);if(w){var nb=(Number(w.balance)||0)+(tx.type==='income'?Number(tx.amount):-Number(tx.amount));sb.from('wallets').update({balance:nb}).eq('id',tx.wallet_id).then(function(wr){if(wr&&wr.error)console.log(wr.error.message);rW()})}}
       var fm=ms.concat({role:'sys',text:'✅ Tersimpan!'});sMs(fm);saveMem(fm);rT();
     })
   }
