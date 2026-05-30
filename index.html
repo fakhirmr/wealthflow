@@ -435,13 +435,32 @@ function TransferMod(p){
     var wFrom=fid(W,f.from);var wTo=fid(W,f.to);
     if(!wFrom||!wTo){t('Dompet tidak ditemukan','err');return}
     var desc=f.desc||('Transfer '+wn(W,f.from)+' → '+wn(W,f.to));
-    // Insert 2 transactions + update balances
-    Promise.all([
-      sb.from('transactions').insert({user_id:UID,date:td(),wallet_id:f.from,type:'transfer_out',amount:amt,description:desc}),
-      sb.from('transactions').insert({user_id:UID,date:td(),wallet_id:f.to,type:'transfer_in',amount:amt,description:desc}),
-      sb.from('wallets').update({balance:(Number(wFrom.balance)||0)-amt}).eq('id',f.from),
-      sb.from('wallets').update({balance:(Number(wTo.balance)||0)+amt}).eq('id',f.to)
-    ]).then(function(){t('Transfer berhasil!');rW();rT();p.onClose()}).catch(function(e){t(e.message,'err')})
+    var newBalFrom=(Number(wFrom.balance)||0)-amt;
+    var newBalTo=(Number(wTo.balance)||0)+amt;
+
+    // Step 1: Insert transfer_out transaction
+    sb.from('transactions').insert({user_id:UID,date:td(),wallet_id:f.from,type:'transfer_out',amount:amt,description:desc})
+    .then(function(r1){
+      if(r1.error){t('Gagal catat transfer keluar: '+r1.error.message,'err');return}
+      // Step 2: Insert transfer_in transaction
+      sb.from('transactions').insert({user_id:UID,date:td(),wallet_id:f.to,type:'transfer_in',amount:amt,description:desc})
+      .then(function(r2){
+        if(r2.error){t('Gagal catat transfer masuk: '+r2.error.message,'err');return}
+        // Step 3: Update source wallet balance
+        sb.from('wallets').update({balance:newBalFrom}).eq('id',f.from)
+        .then(function(r3){
+          if(r3.error){t('Gagal update saldo asal: '+r3.error.message,'err');return}
+          // Step 4: Update destination wallet balance
+          sb.from('wallets').update({balance:newBalTo}).eq('id',f.to)
+          .then(function(r4){
+            if(r4.error){t('Gagal update saldo tujuan: '+r4.error.message,'err');return}
+            // All 4 steps succeeded
+            t('Transfer berhasil! '+fmt(amt)+' → '+wn(W,f.to));
+            rW();rT();p.onClose();
+          })
+        })
+      })
+    })
   }
   return h(Mod,{open:true,onClose:p.onClose,title:'🔄 Transfer Antar Dompet',footer:h(F,null,h('button',{className:'btn bs',onClick:p.onClose},'Batal'),h('button',{className:'btn bp',onClick:save},'Transfer'))},
     h('div',{className:'fg'},h('label',null,'Dari Dompet'),h('select',{className:'fi',value:f.from,onChange:function(e){ufx('from',e.target.value)}},h('option',{value:''},'Pilih asal'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name+' ('+fmt(w.balance)+')')}))),
