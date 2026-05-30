@@ -25,7 +25,7 @@ button{font-family:inherit;cursor:pointer;border:none;outline:none}input,select{
 body{background:var(--bg);color:var(--t1)}
 #root{display:flex;min-height:100vh;width:100%}
 
-.sb{position:fixed;left:0;top:0;bottom:0;width:250px;background:var(--sbg);border-right:1px solid var(--brd);display:flex;flex-direction:column;z-index:100;transition:transform .3s}
+.sb{position:fixed;left:0;top:0;bottom:0;width:250px;background:var(--sbg);border-right:1px solid var(--brd);display:flex;flex-direction:column;z-index:100;transition:transform .3s;overflow-y:auto}
 .sb-brand{padding:20px 18px 16px;display:flex;align-items:center;gap:10px}
 .sb-logo{width:34px;height:34px;background:linear-gradient(135deg,var(--acc),var(--cyn));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff}
 .sb-brand h1{font-size:1.15rem;font-weight:800}.sb-brand span{color:var(--acc)}
@@ -552,19 +552,26 @@ function Dash(p){
     h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Dashboard'),h('p',null,MO[mo]+' '+yr))),
 
     // === NET WORTH HERO CARD ===
-    h('div',{className:'cd',style:{marginBottom:10,padding:'20px',background:'linear-gradient(135deg,#0f172a,#1e293b)',color:'#f1f5f9',border:'none'}},
-      h('div',{style:{fontSize:'.72rem',letterSpacing:'.08em',opacity:.6,marginBottom:6}},'TOTAL KEKAYAAN BERSIH'),
-      h('div',{style:{fontSize:'clamp(1.5rem,4vw,2rem)',fontWeight:800,marginBottom:12,letterSpacing:'-1px'}},fmt(netWorth)),
+    h('div',{className:'cd',style:{marginBottom:10,padding:'18px 20px',background:'linear-gradient(150deg,#0f172a 0%,#1e293b 100%)',color:'#f1f5f9',border:'none',borderRadius:16}},
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:14}},
+        h('div',null,
+          h('div',{style:{fontSize:'.68rem',letterSpacing:'.1em',opacity:.5,marginBottom:4,textTransform:'uppercase'}},'Total Kekayaan Bersih'),
+          h('div',{style:{fontSize:'clamp(1.3rem,5vw,1.9rem)',fontWeight:800,letterSpacing:'-0.5px',lineHeight:1.1}},fmt(netWorth))),
+        h('div',{style:{textAlign:'right'}},
+          h('div',{style:{fontSize:'.65rem',opacity:.5,marginBottom:2}},'Arus Kas'),
+          h('div',{style:{fontSize:'.82rem',fontWeight:700,color:(inc-exp)>=0?'#34d399':'#f87171'}},
+            (inc-exp)>=0?'+':'',(inc-exp)>=0?fmt(inc-exp):fmt(Math.abs(inc-exp))))),
+      h('div',{style:{height:'1px',background:'rgba(255,255,255,.08)',marginBottom:14}}),
       h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}},
-        h('div',{style:{background:'rgba(255,255,255,.07)',borderRadius:8,padding:'10px 12px',borderLeft:'3px solid #34d399'}},
-          h('div',{style:{fontSize:'.65rem',opacity:.6,marginBottom:2}},'ASET'),
-          h('div',{style:{fontWeight:700,fontSize:'.88rem',color:'#6ee7b7'}},fmt(totalAssets))),
-        h('div',{style:{background:'rgba(255,255,255,.07)',borderRadius:8,padding:'10px 12px',borderLeft:'3px solid #f87171'}},
-          h('div',{style:{fontSize:'.65rem',opacity:.6,marginBottom:2}},'HUTANG'),
-          h('div',{style:{fontWeight:700,fontSize:'.88rem',color:'#fca5a5'}},fmt(Math.abs(totalLiab)))),
-        h('div',{style:{background:'rgba(255,255,255,.07)',borderRadius:8,padding:'10px 12px',borderLeft:'3px solid #60a5fa'}},
-          h('div',{style:{fontSize:'.65rem',opacity:.6,marginBottom:2}},'INVESTASI'),
-          h('div',{style:{fontWeight:700,fontSize:'.88rem',color:'#93c5fd'}},fmt(invBal))))),
+        h('div',{style:{padding:'8px 10px',borderRadius:8,background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.2)'}},
+          h('div',{style:{fontSize:'.6rem',color:'#6ee7b7',opacity:.8,marginBottom:3,letterSpacing:'.05em'}},'ASET'),
+          h('div',{style:{fontWeight:700,fontSize:'.78rem',color:'#a7f3d0',wordBreak:'break-all',lineHeight:1.2}},fmt(totalAssets))),
+        h('div',{style:{padding:'8px 10px',borderRadius:8,background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.2)'}},
+          h('div',{style:{fontSize:'.6rem',color:'#fca5a5',opacity:.8,marginBottom:3,letterSpacing:'.05em'}},'HUTANG'),
+          h('div',{style:{fontWeight:700,fontSize:'.78rem',color:'#fca5a5',wordBreak:'break-all',lineHeight:1.2}},fmt(Math.abs(totalLiab)))),
+        h('div',{style:{padding:'8px 10px',borderRadius:8,background:'rgba(96,165,250,.1)',border:'1px solid rgba(96,165,250,.2)'}},
+          h('div',{style:{fontSize:'.6rem',color:'#93c5fd',opacity:.8,marginBottom:3,letterSpacing:'.05em'}},'INVESTASI'),
+          h('div',{style:{fontWeight:700,fontSize:'.78rem',color:'#93c5fd',wordBreak:'break-all',lineHeight:1.2}},fmt(invBal))))),
 
     // === ROW 2: CASHFLOW + BUDGET ===
     h('div',{className:'dg2w',style:{marginBottom:10}},
@@ -603,7 +610,7 @@ function Dash(p){
         h('div',{style:{height:8,background:'var(--bgi)',borderRadius:4,overflow:'hidden',marginBottom:4}},
           h('div',{style:{height:'100%',width:budgetPct+'%',background:bCol,borderRadius:4,transition:'width .5s'}})),
         h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.72rem',color:'var(--t3)',marginBottom:14}},
-          h('span',null,'Rp',fmt(budgetSpent),' terpakai'),
+          h('span',null,fmt(budgetSpent),' terpakai'),
           h('span',null,'Sisa ',fmt(totalBudget-budgetSpent))),
         // Per-category budget
         B.length===0?h('div',{style:{fontSize:'.8rem',color:'var(--t3)',textAlign:'center',padding:'8px 0'}},'Belum ada anggaran'):
