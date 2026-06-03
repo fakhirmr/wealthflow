@@ -684,24 +684,51 @@ function TransferMod(p){
 function QuickTxn(p){
   var W=p.W,C=p.C,rT=p.rT,rW=p.rW;var t=useContext(TCtx);
   var DRAFT='wf_draft_quick';
-  var initF=function(){try{var d=JSON.parse(sessionStorage.getItem(DRAFT)||'null');if(d&&d.date&&d.date===td())return d}catch(e){}return{type:'expense',wallet_id:W.length?W[0].id:'',category_id:'',sub_category_id:'',amount:'',description:'',date:td()}};
+  var initF=function(){try{var d=JSON.parse(sessionStorage.getItem(DRAFT)||'null');if(d&&d.date&&d.date===td())return d}catch(e){}return{type:'expense',wallet_id:W.length?W[0].id:'',wallet_id_to:'',category_id:'',sub_category_id:'',amount:'',description:'',date:td()}};
   var _f=useState(initF),f=_f[0],sF=_f[1];
   var relC=C.filter(function(c){return c.type===f.type&&!c.parent_id});
   function ufx(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;if(k==='type')n.category_id='';if(k==='category_id')n.sub_category_id='';sF(n);try{sessionStorage.setItem(DRAFT,JSON.stringify(n))}catch(e){}}
   function save(){
     if(!f.amount||Number(f.amount)<=0){t('Jumlah > 0','err');return}
-    if(!UID){t('Sesi habis','err');return}var pay={user_id:UID,type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,sub_category_id:f.sub_category_id||null,amount:Number(f.amount),description:f.description.trim(),date:f.date};
+    if(!UID){t('Sesi habis','err');return}
+    var amt=Number(f.amount);
+    // Handle transfer
+    if(f.type==='transfer'){
+      if(!f.wallet_id){t('Pilih dompet asal','err');return}
+      if(!f.wallet_id_to){t('Pilih dompet tujuan','err');return}
+      if(f.wallet_id===f.wallet_id_to){t('Dompet asal & tujuan harus beda','err');return}
+      var wFrom=fid(W,f.wallet_id);var wTo=fid(W,f.wallet_id_to);
+      var desc=f.description.trim()||('Transfer '+wn(W,f.wallet_id)+' → '+wn(W,f.wallet_id_to));
+      sb.from('transactions').insert({user_id:UID,date:f.date,wallet_id:f.wallet_id,type:'transfer_out',amount:amt,description:desc})
+      .then(function(r1){if(r1.error){t(r1.error.message,'err');return}
+        sb.from('transactions').insert({user_id:UID,date:f.date,wallet_id:f.wallet_id_to,type:'transfer_in',amount:amt,description:desc})
+        .then(function(r2){if(r2.error){t(r2.error.message,'err');return}
+          sb.from('wallets').update({balance:(Number(wFrom.balance)||0)-amt}).eq('id',f.wallet_id)
+          .then(function(r3){if(r3.error){t(r3.error.message,'err');return}
+            sb.from('wallets').update({balance:(Number(wTo.balance)||0)+amt}).eq('id',f.wallet_id_to)
+            .then(function(r4){if(r4.error){t(r4.error.message,'err');return}
+              try{sessionStorage.removeItem(DRAFT)}catch(e){}
+              t('Transfer berhasil!');rW();rT();p.onClose()})})})})
+      return
+    }
+    var pay={user_id:UID,type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,sub_category_id:f.sub_category_id||null,amount:amt,description:f.description.trim(),date:f.date};
     sb.from('transactions').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}
-      if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(wr){if(wr&&wr.error)console.log('Bal err:',wr.error.message);rW()})}}
+      if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+amt:(Number(w.balance)||0)-amt;sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(wr){if(wr&&wr.error)console.log('Bal err:',wr.error.message);rW()})}}
       try{sessionStorage.removeItem(DRAFT)}catch(e){}
       t('Transaksi ditambahkan');rT();p.onClose()})
   }
   return h(Mod,{open:true,onClose:p.onClose,title:'➕ Transaksi Cepat',footer:h(F,null,h('button',{className:'btn bs',onClick:p.onClose},'Batal'),h('button',{className:'btn bp',onClick:save},'Simpan'))},
-    h('div',{className:'fg'},h('label',null,'Tipe'),h('div',{className:'tabs'},h('button',{className:'tab'+(f.type==='expense'?' act':''),onClick:function(){ufx('type','expense')}},'Keluar'),h('button',{className:'tab'+(f.type==='income'?' act':''),onClick:function(){ufx('type','income')}},'Masuk'))),
+    h('div',{className:'fg'},h('label',null,'Tipe'),h('div',{className:'tabs'},
+      h('button',{className:'tab'+(f.type==='expense'?' act':''),onClick:function(){ufx('type','expense')}},'Keluar'),
+      h('button',{className:'tab'+(f.type==='income'?' act':''),onClick:function(){ufx('type','income')}},'Masuk'),
+      h('button',{className:'tab'+(f.type==='transfer'?' act':''),onClick:function(){ufx('type','transfer')}},'Transfer'))),
     h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Jumlah'),h(NumInput,{value:f.amount,onChange:function(v){ufx('amount',v)}})),h('div',{className:'fg'},h('label',null,'Tanggal'),h('input',{className:'fi',type:'date',value:f.date,onChange:function(e){ufx('date',e.target.value)}}))),
-    h('div',{className:'fg'},h('label',null,'Dompet'),h('select',{className:'fi',value:f.wallet_id,onChange:function(e){ufx('wallet_id',e.target.value)}},h('option',{value:''},'Pilih'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name)}))),
-    h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category_id,onChange:function(e){ufx('category_id',e.target.value)}},h('option',{value:''},'Pilih'),relC.map(function(c){return h('option',{key:c.id,value:c.id},c.name)}))),
-    f.category_id?h('div',{className:'fg'},h('label',null,'Sub-Kategori'),h('select',{className:'fi',value:f.sub_category_id,onChange:function(e){ufx('sub_category_id',e.target.value)}},h('option',{value:''},'Tanpa'),C.filter(function(c){return c.parent_id===f.category_id}).map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))):null,
+    f.type==='transfer'?h(F,null,
+      h('div',{className:'fg'},h('label',null,'Dari Dompet'),h('select',{className:'fi',value:f.wallet_id,onChange:function(e){ufx('wallet_id',e.target.value)}},h('option',{value:''},'-- Pilih --'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name+' ('+fmt(Number(w.balance)||0)+')')}))),
+      h('div',{className:'fg'},h('label',null,'Ke Dompet'),h('select',{className:'fi',value:f.wallet_id_to,onChange:function(e){ufx('wallet_id_to',e.target.value)}},h('option',{value:''},'-- Pilih --'),W.filter(function(w){return w.id!==f.wallet_id}).map(function(w){return h('option',{key:w.id,value:w.id},w.name+' ('+fmt(Number(w.balance)||0)+')')})))):
+    h('div',{className:'fg'},h('label',null,'Dompet'),h('select',{className:'fi',value:f.wallet_id,onChange:function(e){ufx('wallet_id',e.target.value)}},h('option',{value:''},'-- Pilih --'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name+' ('+fmt(Number(w.balance)||0)+')')}))),
+    f.type!=='transfer'?h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category_id,onChange:function(e){ufx('category_id',e.target.value)}},h('option',{value:''},'Pilih'),relC.map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))):null,
+    f.type!=='transfer'&&f.category_id?h('div',{className:'fg'},h('label',null,'Sub-Kategori'),h('select',{className:'fi',value:f.sub_category_id,onChange:function(e){ufx('sub_category_id',e.target.value)}},h('option',{value:''},'Tanpa'),C.filter(function(c){return c.parent_id===f.category_id}).map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))):null,
     h('div',{className:'fg'},h('label',null,'Keterangan'),h('input',{className:'fi',placeholder:'Deskripsi...',value:f.description,onChange:function(e){ufx('description',e.target.value)}})))
 }
 
@@ -1153,9 +1180,31 @@ function TxnsP(p){
     if(q.trim()){var s=q.toLowerCase();l=l.filter(function(t){return(t.description||'').toLowerCase().indexOf(s)>=0||cn(C,t.category_id).toLowerCase().indexOf(s)>=0})}
     return l
   },[T,fTy,fWl,q,C,vMn,vYr]);
-  function oA(){sF({type:'expense',wallet_id:W.length?W[0].id:'',category_id:'',sub_category_id:'',amount:'',description:'',date:td(),is_installment:false,installment_count:6});sM({m:'add'})}
-  function oE(tx){sF({type:tx.type,wallet_id:tx.wallet_id||'',category_id:tx.category_id||'',sub_category_id:tx.sub_category_id||'',amount:String(tx.amount||0),description:tx.description||'',date:tx.date||td(),is_installment:!!tx.installment_count,installment_count:tx.installment_count||6});sM({m:'edit',d:{id:tx.id,wallet_id:tx.wallet_id,type:tx.type,amount:tx.amount}})}
-  function save(){if(!UID){t('Sesi habis, login ulang','err');return}if(!f.amount||Number(f.amount)<=0){t('Jumlah > 0','err');return}var pay={user_id:UID,type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,sub_category_id:f.sub_category_id||null,amount:Number(f.amount),description:f.description.trim(),date:f.date};
+  function oA(){sF({type:'expense',wallet_id:W.length?W[0].id:'',wallet_id_to:'',category_id:'',sub_category_id:'',amount:'',description:'',date:td(),is_installment:false,installment_count:6});sM({m:'add'})}
+  function oE(tx){sF({type:tx.type==='transfer_out'?'transfer':tx.type,wallet_id:tx.wallet_id||'',wallet_id_to:'',category_id:tx.category_id||'',sub_category_id:tx.sub_category_id||'',amount:String(tx.amount||0),description:tx.description||'',date:tx.date||td(),is_installment:!!tx.installment_count,installment_count:tx.installment_count||6});sM({m:'edit',d:{id:tx.id,wallet_id:tx.wallet_id,type:tx.type,amount:tx.amount}})}
+  function save(){
+    if(!UID){t('Sesi habis, login ulang','err');return}
+    if(!f.amount||Number(f.amount)<=0){t('Jumlah > 0','err');return}
+    var amt=Number(f.amount);
+    // Handle transfer type
+    if(f.type==='transfer'){
+      if(!f.wallet_id){t('Pilih dompet asal','err');return}
+      if(!f.wallet_id_to){t('Pilih dompet tujuan','err');return}
+      if(f.wallet_id===f.wallet_id_to){t('Dompet asal & tujuan harus beda','err');return}
+      var wFr=fid(W,f.wallet_id);var wTo=fid(W,f.wallet_id_to);
+      var desc=f.description.trim()||('Transfer '+wn(W,f.wallet_id)+' → '+wn(W,f.wallet_id_to));
+      sb.from('transactions').insert({user_id:UID,date:f.date,wallet_id:f.wallet_id,type:'transfer_out',amount:amt,description:desc})
+      .then(function(r1){if(r1.error){t(r1.error.message,'err');return}
+        sb.from('transactions').insert({user_id:UID,date:f.date,wallet_id:f.wallet_id_to,type:'transfer_in',amount:amt,description:desc})
+        .then(function(r2){if(r2.error){t(r2.error.message,'err');return}
+          sb.from('wallets').update({balance:(Number(wFr.balance)||0)-amt}).eq('id',f.wallet_id)
+          .then(function(r3){if(r3.error){t(r3.error.message,'err');return}
+            sb.from('wallets').update({balance:(Number(wTo.balance)||0)+amt}).eq('id',f.wallet_id_to)
+            .then(function(r4){if(r4.error){t(r4.error.message,'err');return}
+              t('Transfer berhasil!');sM(null);rW();rT()})})})})
+      return
+    }
+    var pay={user_id:UID,type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,sub_category_id:f.sub_category_id||null,amount:amt,description:f.description.trim(),date:f.date};
     if(f.is_installment){pay.installment_count=f.installment_count;pay.installment_monthly=Math.ceil(Number(f.amount)/f.installment_count)}
     if(mo.m==='add'){sb.from('transactions').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(wr){if(wr&&wr.error)console.log('Bal err:',wr.error.message);rW()})}}t('Ditambahkan');sM(null);rT()})}
     else{
@@ -1262,11 +1311,18 @@ function TxnsP(p){
           }))
       })),
     h(Mod,{open:!!mo,onClose:function(){sM(null)},title:mo&&mo.m==='add'?'Tambah Transaksi':'Edit Transaksi',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sM(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},'Simpan'))},
-      h('div',{className:'fg'},h('label',null,'Tipe'),h('div',{className:'tabs'},h('button',{className:'tab'+(f.type==='expense'?' act':''),onClick:function(){var n={};for(var x in f)n[x]=f[x];n.type='expense';sF(n)}},'Pengeluaran'),h('button',{className:'tab'+(f.type==='income'?' act':''),onClick:function(){var n={};for(var x in f)n[x]=f[x];n.type='income';sF(n)}},'Pemasukan'))),
+      h('div',{className:'fg'},h('label',null,'Tipe'),h('div',{className:'tabs'},
+        h('button',{className:'tab'+(f.type==='expense'?' act':''),onClick:function(){var n={};for(var x in f)n[x]=f[x];n.type='expense';sF(n)}},'Pengeluaran'),
+        h('button',{className:'tab'+(f.type==='income'?' act':''),onClick:function(){var n={};for(var x in f)n[x]=f[x];n.type='income';sF(n)}},'Pemasukan'),
+        h('button',{className:'tab'+(f.type==='transfer'?' act':''),onClick:function(){var n={};for(var x in f)n[x]=f[x];n.type='transfer';sF(n)}},'Transfer'))),
       h('div',{className:'fr'},h('div',{className:'fg'},h('label',null,'Jumlah'),h(NumInput,{value:f.amount,onChange:function(v){var n={};for(var x in f)n[x]=f[x];n.amount=v;sF(n)}})),h('div',{className:'fg'},h('label',null,'Tanggal'),h('input',{className:'fi',type:'date',value:f.date,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.date=e.target.value;sF(n)}}))),
-      h('div',{className:'fg'},h('label',null,'Dompet'),h('select',{className:'fi',value:f.wallet_id,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.wallet_id=e.target.value;sF(n)}},h('option',{value:''},'-- Pilih --'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name)}))),
-      h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category_id,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.category_id=e.target.value;n.sub_category_id='';sF(n)}},h('option',{value:''},'-- Pilih --'),relC.map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))),
-      f.category_id?h('div',{className:'fg'},h('label',null,'Sub-Kategori'),h('select',{className:'fi',value:f.sub_category_id,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.sub_category_id=e.target.value;sF(n)}},h('option',{value:''},'-- Tidak ada --'),C.filter(function(c){return c.parent_id===f.category_id}).map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))):null,
+      f.type==='transfer'?h(F,null,
+        h('div',{className:'fg'},h('label',null,'Dari Dompet'),h('select',{className:'fi',value:f.wallet_id,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.wallet_id=e.target.value;sF(n)}},h('option',{value:''},'-- Pilih --'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name+' ('+fmt(Number(w.balance)||0)+')')}))),
+        h('div',{className:'fg'},h('label',null,'Ke Dompet'),h('select',{className:'fi',value:f.wallet_id_to,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.wallet_id_to=e.target.value;sF(n)}},h('option',{value:''},'-- Pilih --'),W.filter(function(w){return w.id!==f.wallet_id}).map(function(w){return h('option',{key:w.id,value:w.id},w.name+' ('+fmt(Number(w.balance)||0)+')')})))):
+      h(F,null,
+        h('div',{className:'fg'},h('label',null,'Dompet'),h('select',{className:'fi',value:f.wallet_id,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.wallet_id=e.target.value;sF(n)}},h('option',{value:''},'-- Pilih --'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name+' ('+fmt(Number(w.balance)||0)+')')}))),
+        h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category_id,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.category_id=e.target.value;n.sub_category_id='';sF(n)}},h('option',{value:''},'-- Pilih --'),relC.map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))),
+        f.category_id?h('div',{className:'fg'},h('label',null,'Sub-Kategori'),h('select',{className:'fi',value:f.sub_category_id,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.sub_category_id=e.target.value;sF(n)}},h('option',{value:''},'-- Tidak ada --'),C.filter(function(c){return c.parent_id===f.category_id}).map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))):null),
       h('div',{className:'fg'},h('label',null,'Keterangan'),h('input',{className:'fi',placeholder:'cth: Makan siang, Gaji...',value:f.description,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.description=e.target.value;sF(n)}})),
       canInst?h(F,null,h('div',{style:{display:'flex',alignItems:'center',gap:12,cursor:'pointer',padding:'10px 12px',background:'var(--bgi)',borderRadius:8},onClick:function(){var n={};for(var x in f)n[x]=f[x];n.is_installment=!f.is_installment;sF(n)}},h('div',{style:{width:44,height:24,borderRadius:12,background:f.is_installment?'var(--acc)':'var(--brd)',position:'relative',transition:'background .2s',flexShrink:0}},h('div',{style:{width:18,height:18,borderRadius:9,background:'#fff',position:'absolute',top:3,left:f.is_installment?23:3,transition:'left .2s'}})),h('span',{style:{fontWeight:600,fontSize:'.85rem'}},'Cicilan Kartu Kredit')),
         f.is_installment?h('div',{className:'fg'},h('label',null,'Tenor'),h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},[3,6,9,12,24].map(function(m){return h('button',{key:m,className:'btn '+(f.installment_count===m?'bp':'bs'),style:{padding:'4px 12px',fontSize:'.78rem'},onClick:function(){var n={};for(var x in f)n[x]=f[x];n.installment_count=m;sF(n)}},m+'x')})),mAmt>0?h('div',{style:{marginTop:6,fontSize:'.8rem',color:'var(--blu)',background:'var(--blubg)',padding:'8px 12px',borderRadius:8}},'💳 ',fmt(mAmt),'/bln × ',f.installment_count,' = ',fmt(Number(f.amount))):null):null):null),
