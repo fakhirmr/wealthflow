@@ -2,7 +2,7 @@
 <html lang="id" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>WealthFlow</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#10b981">
@@ -51,7 +51,7 @@ button svg{width:18px;height:18px;flex-shrink:0}
 .bi{width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:8px;background:transparent;color:var(--t2);border:none}.bi:hover{background:var(--bgc2);color:var(--t1)}
 
 .fg{margin-bottom:14px}.fg label{display:block;font-size:.72rem;font-weight:600;color:var(--t2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
-.fi{width:100%;padding:9px 12px;background:var(--bgi);border:1px solid var(--brd);border-radius:8px;color:var(--t1);font-size:.85rem;transition:border-color .15s}.fi:focus{border-color:var(--acc)}.fi::placeholder{color:var(--t3)}
+.fi{width:100%;padding:9px 12px;background:var(--bgi);border:1px solid var(--brd);border-radius:8px;color:var(--t1);font-size:16px;transition:border-color .15s}.fi:focus{border-color:var(--acc)}.fi::placeholder{color:var(--t3)}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px}
@@ -1261,7 +1261,14 @@ function TxnsP(p){
           h('span',{style:{fontWeight:700,fontSize:'.9rem',minWidth:130,textAlign:'center'}},MOS[vMn],' ',vYr),
           h('button',{className:'btn bs',style:{padding:'4px 10px',fontSize:'.8rem'},onClick:nextMo},'▶')),
         h('span',{style:{fontSize:'.72rem',color:'var(--t3)'}},list.length,' transaksi')),
-      // Cashflow pills
+      // Cashflow pills — show wallet balance if filtered, else monthly totals
+      fWl!=='all'?function(){var sel=fid(W,fWl);return sel?h('div',{style:{background:'linear-gradient(135deg,var(--accbg),var(--blubg))',borderRadius:8,padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between'}},
+        h('div',null,
+          h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginBottom:2}},sel.name),
+          h('div',{style:{fontWeight:700,fontSize:'1.1rem',color:'var(--acc)'}},fmt(sel.balance))),
+        h('div',{style:{textAlign:'right'}},
+          h('div',{style:{fontSize:'.65rem',color:'var(--t3)',marginBottom:2}},list.length+' transaksi bulan ini'),
+          h('div',{style:{fontSize:'.78rem',fontWeight:600,color:(moInc-moExp)>=0?'var(--acc)':'var(--red)'}},((moInc-moExp)>=0?'+':'')+fmt(moInc-moExp)))):null}():
       h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}},
         h('div',{style:{background:'var(--accbg)',borderRadius:8,padding:'8px 10px',textAlign:'center'}},
           h('div',{style:{fontSize:'.65rem',color:'var(--t3)',marginBottom:2}},'Pemasukan'),
@@ -1275,7 +1282,7 @@ function TxnsP(p){
     h('div',{className:'fbar'},
       h('input',{className:'fi',placeholder:'Cari semua...',value:q,onChange:function(e){sQ(e.target.value)},style:{maxWidth:180}}),
       h('select',{className:'fi',value:fTy,onChange:function(e){sFT(e.target.value)},style:{maxWidth:130}},h('option',{value:'all'},'Semua'),h('option',{value:'income'},'Masuk'),h('option',{value:'expense'},'Keluar'),h('option',{value:'transfer_out'},'Transfer')),
-      h('select',{className:'fi',value:fWl,onChange:function(e){sFW(e.target.value)},style:{maxWidth:140}},h('option',{value:'all'},'Semua Dompet'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name)}))),
+      h('select',{className:'fi',value:fWl,onChange:function(e){sFW(e.target.value)},style:{maxWidth:140}},h('option',{value:'all'},'Semua Dompet'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name+' ('+fmt(w.balance)+')')}))),
     h('div',{className:'cd',style:{padding:0,overflow:'hidden'}},
       list.length===0?h('div',{className:'empty',style:{padding:32}},h('div',{className:'ei'},'📋'),h('h3',null,'Tidak ada transaksi'),h('p',null,'di ',MOS[vMn],' ',vYr)):
       grouped.map(function(grp){
