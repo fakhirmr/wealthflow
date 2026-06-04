@@ -1354,7 +1354,7 @@ function DebtP(p){
   var _mo=useState(null),mo=_mo[0],sMo=_mo[1];
   var _pMo=useState(null),pMo=_pMo[0],sPMo=_pMo[1];
   var _f=useState({type:'hutang',name:'',description:'',category:'personal',total_amount:'',remaining_amount:'',monthly_payment:'',interest_rate:'',interest_model:'flat',tenor:'',start_date:td(),due_date:'',wallet_id:'',record_txn:true,txn_wallet_id:''}),f=_f[0],sF=_f[1];
-  var _pf=useState({amount:'',paid_date:td(),wallet_id:'',notes:''}),pf=_pf[0],sPf=_pf[1];
+  var _pf=useState({amount:'',paid_date:td(),wallet_id:'',notes:'',record_txn:true}),pf=_pf[0],sPf=_pf[1];
   var CATS={kpr:'🏠 KPR/Rumah',kendaraan:'🚗 Kendaraan',personal:'👤 Personal',usaha:'💼 Usaha',pendidikan:'🎓 Pendidikan',lainnya:'📦 Lainnya'};
   var IMODELS={flat:'Flat (Bunga Tetap)',anuitas:'Anuitas (Efektif)',simple:'Simple (Sekali Bayar)'};
 
@@ -1385,7 +1385,7 @@ function DebtP(p){
 
   function openAdd(){sF({type:tab,name:'',description:'',category:'personal',total_amount:'',remaining_amount:'',monthly_payment:'',interest_rate:'',interest_model:'flat',tenor:'',start_date:td(),due_date:'',wallet_id:'',record_txn:true,txn_wallet_id:W.length?W[0].id:''});sMo({m:'add'})}
   function openEdit(d){sF({type:d.type,name:d.name||'',description:d.description||'',category:d.category||'personal',total_amount:String(d.total_amount||0),remaining_amount:String(d.remaining_amount||0),monthly_payment:String(d.monthly_payment||0),interest_rate:String(d.interest_rate||0),interest_model:d.interest_model||'flat',tenor:String(d.tenor||0),start_date:d.start_date||td(),due_date:d.due_date||'',wallet_id:d.wallet_id||'',record_txn:false,txn_wallet_id:''});sMo({m:'edit',d:d})}
-  function openPay(d){sPf({amount:String(d.monthly_payment||0),paid_date:td(),wallet_id:W.length?W[0].id:'',notes:''});sPMo(d)}
+  function openPay(d){sPf({amount:String(d.monthly_payment||0),paid_date:td(),wallet_id:W.length?W[0].id:'',notes:'',record_txn:true});sPMo(d)}
 
   function saveDebt(){
     if(!UID){t('Sesi habis','err');return}
@@ -1427,15 +1427,35 @@ function DebtP(p){
     var amt=Number(pf.amount)||0;if(amt<=0){t('Jumlah > 0','err');return}
     var debt=pMo;var newRem=Math.max((Number(debt.remaining_amount)||0)-amt,0);
     var newStatus=newRem<=0?'paid':'active';
-    // Insert payment record
+    // Step 1: Insert payment record
     sb.from('debt_payments').insert({user_id:UID,debt_id:debt.id,amount:amt,paid_date:pf.paid_date,wallet_id:pf.wallet_id||null,notes:pf.notes}).then(function(r){
       if(r.error){t(r.error.message,'err');return}
-      // Update remaining amount
+      // Step 2: Update remaining amount on debt
       sb.from('debts').update({remaining_amount:newRem,status:newStatus}).eq('id',debt.id).then(function(r2){
         if(r2.error){t(r2.error.message,'err');return}
-        // Deduct from wallet if selected
-        if(pf.wallet_id){var w=fid(W,pf.wallet_id);if(w){var nb=(Number(w.balance)||0)-(debt.type==='hutang'?amt:-amt);sb.from('wallets').update({balance:nb}).eq('id',pf.wallet_id).then(function(wr){if(wr&&wr.error)console.log('Bal err:',wr.error.message);rW()})}}
-        t(newRem<=0?'Lunas! 🎉':'Pembayaran tercatat');sPMo(null);rD();rDP()
+        // Step 3: Deduct/add wallet balance
+        function afterWallet(){
+          // Step 4: Create transaction if toggle ON
+          if(pf.record_txn&&pf.wallet_id){
+            var txType=debt.type==='hutang'?'expense':'income';
+            var txDesc=(debt.type==='hutang'?'Bayar utang: ':'Terima tagihan: ')+debt.name+(pf.notes?' ('+pf.notes+')':'');
+            sb.from('transactions').insert({user_id:UID,type:txType,wallet_id:pf.wallet_id,amount:amt,date:pf.paid_date,description:txDesc,category_id:null,sub_category_id:null}).then(function(r3){
+              if(r3.error)console.log('Txn err:',r3.error.message);
+              rT();
+            })
+          }
+          t(newRem<=0?'Lunas! 🎉':'Pembayaran tercatat');sPMo(null);rD();rDP();
+        }
+        if(pf.wallet_id){
+          var w=fid(W,pf.wallet_id);
+          if(w){
+            var nb=(Number(w.balance)||0)-(debt.type==='hutang'?amt:-amt);
+            sb.from('wallets').update({balance:nb}).eq('id',pf.wallet_id).then(function(wr){
+              if(wr&&wr.error)console.log('Bal err:',wr.error.message);
+              rW();afterWallet();
+            })
+          }else afterWallet();
+        }else afterWallet();
       })
     })
   }
@@ -1551,10 +1571,17 @@ function DebtP(p){
           h('div',{style:{fontSize:'1.2rem',fontWeight:700,color:'var(--red)'}},fmt(pMo.remaining_amount)),
           pMo.monthly_payment?h('div',{style:{fontSize:'.75rem',color:'var(--t3)',marginTop:2}},'Cicilan normal: ',fmt(pMo.monthly_payment)):null),
         h('div',{className:'fg'},h('label',null,'Jumlah Bayar'),h(NumInput,{value:pf.amount,onChange:function(v){var n={};for(var x in pf)n[x]=pf[x];n.amount=v;sPf(n)}})),
-        h('div',{className:'fr'},
-          h('div',{className:'fg'},h('label',null,'Tanggal Bayar'),h('input',{className:'fi',type:'date',value:pf.paid_date,onChange:function(e){var n={};for(var x in pf)n[x]=pf[x];n.paid_date=e.target.value;sPf(n)}})),
-          h('div',{className:'fg'},h('label',null,'Dari Dompet'),h('select',{className:'fi',value:pf.wallet_id,onChange:function(e){var n={};for(var x in pf)n[x]=pf[x];n.wallet_id=e.target.value;sPf(n)}},h('option',{value:''},'-- Manual --'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name+' ('+fmt(w.balance)+')')})))),
-        h('div',{className:'fg'},h('label',null,'Catatan'),h('input',{className:'fi',placeholder:'cth: Cicilan ke-3',value:pf.notes,onChange:function(e){var n={};for(var x in pf)n[x]=pf[x];n.notes=e.target.value;sPf(n)}}))):null),
+        h('div',{className:'fg'},h('label',null,'Tanggal Bayar'),h('input',{className:'fi',type:'date',value:pf.paid_date,onChange:function(e){var n={};for(var x in pf)n[x]=pf[x];n.paid_date=e.target.value;sPf(n)}})),
+                h('div',{className:'fg'},h('label',null,'Dari Dompet'),h('select',{className:'fi',value:pf.wallet_id,onChange:function(e){var n={};for(var x in pf)n[x]=pf[x];n.wallet_id=e.target.value;sPf(n)}},h('option',{value:''},'-- Manual --'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name+' ('+fmt(w.balance)+')')}))),
+        h('div',{className:'fg'},h('label',null,'Catatan'),h('input',{className:'fi',placeholder:'cth: Cicilan ke-3',value:pf.notes,onChange:function(e){var n={};for(var x in pf)n[x]=pf[x];n.notes=e.target.value;sPf(n)}})),
+        h('div',{style:{borderTop:'1px solid var(--brd)',paddingTop:12,marginTop:4}},
+          h('div',{style:{display:'flex',alignItems:'center',gap:10,cursor:'pointer'},onClick:function(){var n={};for(var x in pf)n[x]=pf[x];n.record_txn=!pf.record_txn;sPf(n)}},
+            h('div',{style:{width:40,height:22,borderRadius:11,background:pf.record_txn?'var(--acc)':'var(--brd)',position:'relative',transition:'background .2s',flexShrink:0}},
+              h('div',{style:{width:16,height:16,borderRadius:'50%',background:'#fff',position:'absolute',top:3,left:pf.record_txn?21:3,transition:'left .2s'}})),
+            h('div',null,
+              h('div',{style:{fontWeight:600,fontSize:'.85rem'}},'Catat di Transaksi'),
+              h('div',{style:{fontSize:'.72rem',color:'var(--t3)'}},pf.record_txn?'Muncul di tab Transaksi sebagai '+(pMo&&pMo.type==='hutang'?'pengeluaran':'pemasukan'):'Hanya tercatat di Hutang & Piutang'))),
+          pf.record_txn&&!pf.wallet_id?h('div',{style:{marginTop:6,fontSize:'.72rem',color:'var(--org)',background:'rgba(251,146,60,.1)',padding:'6px 10px',borderRadius:6}},'⚠️ Pilih dompet agar bisa tercatat di transaksi'):null)):null),
     cfE)
 }
 
