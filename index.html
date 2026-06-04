@@ -126,6 +126,8 @@ input,textarea{user-select:text;-webkit-user-select:text}
 /* Page slide-up animation on page change */
 @keyframes pgIn{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}
 .pg-page{animation:pgIn .2s cubic-bezier(.22,1,.36,1) forwards}
+/* What's New modal slide up */
+@keyframes slideUp{0%{transform:translateY(100%);opacity:0}100%{transform:translateY(0);opacity:1}}
 /* Skeleton pulse — GPU-friendly, no flicker */
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
 .sk{background:var(--bgc2);animation:pulse 1.5s ease-in-out infinite;border-radius:6px;display:block}
@@ -540,6 +542,101 @@ function ResetPasswordPage(p){
         h('button',{className:'btn bp',style:{width:'100%',justifyContent:'center',padding:'12px',fontSize:'.9rem'},onClick:doReset,disabled:loading||!!ok},loading?'Menyimpan...':'Simpan Password Baru'))))
 }
 
+/* ═══════════════════ WHAT'S NEW ═══════════════════ */
+var WF_VERSION='4.0';
+var WF_CHANGELOG=[
+  {v:'4.0',date:'4 Jun 2026',items:[
+    {type:'fix',emoji:'🛠',text:'Layar gelap / crash saat buka app — diperbaiki'},
+    {type:'fix',emoji:'✨',text:'Kedip/glitch saat pertama buka — diperbaiki'},
+    {type:'new',emoji:'💳',text:'Toggle "Catat di Transaksi" saat bayar hutang/piutang'},
+    {type:'improve',emoji:'📱',text:'Anti zoom-in pada form input (iOS)'},
+    {type:'new',emoji:'🎬',text:'Animasi transisi halaman yang halus'},
+    {type:'new',emoji:'⚡',text:'Skeleton loading saat data pertama dimuat'},
+    {type:'improve',emoji:'👛',text:'Filter dompet tampilkan saldo tiap dompet'},
+    {type:'improve',emoji:'🏠',text:'Bisa install sebagai app di home screen (PWA)'},
+  ]},
+  {v:'3.0',date:'30 Mei 2026',items:[
+    {type:'new',emoji:'🎯',text:'Halaman Goals — pantau tujuan keuanganmu'},
+    {type:'new',emoji:'🔄',text:'Tab Transfer di form transaksi cepat'},
+    {type:'improve',emoji:'📊',text:'Budget 2.0 — sub-kategori & navigasi bulan'},
+    {type:'improve',emoji:'💰',text:'Saldo dompet tampil di semua dropdown'},
+    {type:'new',emoji:'🔑',text:'Ganti password dari dalam app (Pengaturan)'},
+    {type:'fix',emoji:'🛠',text:'Transfer sync — saldo tidak terupdate'},
+  ]},
+  {v:'2.0',date:'21 Mei 2026',items:[
+    {type:'new',emoji:'🤖',text:'AI Asisten — Chat, Anomali, Forecast, Weekly Digest'},
+    {type:'new',emoji:'💳',text:'Hutang & Piutang 2.0 dengan kalkulator bunga'},
+    {type:'new',emoji:'📈',text:'Halaman Investasi — portofolio & return'},
+    {type:'improve',emoji:'🏷',text:'Kategori bertingkat (parent → sub-kategori)'},
+  ]},
+];
+
+function WhatsNewModal(p){
+  var onClose=p.onClose,onShowAll=p.onShowAll;
+  var ver=WF_CHANGELOG[0];
+  var typeStyle={
+    new:{bg:'var(--accbg)',color:'var(--acc)',label:'BARU'},
+    improve:{bg:'var(--blubg)',color:'var(--blu)',label:'UPDATE'},
+    fix:{bg:'rgba(16,185,129,.06)',color:'var(--t3)',label:'FIX'},
+  };
+
+  return h('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',zIndex:3000,display:'flex',alignItems:'flex-end',justifyContent:'center',padding:'0 0 0 0'},onClick:function(e){if(e.target===e.currentTarget)onClose()}},
+    h('div',{style:{background:'var(--bgc)',borderRadius:'20px 20px 0 0',width:'100%',maxWidth:480,maxHeight:'85vh',overflow:'hidden',display:'flex',flexDirection:'column',animation:'slideUp .3s cubic-bezier(.22,1,.36,1)'}},
+      // Handle bar
+      h('div',{style:{padding:'10px 0 0',display:'flex',justifyContent:'center'}},
+        h('div',{style:{width:36,height:4,borderRadius:2,background:'var(--brd)'}})),
+      // Header
+      h('div',{style:{padding:'16px 22px 12px',borderBottom:'1px solid var(--brd)'}},
+        h('div',{style:{display:'flex',alignItems:'center',gap:10}},
+          h('div',{style:{width:42,height:42,borderRadius:12,background:'linear-gradient(135deg,var(--acc),var(--cyn))',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,flexShrink:0}},'W'),
+          h('div',null,
+            h('div',{style:{fontWeight:700,fontSize:'1rem'}},'Yang Baru di WealthFlow'),
+            h('div',{style:{fontSize:'.75rem',color:'var(--t3)',marginTop:1}},'Versi ',ver.v,' · ',ver.date)))),
+      // Items list
+      h('div',{style:{padding:'12px 22px',overflowY:'auto',flex:1}},
+        ver.items.map(function(item,i){
+          var ts=typeStyle[item.type]||typeStyle.improve;
+          return h('div',{key:i,style:{display:'flex',alignItems:'flex-start',gap:12,padding:'10px 0',borderBottom:i<ver.items.length-1?'1px solid var(--brd)':''}},
+            h('div',{style:{fontSize:20,lineHeight:1,marginTop:1,width:28,textAlign:'center',flexShrink:0}},item.emoji),
+            h('div',{style:{flex:1}},
+              h('div',{style:{fontSize:'.85rem',fontWeight:500,color:'var(--t1)'}},item.text)),
+            h('span',{style:{fontSize:'.6rem',fontWeight:700,padding:'2px 6px',borderRadius:4,background:ts.bg,color:ts.color,flexShrink:0,marginTop:2}},ts.label))
+        })),
+      // Footer buttons
+      h('div',{style:{padding:'12px 22px 28px',display:'flex',gap:8,borderTop:'1px solid var(--brd)'}},
+        h('button',{className:'btn bs',style:{flex:1,justifyContent:'center',fontSize:'.82rem'},onClick:onShowAll},'Lihat semua versi'),
+        h('button',{className:'btn bp',style:{flex:1,justifyContent:'center',fontSize:'.82rem'},onClick:onClose},'Oke, tutup ✓'))))
+}
+
+function AllChangelogModal(p){
+  var onClose=p.onClose;
+  var typeLabel={new:'BARU',improve:'UPDATE',fix:'FIX'};
+  var typeColor={new:'var(--acc)',improve:'var(--blu)',fix:'var(--t3)'};
+  var typeBg={new:'var(--accbg)',improve:'var(--blubg)',fix:'rgba(255,255,255,.05)'};
+
+  return h('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',zIndex:3000,display:'flex',alignItems:'flex-end',justifyContent:'center'},onClick:function(e){if(e.target===e.currentTarget)onClose()}},
+    h('div',{style:{background:'var(--bgc)',borderRadius:'20px 20px 0 0',width:'100%',maxWidth:480,maxHeight:'90vh',overflow:'hidden',display:'flex',flexDirection:'column',animation:'slideUp .3s cubic-bezier(.22,1,.36,1)'}},
+      h('div',{style:{padding:'10px 0 0',display:'flex',justifyContent:'center'}},
+        h('div',{style:{width:36,height:4,borderRadius:2,background:'var(--brd)'}})),
+      h('div',{style:{padding:'14px 22px 12px',borderBottom:'1px solid var(--brd)',display:'flex',alignItems:'center',justifyContent:'space-between'}},
+        h('div',{style:{fontWeight:700,fontSize:'.95rem'}},'📋 Riwayat Pembaruan'),
+        h('button',{className:'bi',onClick:onClose},h(Ic,{n:'x'}))),
+      h('div',{style:{padding:'12px 22px 28px',overflowY:'auto'}},
+        WF_CHANGELOG.map(function(ver,vi){
+          return h('div',{key:ver.v,style:{marginBottom:vi<WF_CHANGELOG.length-1?20:0}},
+            h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:10}},
+              h('span',{style:{fontFamily:'monospace',fontSize:'.75rem',fontWeight:700,padding:'3px 10px',borderRadius:20,background:'var(--accbg)',color:'var(--acc)',border:'1px solid rgba(16,185,129,.2)'}},'v'+ver.v),
+              h('span',{style:{fontSize:'.72rem',color:'var(--t3)'}},'· '+ver.date)),
+            ver.items.map(function(item,i){
+              return h('div',{key:i,style:{display:'flex',alignItems:'center',gap:10,padding:'7px 0',borderBottom:i<ver.items.length-1?'1px solid var(--brd)':''}},
+                h('span',{style:{fontSize:16,width:24,textAlign:'center',flexShrink:0}},item.emoji),
+                h('span',{style:{flex:1,fontSize:'.82rem',color:'var(--t2)'}},item.text),
+                h('span',{style:{fontSize:'.6rem',fontWeight:700,padding:'2px 6px',borderRadius:4,background:typeBg[item.type],color:typeColor[item.type]}},typeLabel[item.type]||'UPDATE'))
+            }),
+            vi<WF_CHANGELOG.length-1?h('div',{style:{height:1,background:'var(--brd)',margin:'16px 0 6px'}}):null)
+        }))))
+}
+
 /* ═══════════════════ APP ═══════════════════ */
 function App(){
   var _au=useState(null),user=_au[0],sUser=_au[1];
@@ -558,6 +655,11 @@ function App(){
   var _l=useState(false),ld=_l[0],sL=_l[1];var _e=useState(''),dbE=_e[0],sE=_e[1];var _sl=useState(false),slow=_sl[0],sSl=_sl[1];
   var initTheme='dark';try{initTheme=localStorage.getItem('wf_theme')||'dark'}catch(e){}
   var _th=useState(initTheme),theme=_th[0],sTh=_th[1];
+  // What's New — show popup when version is newer than last seen
+  var _wn=useState(false),showWN=_wn[0],sShowWN=_wn[1];
+  var _wa=useState(false),showAll=_wa[0],sShowAll=_wa[1];
+  function closeWN(){sShowWN(false);try{localStorage.setItem('wf_seen_ver',WF_VERSION)}catch(e){}}
+  function openAll(){sShowWN(false);sShowAll(true)}
   useEffect(function(){document.documentElement.setAttribute('data-theme',theme);try{localStorage.setItem('wf_theme',theme)}catch(e){}},[theme]);
   var _fab=useState(false),fabOpen=_fab[0],sFab=_fab[1];
   var _tf=useState(false),tfOpen=_tf[0],sTf=_tf[1];
@@ -607,7 +709,10 @@ function App(){
   useEffect(function(){
     if(!user)return;sL(true);
     var t1=setTimeout(function(){sSl(true)},3e3);var t2=setTimeout(function(){sL(false)},10e3);var errs=[],done=0;
-    function chk(){done++;if(done>=8){clearTimeout(t2);if(errs.length)sE(errs.join('; '));sL(false)}}
+    function chk(){done++;if(done>=8){clearTimeout(t2);if(errs.length)sE(errs.join('; '));sL(false);
+      // Show What's New if version is newer than last seen
+      try{var seen=localStorage.getItem('wf_seen_ver');if(seen!==WF_VERSION)setTimeout(function(){sShowWN(true)},600)}catch(e){}
+    }}
     lt('wallets','created_at',true).then(function(r){sW(r.d);if(r.e)errs.push(r.e);chk()});
     lt('transactions','date',false).then(function(r){sT(r.d);if(r.e)errs.push(r.e);chk()});
     lt('categories','name',true).then(function(r){sC(r.d);if(r.e)errs.push(r.e);chk()});
@@ -674,6 +779,8 @@ function App(){
       pg==='dashboard'?h(Dash,cx):null,pg==='transactions'?h(TxnsP,cx):null,pg==='budgets'?h(BudgP,cx):null,pg==='goals'?h(GoalsP,cx):null,pg==='debts'?h(DebtP,cx):null,pg==='ai'?h(AiP,cx):null,pg==='investments'?h(InvP,cx):null,pg==='settings'?h(SettingsP,Object.assign({},cx,{theme:theme,sTh:sTh,user:user})):null)),
     tfOpen?h(TransferMod,{W:W,rW:rW,rT:rT,onClose:function(){sTf(false)}}):null,
     fabOpen?h(QuickTxn,{W:W,C:C,rT:rT,rW:rW,onClose:function(){sFab(false)}}):null,
+    showWN?h(WhatsNewModal,{onClose:closeWN,onShowAll:openAll}):null,
+    showAll?h(AllChangelogModal,{onClose:function(){sShowAll(false)}}):null,
     h('button',{className:'fab',onClick:function(){sFab(true)},title:'Tambah Transaksi'},'+'))
 }
 
@@ -951,6 +1058,7 @@ function SettingsP(p){
   var _cfmPw=useState(''),cfmPw=_cfmPw[0],sCfmPw=_cfmPw[1];
   var _pwBusy=useState(false),pwBusy=_pwBusy[0],sPwBusy=_pwBusy[1];
   var _pwMsg=useState(null),pwMsg=_pwMsg[0],sPwMsg=_pwMsg[1];
+  var _showAllCl=useState(false),showAllCl=_showAllCl[0],sShowAllCl=_showAllCl[1];
 
   function changePassword(){
     if(!newPw||newPw.length<6){sPwMsg({t:'err',m:'Password baru minimal 6 karakter'});return}
@@ -1078,7 +1186,8 @@ function SettingsP(p){
       h('button',{className:'tab'+(tab==='categories'?' act':''),onClick:function(){sTab('categories')}},'Kategori'),
       h('button',{className:'tab'+(tab==='investments'?' act':''),onClick:function(){sTab('investments')}},'Investasi'),
       h('button',{className:'tab'+(tab==='data'?' act':''),onClick:function(){sTab('data')}},'Data'),
-      h('button',{className:'tab'+(tab==='akun'?' act':''),onClick:function(){sTab('akun')}},'Akun')),
+      h('button',{className:'tab'+(tab==='akun'?' act':''),onClick:function(){sTab('akun')}},'Akun'),
+      h('button',{className:'tab'+(tab==='updates'?' act':''),onClick:function(){sTab('updates')}},'✨ Update')),
     tab==='wallets'?h(WalletsP,p):null,
     tab==='categories'?h(CatsP,p):null,
     tab==='investments'?h(InvP,p):null,
@@ -1129,7 +1238,31 @@ function SettingsP(p){
             h('div',{style:{fontSize:'1.1rem'}},'💾'),
             h('div',{style:{fontWeight:600,fontSize:'.85rem'}},'Import JSON'),
             h('div',{style:{fontSize:'.72rem',color:'var(--t3)'}},'Backup lengkap'))),
-        h('div',{style:{marginTop:12,padding:'10px 14px',background:'var(--bgi)',borderRadius:8,fontSize:'.75rem',color:'var(--t3)'}},'Import JSON akan menambah data baru (tidak menimpa). Export dulu sebagai backup sebelum import.'))):null)
+        h('div',{style:{marginTop:12,padding:'10px 14px',background:'var(--bgi)',borderRadius:8,fontSize:'.75rem',color:'var(--t3)'}},'Import JSON akan menambah data baru (tidak menimpa). Export dulu sebagai backup sebelum import.'))):null,
+    // Updates tab
+    tab==='updates'?h('div',null,
+      showAllCl?h(AllChangelogModal,{onClose:function(){sShowAllCl(false)}}):null,
+      // Current version card
+      h('div',{className:'cd',style:{marginBottom:12,padding:'16px 18px',background:'linear-gradient(135deg,var(--accbg),var(--blubg))'}},
+        h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:10}},
+          h('div',{style:{width:40,height:40,borderRadius:10,background:'linear-gradient(135deg,var(--acc),var(--cyn))',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,color:'#fff',fontSize:16,flexShrink:0}},'W'),
+          h('div',null,
+            h('div',{style:{fontWeight:700,fontSize:'.95rem'}},'WealthFlow'),
+            h('div',{style:{fontSize:'.75rem',color:'var(--t3)'}},'Versi '+WF_VERSION+' · 4 Jun 2026'))),
+        h('div',{style:{fontSize:'.78rem',color:'var(--t2)',marginBottom:10}},'Kamu menggunakan versi terbaru ✓'),
+        h('button',{className:'btn bp',style:{width:'100%',justifyContent:'center',fontSize:'.82rem'},onClick:function(){sShowAllCl(true)}},'📋 Lihat semua riwayat pembaruan')),
+      // Latest changes
+      h('div',{className:'cd'},
+        h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:12}},'✨ Terbaru di v'+WF_VERSION),
+        WF_CHANGELOG[0].items.map(function(item,i){
+          var typeColor={new:'var(--acc)',improve:'var(--blu)',fix:'var(--t3)'};
+          var typeBg={new:'var(--accbg)',improve:'var(--blubg)',fix:'rgba(255,255,255,.05)'};
+          var typeLabel={new:'BARU',improve:'UPDATE',fix:'FIX'};
+          return h('div',{key:i,style:{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:i<WF_CHANGELOG[0].items.length-1?'1px solid var(--brd)':''}},
+            h('span',{style:{fontSize:17,width:26,textAlign:'center',flexShrink:0}},item.emoji),
+            h('span',{style:{flex:1,fontSize:'.82rem',color:'var(--t2)'}},item.text),
+            h('span',{style:{fontSize:'.6rem',fontWeight:700,padding:'2px 6px',borderRadius:4,background:typeBg[item.type],color:typeColor[item.type]}},typeLabel[item.type]||'UPDATE'))
+        }))):null)
 }
 
 /* ═══ WALLETS ═══ */
