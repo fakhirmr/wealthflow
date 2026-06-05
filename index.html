@@ -934,19 +934,35 @@ function Dash(p){
   var exp=moTxns.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
   var savRate=inc>0?Math.round(((inc-exp)/inc)*100):0;
 
-  // Budget progress
-  var totalBudget=B.reduce(function(s,b){return s+(Number(b.amount)||0)},0);
-  var budgetSpent=B.reduce(function(s,b){
-    var sp=moTxns.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(ss,t){return ss+(Number(t.amount)||0)},0);
+  // Budget progress — filter active budgets for current month, deduplicate by category
+  var dashBudgets=B.filter(function(b){
+    // Include recurring OR matching current month
+    if(b.is_recurring===true||b.is_recurring===null||b.is_recurring===undefined)return true;
+    return Number(b.month)===mo+1&&Number(b.year)===yr;
+  });
+  // Deduplicate: if both recurring AND specific-month exist for same category, keep specific-month
+  var budgetMap={};
+  dashBudgets.forEach(function(b){
+    var existing=budgetMap[b.category_id];
+    if(!existing){budgetMap[b.category_id]=b;return;}
+    // Prefer month-specific over recurring
+    if(b.is_recurring===false)budgetMap[b.category_id]=b;
+  });
+  var activeDashB=Object.keys(budgetMap).map(function(k){return budgetMap[k]});
+
+  var totalBudget=activeDashB.reduce(function(s,b){return s+(Number(b.amount)||0)},0);
+  var budgetSpent=activeDashB.reduce(function(s,b){
+    var cat=fid(C,b.category_id);var isParent=cat&&!cat.parent_id;
+    var sp=moTxns.filter(function(t){return t.type==='expense'&&(isParent?t.category_id===b.category_id:(t.sub_category_id===b.category_id||t.category_id===b.category_id))}).reduce(function(ss,t){return ss+(Number(t.amount)||0)},0);
     return s+sp;
   },0);
   var budgetPct=totalBudget>0?Math.min(Math.round((budgetSpent/totalBudget)*100),100):0;
   var bCol=budgetPct>=100?'var(--red)':budgetPct>=80?'var(--org)':'var(--acc)';
 
   // Per-budget breakdown (top 5 by spending)
-  var budgetItems=B.map(function(b){
-    var cat=fid(C,b.category_id);
-    var sp=moTxns.filter(function(t){return t.type==='expense'&&t.category_id===b.category_id}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
+  var budgetItems=activeDashB.map(function(b){
+    var cat=fid(C,b.category_id);var isParent=cat&&!cat.parent_id;
+    var sp=moTxns.filter(function(t){return t.type==='expense'&&(isParent?t.category_id===b.category_id:(t.sub_category_id===b.category_id||t.category_id===b.category_id))}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
     var pct=Number(b.amount)>0?Math.min(Math.round((sp/Number(b.amount))*100),100):0;
     return{cat:cat,budget:Number(b.amount),spent:sp,pct:pct,over:sp>Number(b.amount)};
   }).filter(function(x){return x.cat}).sort(function(a,b){return b.pct-a.pct}).slice(0,5);
