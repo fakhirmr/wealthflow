@@ -1470,6 +1470,33 @@ function TxnsP(p){
     var g={};list.forEach(function(tx){var d=tx.date||'';if(!g[d])g[d]=[];g[d].push(tx)});
     return Object.keys(g).sort(function(a,b){return b.localeCompare(a)}).map(function(d){return{date:d,txns:g[d]}});
   },[list]);
+
+  // Running balance per transaction — start from current wallet balance, walk newest→oldest
+  var runBalMap=useMemo(function(){
+    var map={};
+    // Group all transactions by wallet, sort newest→oldest
+    var byW={};
+    T.forEach(function(tx){
+      if(!tx.wallet_id)return;
+      if(!byW[tx.wallet_id])byW[tx.wallet_id]=[];
+      byW[tx.wallet_id].push(tx);
+    });
+    W.forEach(function(w){
+      var txns=(byW[w.id]||[]).slice().sort(function(a,b){
+        if(a.date<b.date)return 1;if(a.date>b.date)return -1;return 0;
+      });
+      var bal=Number(w.balance)||0;
+      for(var i=0;i<txns.length;i++){
+        var tx=txns[i];
+        map[tx.id]=bal; // balance AFTER this transaction
+        var amt=Number(tx.amount)||0;
+        // Reverse this tx to get balance before it
+        if(tx.type==='income'||tx.type==='transfer_in') bal-=amt;
+        else if(tx.type==='expense'||tx.type==='transfer_out') bal+=amt;
+      }
+    });
+    return map;
+  },[W,T]);
   var moInc=list.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
   var moExp=list.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+(Number(t.amount)||0)},0);
   function oAList(){sTxPg('list');setTimeout(oA,50)}
@@ -1539,7 +1566,8 @@ function TxnsP(p){
                   !isTr&&catName?h('span',{style:{fontSize:'.7rem',background:'var(--bgi)',color:'var(--t2)',padding:'1px 6px',borderRadius:4}},'🏷 ',catName):null,
                   !isTr&&subCatName?h('span',{style:{fontSize:'.7rem',background:'var(--accbg)',color:'var(--acc)',padding:'1px 6px',borderRadius:4}},'↳ ',subCatName):null)),
               h('div',{style:{textAlign:'right',flexShrink:0,marginRight:4}},
-                h('div',{style:{fontWeight:700,fontSize:'.9rem',color:col}},sign,fmt(tx.amount))),
+                h('div',{style:{fontWeight:700,fontSize:'.9rem',color:col}},sign,fmt(tx.amount)),
+                runBalMap[tx.id]!==undefined?h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginTop:2,whiteSpace:'nowrap'}},'Saldo ',fmt(runBalMap[tx.id])):null),
               h('button',{className:'bi',style:{flexShrink:0},onClick:function(){oE(tx)}},h(Ic,{n:'edit'})),
               h('button',{className:'bi',style:{flexShrink:0,color:'var(--red)'},onClick:function(){del(tx)}},h(Ic,{n:'trash'})))
           }))
