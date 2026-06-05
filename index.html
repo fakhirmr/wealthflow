@@ -55,9 +55,9 @@ button svg{width:18px;height:18px;flex-shrink:0}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px}
-.moc{background:var(--bgc);border:1px solid var(--brd);border-radius:14px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto}
-.moh{padding:18px 20px 0;display:flex;align-items:center;justify-content:space-between}.moh h3{font-size:1.05rem;font-weight:700}
-.mob{padding:16px 20px}.mof{padding:0 20px 18px;display:flex;gap:8px;justify-content:flex-end}
+.moc{background:var(--bgc);border:1px solid var(--brd);border-radius:14px;width:100%;max-width:460px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.moh{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:1px solid var(--brd)}.moh h3{font-size:1rem;font-weight:700}
+.mob{padding:16px 18px;overflow-y:auto;flex:1}.mof{padding:10px 18px 16px;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;border-top:1px solid var(--brd)}
 
 .tw{overflow-x:auto}table{width:100%;border-collapse:collapse}
 thead th{text-align:left;font-size:.7rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;padding:8px 12px;border-bottom:1px solid var(--brd)}
@@ -444,6 +444,31 @@ function GoalsP(p){
         h('button',{className:'btn bp',style:{flex:1,justifyContent:'center'},onClick:function(){oE(g)}},'✏️ Edit'),
         pct>=100&&g.status!=='completed'?h('button',{className:'btn bp',style:{flex:1,justifyContent:'center',background:'var(--acc)'},onClick:function(){markDone(g)}},'🎉 Tandai Selesai'):null,
         h('button',{className:'btn bs',style:{justifyContent:'center',color:'var(--red)'},onClick:function(){del(g)}},h(Ic,{n:'trash'}))),
+      // Modal also needed here so Edit works from detail view
+      h(Mod,{open:!!mo,onClose:function(){sMo(null)},title:mo&&mo.m==='add'?'Tambah Goal':'Edit Goal',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sMo(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},'Simpan'))},
+        h('div',{className:'fg'},h('label',null,'Ikon'),h('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
+          ICONS.map(function(ic){return h('button',{key:ic,onClick:function(){uf('icon',ic)},style:{width:36,height:36,borderRadius:8,border:'2px solid '+(f.icon===ic?'var(--acc)':'var(--brd)'),background:f.icon===ic?'var(--accbg)':'var(--bgc)',fontSize:16,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}},ic)}))),
+        h('div',{className:'fg'},h('label',null,'Nama Goal'),h('input',{className:'fi',placeholder:'cth: DP Rumah, Dana Darurat...',value:f.name,onChange:function(e){uf('name',e.target.value)}})),
+        h('div',{className:'fg'},h('label',null,'Target (Rp)'),h(NumInput,{value:f.target_amount,onChange:function(v){uf('target_amount',v)}})),
+        !f.wallet_id?h('div',{className:'fg'},h('label',null,'Sudah Terkumpul (Rp)'),h(NumInput,{value:f.saved_amount,onChange:function(v){uf('saved_amount',v)}})):null,
+        h('div',{className:'fg'},h('label',null,'Deadline (opsional)'),h('input',{className:'fi',type:'date',value:f.deadline,onChange:function(e){uf('deadline',e.target.value)}})),
+        h('div',{className:'fg'},h('label',null,'Link ke Dompet (opsional)'),
+          h('select',{className:'fi',value:f.wallet_id,onChange:function(e){uf('wallet_id',e.target.value)}},
+            h('option',{value:''},'— Manual (isi sendiri) —'),
+            W.map(function(w){return h('option',{key:w.id,value:w.id},'🔗 '+w.name+' ('+fmt(Number(w.balance)||0)+')')})),
+          f.wallet_id?h('div',{style:{marginTop:4,fontSize:'.72rem',color:'var(--blu)',background:'var(--blubg)',padding:'6px 10px',borderRadius:6}},'💡 Progress otomatis = saldo dompet ini'):null),
+        h('div',{className:'fg'},h('label',null,'Prioritas'),
+          h('div',{style:{display:'flex',gap:6}},
+            [{v:'high',lb:'🔴 High'},{v:'medium',lb:'🟡 Medium'},{v:'low',lb:'🟢 Low'}].map(function(pr){
+              return h('button',{key:pr.v,className:'btn '+(f.priority===pr.v?'bp':'bs'),style:{flex:1,fontSize:'.78rem',padding:'6px'},onClick:function(){uf('priority',pr.v)}},pr.lb)}))),
+        h('div',{className:'fg'},h('label',null,'Warna'),h('div',{style:{display:'flex',gap:6,flexWrap:'wrap'}},
+          COLORS.map(function(c){return h('button',{key:c,onClick:function(){uf('color',c)},style:{width:28,height:28,borderRadius:14,background:c,border:'3px solid '+(f.color===c?'var(--t1)':'transparent'),cursor:'pointer'}})}))),
+        h('div',{className:'fg'},h('label',null,'Catatan'),h('textarea',{className:'fi',rows:2,placeholder:'Catatan tambahan...',value:f.notes,onChange:function(e){uf('notes',e.target.value)},style:{resize:'vertical'}})),
+        mo&&mo.m==='edit'?h('div',{className:'fg'},h('label',null,'Status'),
+          h('select',{className:'fi',value:f.status,onChange:function(e){uf('status',e.target.value)}},
+            h('option',{value:'active'},'🎯 Aktif'),
+            h('option',{value:'completed'},'✅ Tercapai'),
+            h('option',{value:'paused'},'⏸ Ditunda'))):null),
       cfE)
   }
 
