@@ -1,62 +1,56 @@
-const CACHE_NAME = 'wealthflow-v3';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap',
-  'https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js',
-  'https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js',
-  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js'
-];
+// WealthFlow Service Worker — v4.1
+// Minimal: enables PWA install without caching interference
 
-// Install: cache static assets
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
-  );
+const CACHE_NAME = 'wealthflow-v4';
+
+// Install: skip waiting, take over immediately
+self.addEventListener('install', function(e) {
   self.skipWaiting();
 });
 
-// Activate: cleanup old caches
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
+// Activate: wipe ALL old caches to fix broken cached resources
+self.addEventListener('activate', function(e) {
+  e.waitUntil(
+    caches.keys().then(function(keys) {
       return Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+        keys.map(function(key) {
+          console.log('[SW] Clearing old cache:', key);
+          return caches.delete(key);
+        })
       );
+    }).then(function() {
+      return self.clients.claim();
     })
   );
-  self.clients.claim();
 });
 
-// Fetch: network first, fallback to cache
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  
-  // API calls (Supabase, Groq) — always network, never cache
-  if (url.hostname.includes('supabase') || url.hostname.includes('groq')) {
-    event.respondWith(fetch(event.request));
-    return;
+// Fetch: ONLY cache the main HTML file (app shell)
+// Everything else (Supabase API, CDN scripts) goes straight to network
+self.addEventListener('fetch', function(e) {
+  var url = e.request.url;
+
+  // Never intercept Supabase API, CDN, or external requests
+  if (url.includes('supabase.co') ||
+      url.includes('cdn.jsdelivr.net') ||
+      url.includes('unpkg.com') ||
+      url.includes('googleapis.com') ||
+      url.includes('anthropic.com') ||
+      !url.startsWith(self.location.origin)) {
+    return; // Let browser handle it normally
   }
 
-  // Static assets — cache first, then network
-  if (event.request.method === 'GET') {
-    event.respondWith(
-      caches.match(event.request).then((cached) => {
-        const fetchPromise = fetch(event.request).then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        }).catch(() => cached);
-
-        return cached || fetchPromise;
-      })
-    );
-  }
+  // For the app's own HTML — network first, cache fallback
+  e.respondWith(
+    fetch(e.request).then(function(response) {
+      if (response && response.status === 200) {
+        var clone = response.clone();
+        caches.open(CACHE_NAME).then(function(cache) {
+          cache.put(e.request, clone);
+        });
+      }
+      return response;
+    }).catch(function() {
+      return caches.match(e.request);
+    })
+  );
 });
