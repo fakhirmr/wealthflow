@@ -29,7 +29,7 @@ body{background:var(--bg);color:var(--t1)}
 .sb-brand{padding:20px 18px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
 .sb-logo{width:34px;height:34px;background:linear-gradient(135deg,var(--acc),var(--cyn));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff}
 .sb-brand h1{font-size:1.15rem;font-weight:800}.sb-brand span{color:var(--acc)}
-.sb-nav{flex:1;padding:6px 10px;display:flex;flex-direction:column;gap:1px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.sb-nav{flex:1;min-height:0;padding:6px 10px;display:flex;flex-direction:column;gap:1px;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .nv{display:flex;align-items:center;gap:12px;padding:9px 14px;border-radius:8px;color:var(--t2);font-size:.85rem;font-weight:500;transition:all .15s;background:transparent;width:100%;text-align:left}
 .nv:hover{background:var(--bgc);color:var(--t1)}.nv.act{background:var(--accbg);color:var(--acc);font-weight:600}.nv svg{width:18px;height:18px;flex-shrink:0}
 .sb-ft{padding:10px 16px;border-top:1px solid var(--brd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
@@ -63,7 +63,7 @@ button svg{width:18px;height:18px;flex-shrink:0}
 thead th{text-align:left;font-size:.7rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;padding:8px 12px;border-bottom:1px solid var(--brd)}
 tbody td{padding:10px 12px;border-bottom:1px solid var(--brd);font-size:.84rem}tbody tr:hover{background:var(--bgc2)}
 
-.tabs{display:flex;gap:2px;background:var(--bgi);border-radius:8px;padding:3px;width:fit-content}.tab{padding:6px 16px;border-radius:6px;font-size:.8rem;font-weight:600;color:var(--t3);background:transparent;transition:all .15s}.tab.act{background:var(--bgc);color:var(--acc)}
+.tabs{display:flex;gap:2px;background:var(--bgi);border-radius:8px;padding:3px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;white-space:nowrap;width:100%}.tabs::-webkit-scrollbar{display:none}.tab{padding:6px 14px;border-radius:6px;font-size:.8rem;font-weight:600;color:var(--t3);background:transparent;transition:all .15s;flex-shrink:0;white-space:nowrap}.tab.act{background:var(--bgc);color:var(--acc)}
 
 .tc{position:fixed;bottom:16px;right:16px;z-index:2000}.toast{padding:10px 16px;border-radius:8px;font-size:.82rem;font-weight:500;margin-top:6px}.tok{background:#065f46;color:#a7f3d0;border:1px solid #10b981}.terr{background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444}
 
@@ -784,7 +784,7 @@ function App(){
 
   var cx={W:W,T:T,C:C,B:B,I:I,D:D,DP:DP,G:G,rW:rW,rT:rT,rC:rC,rB:rB,rI:rI,rD:rD,rDP:rDP,rG:rG};
   return h(F,null,
-    h('aside',{className:'sb'+(mob?' open':'')},h('div',{className:'sb-brand'},h('div',{className:'sb-logo'},'W'),h('h1',null,'Wealth',h('span',null,'Flow'))),
+    h('aside',{className:'sb'+(mob?' open':''),onClick:function(e){e.stopPropagation()},onTouchStart:function(e){e.stopPropagation()}},h('div',{className:'sb-brand'},h('div',{className:'sb-logo'},'W'),h('h1',null,'Wealth',h('span',null,'Flow'))),
       h('nav',{className:'sb-nav'},sideNav.map(function(n){return h('button',{key:n.id,className:'nv'+(pg===n.id?' act':''),onClick:function(){go(n.id)}},h(Ic,{n:n.ic}),n.lb)})),
       h('div',{className:'sb-ft',style:{flexDirection:'column',gap:8,alignItems:'stretch'}},
         h('div',{style:{display:'flex',alignItems:'center',gap:8,fontSize:'.72rem',color:'var(--t2)',overflow:'hidden'}},h('span',null,'👤'),h('span',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}},user.email||'User')),
@@ -792,7 +792,7 @@ function App(){
           h('button',{className:'theme-btn',style:{flex:1},onClick:function(){sTh(theme==='dark'?'light':'dark')}},h(Ic,{n:theme==='dark'?'sun':'moon'}),theme==='dark'?'Light':'Dark'),
           h('button',{className:'theme-btn',style:{color:'var(--red)'},onClick:function(){sb.auth.signOut()}},'Logout')))),
     h('div',{className:'mh'},h('button',{className:'bi',onClick:function(){sMb(!mob)}},h(Ic,{n:'menu'})),h('h1',{style:{fontSize:'.95rem',fontWeight:700}},'Wealth',h('span',{style:{color:'var(--acc)'}},'Flow')),h('button',{className:'bi',onClick:function(){sTh(theme==='dark'?'light':'dark')}},h(Ic,{n:theme==='dark'?'sun':'moon'}))),
-    mob?h('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.3)',zIndex:99},onClick:function(){sMb(false)}}):null,
+    mob?h('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.3)',zIndex:98},onClick:function(){sMb(false)},onTouchStart:function(){sMb(false)}}):null,
     h('div',{className:'mn'},
       h('button',{className:'mni'+(pg==='dashboard'?' act':''),onClick:function(){go('dashboard')}},h(Ic,{n:'dashboard'}),h('span',null,'Dashboard')),
       h('button',{className:'mni'+(pg==='budgets'?' act':''),onClick:function(){go('budgets')}},h(Ic,{n:'budget'}),h('span',null,'Anggaran')),
@@ -978,13 +978,13 @@ function Dash(p){
       h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}},
         h('div',{style:{padding:'8px 10px',borderRadius:8,background:'rgba(52,211,153,.1)',border:'1px solid rgba(52,211,153,.2)'}},
           h('div',{style:{fontSize:'.6rem',color:'#6ee7b7',opacity:.8,marginBottom:3,letterSpacing:'.05em'}},'ASET'),
-          h('div',{style:{fontWeight:700,fontSize:'.78rem',color:'#a7f3d0',wordBreak:'break-all',lineHeight:1.2}},fmt(totalAssets))),
+          h('div',{style:{fontWeight:700,fontSize:'clamp(.6rem,.9vw + .55rem,.78rem)',color:'#a7f3d0',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},fmt(totalAssets))),
         h('div',{style:{padding:'8px 10px',borderRadius:8,background:'rgba(248,113,113,.1)',border:'1px solid rgba(248,113,113,.2)'}},
           h('div',{style:{fontSize:'.6rem',color:'#fca5a5',opacity:.8,marginBottom:3,letterSpacing:'.05em'}},'HUTANG'),
-          h('div',{style:{fontWeight:700,fontSize:'.78rem',color:'#fca5a5',wordBreak:'break-all',lineHeight:1.2}},fmt(Math.abs(totalLiab)))),
+          h('div',{style:{fontWeight:700,fontSize:'clamp(.6rem,.9vw + .55rem,.78rem)',color:'#fca5a5',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},fmt(Math.abs(totalLiab)))),
         h('div',{style:{padding:'8px 10px',borderRadius:8,background:'rgba(96,165,250,.1)',border:'1px solid rgba(96,165,250,.2)'}},
           h('div',{style:{fontSize:'.6rem',color:'#93c5fd',opacity:.8,marginBottom:3,letterSpacing:'.05em'}},'INVESTASI'),
-          h('div',{style:{fontWeight:700,fontSize:'.78rem',color:'#93c5fd',wordBreak:'break-all',lineHeight:1.2}},fmt(invBal))))),
+          h('div',{style:{fontWeight:700,fontSize:'clamp(.6rem,.9vw + .55rem,.78rem)',color:'#93c5fd',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},fmt(invBal))))),
 
     // === ROW 2: CASHFLOW + BUDGET ===
     h('div',{className:'dg2w',style:{marginBottom:10}},
@@ -1266,7 +1266,6 @@ function SettingsP(p){
         h('div',{style:{marginTop:12,padding:'10px 14px',background:'var(--bgi)',borderRadius:8,fontSize:'.75rem',color:'var(--t3)'}},'Import JSON akan menambah data baru (tidak menimpa). Export dulu sebagai backup sebelum import.'))):null,
     // Updates tab
     tab==='updates'?h('div',null,
-      showAllCl?h(AllChangelogModal,{onClose:function(){sShowAllCl(false)}}):null,
       // Current version card
       h('div',{className:'cd',style:{marginBottom:12,padding:'16px 18px',background:'linear-gradient(135deg,var(--accbg),var(--blubg))'}},
         h('div',{style:{display:'flex',alignItems:'center',gap:12,marginBottom:10}},
@@ -1287,7 +1286,8 @@ function SettingsP(p){
             h('span',{style:{fontSize:17,width:26,textAlign:'center',flexShrink:0}},item.emoji),
             h('span',{style:{flex:1,fontSize:'.82rem',color:'var(--t2)'}},item.text),
             h('span',{style:{fontSize:'.6rem',fontWeight:700,padding:'2px 6px',borderRadius:4,background:typeBg[item.type],color:typeColor[item.type]}},typeLabel[item.type]||'UPDATE'))
-        }))):null)
+        }))):null,
+    showAllCl?h(AllChangelogModal,{onClose:function(){sShowAllCl(false)}}):null)
 }
 
 /* ═══ WALLETS ═══ */
@@ -1319,15 +1319,15 @@ function WalletsP(p){
       h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,textAlign:'center'}},
         h('div',null,
           h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:4}},'Aset'),
-          h('div',{style:{fontWeight:700,fontSize:'.88rem',color:'var(--blu)',wordBreak:'break-all'}},fmt(totalAssets)),
+          h('div',{style:{fontWeight:700,fontSize:'clamp(.65rem,1.5vw,.88rem)',color:'var(--blu)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},fmt(totalAssets)),
           debtAsset>0?h('div',{style:{fontSize:'.62rem',color:'var(--acc)',marginTop:2}},'+ piutang ',fmt(debtAsset)):null),
         h('div',null,
           h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:4}},'Liabilitas'),
-          h('div',{style:{fontWeight:700,fontSize:'.88rem',color:'var(--red)',wordBreak:'break-all'}},fmt(totalLiab)),
+          h('div',{style:{fontWeight:700,fontSize:'clamp(.65rem,1.5vw,.88rem)',color:'var(--red)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},fmt(totalLiab)),
           debtLiab>0?h('div',{style:{fontSize:'.62rem',color:'var(--red)',marginTop:2}},'incl. hutang ',fmt(debtLiab)):null),
         h('div',null,
           h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:4}},'Bersih'),
-          h('div',{style:{fontWeight:700,fontSize:'.88rem',wordBreak:'break-all'}},fmt(totalAssets+totalLiab))))),
+          h('div',{style:{fontWeight:700,fontSize:'clamp(.65rem,1.5vw,.88rem)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},fmt(totalAssets+totalLiab))))),
 
     W.length===0?h('div',{className:'cd'},h('div',{className:'empty'},h('div',{className:'ei'},'👛'),h('h3',null,'Belum Ada Dompet'))):
     WGROUPS.filter(function(g){return grouped[g.id]}).map(function(g){
