@@ -279,7 +279,7 @@ var COLORS=['#10b981','#3b82f6','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4
 var WGROUPS=[{id:'cash',lb:'Cash',ico:'💵'},{id:'accounts',lb:'Rekening',ico:'🏦'},{id:'card',lb:'Kartu Kredit',ico:'💳'},{id:'debit',lb:'Kartu Debit',ico:'💳'},{id:'savings',lb:'Tabungan',ico:'🐖'},{id:'ewallet',lb:'E-Wallet',ico:'📱'},{id:'investments',lb:'Investasi',ico:'📈'},{id:'others',lb:'Lainnya',ico:'📦'}];
 function fmt(n){return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',minimumFractionDigits:0,maximumFractionDigits:0}).format(n||0)}
 function fdt(d){return d?new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'}):'-'}
-function td(){return new Date().toISOString().split('T')[0]}
+function td(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function fid(a,id){if(!a||!id)return null;for(var i=0;i<a.length;i++)if(a[i].id===id)return a[i];return null}
 function cn(cs,id){var c=fid(cs,id);return c?c.name:'-'}
 function wn(ws,id){var w=fid(ws,id);return w?w.name:'-'}
@@ -707,7 +707,7 @@ function App(){
       } else if(session&&session.user){
         UID=session.user.id;sUser(session.user);
       } else {
-        UID=null;sUser(null);sW([]);sT([]);sC([]);sB([]);sI([]);
+        UID=null;sUser(null);sW([]);sT([]);sC([]);sB([]);sI([]);sD([]);sDP([]);sG([]);
       }
     });
     return function(){clearTimeout(timeout);if(sub&&sub.data&&sub.data.subscription)sub.data.subscription.unsubscribe()};
@@ -723,7 +723,7 @@ function App(){
         // If away >2 min, refresh wallets + transactions silently
         if(away>120000){rW();rT();}
         // If away >10 min, refresh all data
-        if(away>600000){rC();rB();rD();rI();}
+        if(away>600000){rC();rB();rD();rI();rDP();rG();}
       }
     }
     document.addEventListener('visibilitychange',onVis);
@@ -1383,7 +1383,11 @@ function TxnsP(p){
     return l
   },[T,fTy,fWl,q,C,vMn,vYr]);
   function oA(){sF({type:'expense',wallet_id:W.length?W[0].id:'',wallet_id_to:'',category_id:'',sub_category_id:'',amount:'',description:'',date:td(),is_installment:false,installment_count:6});sM({m:'add'})}
-  function oE(tx){sF({type:tx.type==='transfer_out'?'transfer':tx.type,wallet_id:tx.wallet_id||'',wallet_id_to:'',category_id:tx.category_id||'',sub_category_id:tx.sub_category_id||'',amount:String(tx.amount||0),description:tx.description||'',date:tx.date||td(),is_installment:!!tx.installment_count,installment_count:tx.installment_count||6});sM({m:'edit',d:{id:tx.id,wallet_id:tx.wallet_id,type:tx.type,amount:tx.amount}})}
+  function oE(tx){
+    if(tx.type==='transfer_out'||tx.type==='transfer_in'){
+      t('Transfer tidak bisa diedit. Hapus lalu buat ulang.','err');return;
+    }
+    sF({type:tx.type,wallet_id:tx.wallet_id||'',wallet_id_to:'',category_id:tx.category_id||'',sub_category_id:tx.sub_category_id||'',amount:String(tx.amount||0),description:tx.description||'',date:tx.date||td(),is_installment:!!tx.installment_count,installment_count:tx.installment_count||6});sM({m:'edit',d:{id:tx.id,wallet_id:tx.wallet_id,type:tx.type,amount:tx.amount}})}
   function save(){
     if(!UID){t('Sesi habis, login ulang','err');return}
     if(!f.amount||Number(f.amount)<=0){t('Jumlah > 0','err');return}
@@ -1429,7 +1433,28 @@ function TxnsP(p){
         }
       })
     }}
-  function del(tx){cf('Hapus transaksi ini?').then(function(ok){if(!ok)return;
+  function del(tx){
+    var isTransfer=tx.type==='transfer_out'||tx.type==='transfer_in';
+    cf(isTransfer?'Hapus transfer ini? (kedua sisi akan dihapus)':'Hapus transaksi ini?').then(function(ok){if(!ok)return;
+    if(isTransfer){
+      // Find paired transfer (same amount+date+description, opposite type)
+      var pairType=tx.type==='transfer_out'?'transfer_in':'transfer_out';
+      var pair=T.find(function(tt){return tt.type===pairType&&Number(tt.amount)===Number(tx.amount)&&tt.date===tx.date&&tt.description===tx.description&&tt.id!==tx.id});
+      // Determine which wallet is source (transfer_out) and dest (transfer_in)
+      var outTx=tx.type==='transfer_out'?tx:pair;var inTx=tx.type==='transfer_in'?tx:pair;
+      // Delete both transactions
+      sb.from('transactions').delete().eq('id',tx.id).then(function(r){if(r.error){t(r.error.message,'err');return}
+        function afterPair(){
+          // Reverse balances: source wallet +amt back, dest wallet -amt back
+          var ps=[];
+          if(outTx&&outTx.wallet_id){var ws=fid(W,outTx.wallet_id);if(ws)ps.push(sb.from('wallets').update({balance:(Number(ws.balance)||0)+Number(outTx.amount)}).eq('id',outTx.wallet_id).then(function(){}))}
+          if(inTx&&inTx.wallet_id){var wd=fid(W,inTx.wallet_id);if(wd)ps.push(sb.from('wallets').update({balance:(Number(wd.balance)||0)-Number(inTx.amount)}).eq('id',inTx.wallet_id).then(function(){}))}
+          Promise.all(ps).then(function(){t('Transfer dihapus');rT();rW()})
+        }
+        if(pair){sb.from('transactions').delete().eq('id',pair.id).then(afterPair)}else afterPair()
+      });
+      return;
+    }
     sb.from('transactions').delete().eq('id',tx.id).then(function(r){if(r.error){t(r.error.message,'err');return}
       if(tx.wallet_id){var w=fid(W,tx.wallet_id);if(w){var nb=tx.type==='income'?(Number(w.balance)||0)-Number(tx.amount):(Number(w.balance)||0)+Number(tx.amount);
         sb.from('wallets').update({balance:nb}).eq('id',tx.wallet_id).then(function(wr){if(wr&&wr.error){t('Saldo error','err')}t('Dihapus');rT();rW()})
