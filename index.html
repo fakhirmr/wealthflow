@@ -2335,7 +2335,9 @@ function BudgP(p){
     if(!UID){t('Sesi habis','err');return}
     if(!f.category_id){t('Pilih kategori','err');return}
     if(!f.amount||Number(f.amount)<=0){t('Jumlah > 0','err');return}
-    var pay={category_id:f.category_id,amount:Number(f.amount),period:f.period,is_recurring:!!f.is_recurring,year:f.is_recurring?null:Number(f.target_year),month:f.is_recurring?null:Number(f.target_month)};
+    var pay={category_id:f.category_id,amount:Number(f.amount),period:f.period,is_recurring:!!f.is_recurring};
+    if(!f.is_recurring){pay.year=Number(f.target_year);pay.month=Number(f.target_month);}
+    else{pay.year=null;pay.month=null;}
     function doSave(payload){
       if(mo.m==='add'){
         payload.user_id=UID;
