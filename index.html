@@ -1020,15 +1020,23 @@ function Dash(p){
 
       // Budget card
       h('div',{className:'cd',style:{padding:'16px 18px'}},
-        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
+        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}},
           h('div',{style:{fontWeight:700,fontSize:'.88rem'}},'Anggaran'),
           h('div',{style:{fontSize:'.78rem',fontWeight:700,color:bCol}},budgetPct+'%',' terpakai')),
+        // 3 value boxes: Budget, Terpakai, Sisa
+        h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:10}},
+          h('div',{style:{background:'var(--bgi)',borderRadius:8,padding:'6px 8px',textAlign:'center'}},
+            h('div',{style:{fontSize:'.62rem',color:'var(--t3)',marginBottom:1}},'Anggaran'),
+            h('div',{style:{fontWeight:700,fontSize:'.78rem'}},fmt(totalBudget))),
+          h('div',{style:{background:'var(--redbg)',borderRadius:8,padding:'6px 8px',textAlign:'center'}},
+            h('div',{style:{fontSize:'.62rem',color:'var(--t3)',marginBottom:1}},'Terpakai'),
+            h('div',{style:{fontWeight:700,fontSize:'.78rem',color:'var(--red)'}},fmt(budgetSpent))),
+          h('div',{style:{background:totalBudget-budgetSpent>=0?'var(--accbg)':'var(--redbg)',borderRadius:8,padding:'6px 8px',textAlign:'center'}},
+            h('div',{style:{fontSize:'.62rem',color:'var(--t3)',marginBottom:1}},'Sisa'),
+            h('div',{style:{fontWeight:700,fontSize:'.78rem',color:totalBudget-budgetSpent>=0?'var(--acc)':'var(--red)'}},fmt(totalBudget-budgetSpent)))),
         // Overall budget bar
-        h('div',{style:{height:8,background:'var(--bgi)',borderRadius:4,overflow:'hidden',marginBottom:4}},
+        h('div',{style:{height:8,background:'var(--bgi)',borderRadius:4,overflow:'hidden',marginBottom:12}},
           h('div',{style:{height:'100%',width:budgetPct+'%',background:bCol,borderRadius:4,transition:'width .5s'}})),
-        h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.72rem',color:'var(--t3)',marginBottom:14}},
-          h('span',null,fmt(budgetSpent),' terpakai'),
-          h('span',null,'Sisa ',fmt(totalBudget-budgetSpent))),
         // Per-category budget
         B.length===0?h('div',{style:{fontSize:'.8rem',color:'var(--t3)',textAlign:'center',padding:'8px 0'}},'Belum ada anggaran'):
         budgetItems.map(function(b,i){
@@ -2321,6 +2329,7 @@ function BudgP(p){
   function prevMo(){if(vMo===0){sVMo(11);sVYr(vYr-1)}else sVMo(vMo-1)}
   function nextMo(){if(vMo===11){sVMo(0);sVYr(vYr+1)}else sVMo(vMo+1)}
   var _exp=useState({}),exp=_exp[0],sExp=_exp[1]; // expanded parent categories
+  var _detB=useState(null),detB=_detB[0],sDetB=_detB[1]; // budget detail view (show txns)
   function ufb(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
   var _selPar=useState(null),selPar=_selPar[0],sSelPar=_selPar[1];
   function oA(){sF(defF());sSelPar(null);sMo({m:'add'})}
@@ -2442,7 +2451,12 @@ function BudgP(p){
         var parCol=parPct>=100?'var(--red)':parPct>=80?'var(--org)':(par.color||'var(--acc)');
         var isExp=exp[par.id];
 
-        return h('div',{key:par.id,className:'cd',style:{marginBottom:10,padding:0,overflow:'hidden'}},
+        return h('div',{key:par.id,className:'cd',style:{marginBottom:10,padding:0,overflow:'hidden',cursor:'pointer'},onClick:function(){
+          // Show budget detail with transactions
+          var catIds=[par.id].concat(subs.map(function(s){return s.id}));
+          var txns=moTxns.filter(function(tx){return tx.type==='expense'&&(tx.category_id===par.id||(tx.sub_category_id&&catIds.indexOf(tx.sub_category_id)>-1))});
+          sDetB({cat:par,budget:effectiveBudget,spent:parSpent,pct:parPct,txns:txns});
+        }},
           // Parent header — clickable to expand
           h('div',{style:{padding:'14px 16px',cursor:subs.length>0?'pointer':'default'},onClick:function(){if(subs.length>0){var n={};for(var x in exp)n[x]=exp[x];n[par.id]=!exp[par.id];sExp(n)}}},
             h('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:8}},
@@ -2471,7 +2485,11 @@ function BudgP(p){
               var subSp=spent(sub.id);
               var subPct=subB&&Number(subB.amount)>0?Math.min(Math.round((subSp/Number(subB.amount))*100),100):0;
               var subCol=subPct>=100?'var(--red)':subPct>=80?'var(--org)':(par.color||'var(--acc)');
-              return h('div',{key:sub.id,style:{padding:'10px 16px 10px 24px',borderBottom:'1px solid var(--brd)'}},
+              return h('div',{key:sub.id,style:{padding:'10px 16px 10px 24px',borderBottom:'1px solid var(--brd)',cursor:subB?'pointer':'default'},onClick:function(e){
+                e.stopPropagation();if(!subB)return;
+                var subTxns=moTxns.filter(function(tx){return tx.type==='expense'&&(tx.sub_category_id===sub.id||tx.category_id===sub.id)});
+                sDetB({cat:sub,budget:Number(subB.amount),spent:subSp,pct:subPct,txns:subTxns});
+              }},
                 h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:subB?6:0}},
                   h('div',{style:{fontSize:12,flexShrink:0}},sub.icon||'↳'),
                   h('span',{style:{flex:1,fontSize:'.84rem',fontWeight:500}},sub.name),
@@ -2567,6 +2585,33 @@ function BudgP(p){
       !f.is_recurring?h('div',{className:'fr'},
         h('div',{className:'fg'},h('label',null,'Bulan'),h('select',{className:'fi',value:f.target_month,onChange:function(e){ufb('target_month',Number(e.target.value))}},MOS.map(function(mn,i){return h('option',{key:i,value:i+1},mn)}))),
         h('div',{className:'fg'},h('label',null,'Tahun'),h('input',{className:'fi',type:'number',value:f.target_year,onChange:function(e){ufb('target_year',Number(e.target.value))}}))):null),
+    // Budget detail modal — shows transactions for selected budget
+    detB?h(Mod,{open:!!detB,onClose:function(){sDetB(null)},title:(detB.cat?((detB.cat.icon||'')+' '+detB.cat.name):'Anggaran'),footer:h('button',{className:'btn bs',style:{width:'100%',justifyContent:'center'},onClick:function(){sDetB(null)}},'Tutup')},
+      // Summary
+      h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:14}},
+        h('div',{style:{background:'var(--bgi)',borderRadius:8,padding:'8px 10px',textAlign:'center'}},
+          h('div',{style:{fontSize:'.65rem',color:'var(--t3)',marginBottom:2}},'Budget'),
+          h('div',{style:{fontWeight:700,fontSize:'.82rem'}},fmt(detB.budget))),
+        h('div',{style:{background:'var(--redbg)',borderRadius:8,padding:'8px 10px',textAlign:'center'}},
+          h('div',{style:{fontSize:'.65rem',color:'var(--t3)',marginBottom:2}},'Terpakai'),
+          h('div',{style:{fontWeight:700,fontSize:'.82rem',color:'var(--red)'}},fmt(detB.spent))),
+        h('div',{style:{background:detB.budget-detB.spent>=0?'var(--accbg)':'var(--redbg)',borderRadius:8,padding:'8px 10px',textAlign:'center'}},
+          h('div',{style:{fontSize:'.65rem',color:'var(--t3)',marginBottom:2}},'Sisa'),
+          h('div',{style:{fontWeight:700,fontSize:'.82rem',color:detB.budget-detB.spent>=0?'var(--acc)':'var(--red)'}},fmt(detB.budget-detB.spent)))),
+      // Progress bar
+      h('div',{style:{height:6,background:'var(--bgi)',borderRadius:3,overflow:'hidden',marginBottom:14}},
+        h('div',{style:{height:'100%',width:Math.min(detB.pct,100)+'%',background:detB.pct>=100?'var(--red)':detB.pct>=80?'var(--org)':'var(--acc)',borderRadius:3}})),
+      // Transaction list
+      h('div',{style:{fontSize:'.78rem',fontWeight:600,color:'var(--t3)',marginBottom:8}},detB.txns.length+' transaksi bulan ini'),
+      detB.txns.length===0?h('div',{style:{textAlign:'center',padding:'20px 0',color:'var(--t3)',fontSize:'.82rem'}},'Belum ada transaksi di kategori ini'):
+      detB.txns.sort(function(a,b){return a.date<b.date?1:a.date>b.date?-1:0}).map(function(tx,i){
+        var subCat=tx.sub_category_id?fid(C,tx.sub_category_id):null;
+        return h('div',{key:tx.id||i,style:{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:i<detB.txns.length-1?'1px solid var(--brd)':''}},
+          h('div',{style:{flex:1}},
+            h('div',{style:{fontSize:'.82rem',fontWeight:500}},tx.description||(subCat?subCat.name:'Tanpa keterangan')),
+            h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginTop:1}},new Date(tx.date+'T00:00').toLocaleDateString('id-ID',{day:'numeric',month:'short'}),subCat?' · ↳ '+subCat.name:'')),
+          h('div',{style:{fontWeight:700,fontSize:'.85rem',color:'var(--red)',flexShrink:0}},'-',fmt(tx.amount)))
+      })):null,
     cfE)
 }
 
