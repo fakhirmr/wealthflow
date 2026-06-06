@@ -710,55 +710,77 @@ function AppLock(p){
   var onUnlock=p.onUnlock,onUsePass=p.onUsePass;
   var _busy=useState(false),busy=_busy[0],sBusy=_busy[1];
   var _err=useState(''),err=_err[0],sErr=_err[1];
+  var _done=useState(false),done=_done[0],sDone=_done[1];
   var email=localStorage.getItem(BIO_USER)||'';
 
   function doAuth(){
-    if(busy)return;
+    if(busy||done)return;
     sBusy(true);sErr('');
-    bioAuth().then(function(){onUnlock();}).catch(function(e){
+    bioAuth().then(function(){
+      sDone(true);sBusy(false);
+      setTimeout(onUnlock,200);
+    }).catch(function(e){
       sBusy(false);
-      if(e.name==='NotAllowedError'||e.name==='AbortError')sErr('Dibatalkan — ketuk untuk coba lagi');
-      else sErr(e.message||'Verifikasi gagal');
+      if(e.name==='NotAllowedError'||e.name==='AbortError'){
+        sErr('Dibatalkan');
+      }else{
+        sErr(e.message||'Gagal');
+      }
     });
   }
 
-  // Auto-trigger biometric on mount
-  useEffect(function(){var t=setTimeout(doAuth,400);return function(){clearTimeout(t)};},[]);
+  // Do NOT auto-trigger — let user tap to avoid blank screen on iOS
+  // useEffect(function(){var t=setTimeout(doAuth,400)...}, []);
 
-  return h('div',{style:{position:'fixed',inset:0,background:'var(--bg)',zIndex:5000,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24}},
+  return h('div',{style:{
+    position:'fixed',inset:0,
+    background:'#0b0f1a', // always dark, regardless of theme
+    zIndex:5000,display:'flex',flexDirection:'column',
+    alignItems:'center',justifyContent:'center',padding:24
+  }},
     h('div',{style:{textAlign:'center',maxWidth:320,width:'100%'}},
-      h('div',{style:{width:68,height:68,background:'linear-gradient(135deg,var(--acc),var(--cyn))',borderRadius:18,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:30,fontWeight:800,color:'#fff',marginBottom:14}},'W'),
-      h('h2',{style:{fontWeight:800,fontSize:'1.3rem',marginBottom:4}},'WealthFlow'),
-      h('p',{style:{color:'var(--t3)',fontSize:'.82rem',marginBottom:40}},email?'Halo, '+email.split('@')[0]+'!':'Verifikasi identitas'),
+      // Logo
+      h('div',{style:{width:72,height:72,background:'linear-gradient(135deg,#10b981,#06b6d4)',borderRadius:20,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:32,fontWeight:800,color:'#fff',marginBottom:16}},'W'),
+      h('h2',{style:{fontWeight:800,fontSize:'1.4rem',color:'#fff',marginBottom:4}},'WealthFlow'),
+      h('p',{style:{color:'#6b7280',fontSize:'.82rem',marginBottom:48}},email?'Halo, '+email.split('@')[0]+'!':'Verifikasi identitas'),
 
-      // Biometric button
-      h('button',{onClick:doAuth,disabled:busy,style:{
-        width:88,height:88,borderRadius:'50%',
-        border:'2.5px solid '+(err?'var(--red)':'var(--acc)'),
-        background:err?'var(--redbg)':'var(--accbg)',
-        display:'flex',flexDirection:'column',alignItems:'center',
-        justifyContent:'center',cursor:busy?'default':'pointer',
-        margin:'0 auto 16px',fontSize:'2.2rem',
-        transition:'all .2s',opacity:busy?0.7:1,
-        boxShadow:busy?'none':'0 0 0 6px '+(err?'rgba(239,68,68,.1)':'rgba(16,185,129,.1)')
-      }},busy?'⏳':err?'❌':'🔐'),
+      // Main biometric button
+      h('button',{
+        onClick:doAuth,
+        disabled:busy||done,
+        style:{
+          width:96,height:96,borderRadius:48,
+          border:'2.5px solid '+(err?'#ef4444':done?'#10b981':'#10b981'),
+          background:done?'rgba(16,185,129,.2)':err?'rgba(239,68,68,.1)':'rgba(16,185,129,.08)',
+          display:'flex',flexDirection:'column',alignItems:'center',
+          justifyContent:'center',cursor:busy?'default':'pointer',
+          margin:'0 auto 16px',fontSize:'2.4rem',
+          transition:'all .2s',
+          boxShadow:'0 0 0 '+(busy?'12':'6')+'px rgba(16,185,129,'+(busy?'.15':'.08')+')'
+        }
+      },done?'✅':busy?'⏳':'🔐'),
 
-      h('p',{style:{fontWeight:600,fontSize:'.88rem',marginBottom:4}},
-        busy?'Menunggu verifikasi...':err?'Gagal':'Ketuk untuk membuka'),
-      h('p',{style:{color:'var(--t3)',fontSize:'.74rem',marginBottom:16}},
-        busy?'Gunakan Face ID / Sidik Jari':err||'Face ID · Fingerprint · Biometrik'),
+      h('p',{style:{color:err?'#ef4444':'#9ca3af',fontSize:'.82rem',fontWeight:500,marginBottom:4}},
+        done?'Terverifikasi!':busy?'Menunggu verifikasi...':err||'Ketuk untuk masuk'),
 
-      err?h('button',{onClick:doAuth,style:{
-        color:'var(--acc)',background:'none',border:'1px solid var(--acc)',
-        borderRadius:8,padding:'8px 20px',cursor:'pointer',
-        fontSize:'.82rem',fontWeight:600,marginBottom:16
-      }},'🔄 Coba Lagi'):null,
+      // iOS hint
+      !err&&!busy&&!done?h('p',{style:{color:'#4b5563',fontSize:'.7rem',marginTop:4,lineHeight:1.4}},
+        'iOS: ketuk lalu pilih "Use Passkey" → Face ID'):null,
 
-      h('div',{style:{marginTop:20,paddingTop:20,borderTop:'1px solid var(--brd)'}}),
-      h('button',{onClick:onUsePass,style:{
-        color:'var(--t3)',background:'none',border:'none',
-        cursor:'pointer',fontSize:'.76rem'
-      }},'Gunakan password sebagai gantinya → ')));
+      err?h('button',{
+        onClick:doAuth,
+        style:{color:'#10b981',background:'none',border:'1px solid #10b981',
+          borderRadius:8,padding:'8px 24px',cursor:'pointer',
+          fontSize:'.82rem',fontWeight:600,marginTop:12}
+      },'🔄 Coba Lagi'):null,
+
+      // Divider + password fallback
+      h('div',{style:{height:1,background:'#1f2937',margin:'40px 0 20px'}}),
+      h('button',{
+        onClick:onUsePass,
+        style:{color:'#4b5563',background:'none',border:'none',
+          cursor:'pointer',fontSize:'.76rem',lineHeight:1.6}
+      },'Tidak bisa menggunakan biometrik?\nGunakan password →')));
 }
 
 /* ═══ APP ═══ */
