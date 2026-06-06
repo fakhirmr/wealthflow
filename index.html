@@ -674,11 +674,17 @@ function bioRegister(userId,email){
   var ch=new Uint8Array(32);window.crypto.getRandomValues(ch);
   return navigator.credentials.create({publicKey:{
     challenge:ch,
-    rp:{name:'WealthFlow',id:window.location.hostname},
-    user:{id:new TextEncoder().encode(userId),name:email,displayName:email},
+    rp:{name:'WealthFlow'},
+    user:{id:new TextEncoder().encode(userId.slice(0,32)),name:email,displayName:email},
     pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
-    authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'},
-    timeout:60000
+    authenticatorSelection:{
+      authenticatorAttachment:'platform',
+      userVerification:'required',
+      requireResidentKey:false,
+      residentKey:'discouraged'
+    },
+    timeout:60000,
+    attestation:'none'
   }}).then(function(cred){
     var b=new Uint8Array(cred.rawId);
     localStorage.setItem(BIO_CRED,btoa(String.fromCharCode.apply(null,b)));
@@ -693,7 +699,7 @@ function bioAuth(){
   var ch=new Uint8Array(32);window.crypto.getRandomValues(ch);
   return navigator.credentials.get({publicKey:{
     challenge:ch,
-    allowCredentials:[{type:'public-key',id:bytes}],
+    allowCredentials:[{type:'public-key',id:bytes,transports:['internal']}],
     userVerification:'required',
     timeout:60000
   }}).then(function(c){return!!c});
