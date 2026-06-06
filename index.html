@@ -1,4 +1,4 @@
-l<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id" data-theme="dark">
 <head>
 <meta charset="UTF-8">
@@ -662,11 +662,107 @@ function AllChangelogModal(p){
         }))))
 }
 
-/* ═══════════════════ APP ═══════════════════ */
+/* ═══ BIOMETRIC (WebAuthn Platform Authenticator) ═══ */
+var BIO_CRED='wf_bio_cred';
+var BIO_USER='wf_bio_user';
+
+function bioSupported(){
+  return !!(window.PublicKeyCredential&&navigator.credentials&&window.crypto&&window.crypto.getRandomValues&&window.TextEncoder);
+}
+function bioAvailable(){return bioSupported()&&!!localStorage.getItem(BIO_CRED);}
+function bioRegister(userId,email){
+  var ch=new Uint8Array(32);window.crypto.getRandomValues(ch);
+  return navigator.credentials.create({publicKey:{
+    challenge:ch,
+    rp:{name:'WealthFlow',id:window.location.hostname},
+    user:{id:new TextEncoder().encode(userId),name:email,displayName:email},
+    pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+    authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'},
+    timeout:60000
+  }}).then(function(cred){
+    var b=new Uint8Array(cred.rawId);
+    localStorage.setItem(BIO_CRED,btoa(String.fromCharCode.apply(null,b)));
+    localStorage.setItem(BIO_USER,email);
+    return true;
+  });
+}
+function bioAuth(){
+  var b64=localStorage.getItem(BIO_CRED);
+  if(!b64)return Promise.reject(new Error('Biometrik belum diaktifkan'));
+  var bytes=Uint8Array.from(atob(b64),function(c){return c.charCodeAt(0)});
+  var ch=new Uint8Array(32);window.crypto.getRandomValues(ch);
+  return navigator.credentials.get({publicKey:{
+    challenge:ch,
+    allowCredentials:[{type:'public-key',id:bytes}],
+    userVerification:'required',
+    timeout:60000
+  }}).then(function(c){return!!c});
+}
+function bioClear(){localStorage.removeItem(BIO_CRED);localStorage.removeItem(BIO_USER);}
+
+function AppLock(p){
+  var onUnlock=p.onUnlock,onUsePass=p.onUsePass;
+  var _busy=useState(false),busy=_busy[0],sBusy=_busy[1];
+  var _err=useState(''),err=_err[0],sErr=_err[1];
+  var email=localStorage.getItem(BIO_USER)||'';
+
+  function doAuth(){
+    if(busy)return;
+    sBusy(true);sErr('');
+    bioAuth().then(function(){onUnlock();}).catch(function(e){
+      sBusy(false);
+      if(e.name==='NotAllowedError'||e.name==='AbortError')sErr('Dibatalkan — ketuk untuk coba lagi');
+      else sErr(e.message||'Verifikasi gagal');
+    });
+  }
+
+  // Auto-trigger biometric on mount
+  useEffect(function(){var t=setTimeout(doAuth,400);return function(){clearTimeout(t)};},[]);
+
+  return h('div',{style:{position:'fixed',inset:0,background:'var(--bg)',zIndex:5000,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24}},
+    h('div',{style:{textAlign:'center',maxWidth:320,width:'100%'}},
+      h('div',{style:{width:68,height:68,background:'linear-gradient(135deg,var(--acc),var(--cyn))',borderRadius:18,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:30,fontWeight:800,color:'#fff',marginBottom:14}},'W'),
+      h('h2',{style:{fontWeight:800,fontSize:'1.3rem',marginBottom:4}},'WealthFlow'),
+      h('p',{style:{color:'var(--t3)',fontSize:'.82rem',marginBottom:40}},email?'Halo, '+email.split('@')[0]+'!':'Verifikasi identitas'),
+
+      // Biometric button
+      h('button',{onClick:doAuth,disabled:busy,style:{
+        width:88,height:88,borderRadius:'50%',
+        border:'2.5px solid '+(err?'var(--red)':'var(--acc)'),
+        background:err?'var(--redbg)':'var(--accbg)',
+        display:'flex',flexDirection:'column',alignItems:'center',
+        justifyContent:'center',cursor:busy?'default':'pointer',
+        margin:'0 auto 16px',fontSize:'2.2rem',
+        transition:'all .2s',opacity:busy?0.7:1,
+        boxShadow:busy?'none':'0 0 0 6px '+(err?'rgba(239,68,68,.1)':'rgba(16,185,129,.1)')
+      }},busy?'⏳':err?'❌':'🔐'),
+
+      h('p',{style:{fontWeight:600,fontSize:'.88rem',marginBottom:4}},
+        busy?'Menunggu verifikasi...':err?'Gagal':'Ketuk untuk membuka'),
+      h('p',{style:{color:'var(--t3)',fontSize:'.74rem',marginBottom:16}},
+        busy?'Gunakan Face ID / Sidik Jari':err||'Face ID · Fingerprint · Biometrik'),
+
+      err?h('button',{onClick:doAuth,style:{
+        color:'var(--acc)',background:'none',border:'1px solid var(--acc)',
+        borderRadius:8,padding:'8px 20px',cursor:'pointer',
+        fontSize:'.82rem',fontWeight:600,marginBottom:16
+      }},'🔄 Coba Lagi'):null,
+
+      h('div',{style:{marginTop:20,paddingTop:20,borderTop:'1px solid var(--brd)'}}),
+      h('button',{onClick:onUsePass,style:{
+        color:'var(--t3)',background:'none',border:'none',
+        cursor:'pointer',fontSize:'.76rem'
+      }},'Gunakan password sebagai gantinya → ')));
+}
+
+/* ═══ APP ═══ */
 function App(){
   var _au=useState(null),user=_au[0],sUser=_au[1];
   var _ac=useState(true),authChecking=_ac[0],sAC=_ac[1];
   var _rm=useState(false),resetMode=_rm[0],sResetMode=_rm[1];
+  // Biometric lock state
+  var _lk=useState(false),locked=_lk[0],sLocked=_lk[1];
+  var _bo=useState(false),bioOffer=_bo[0],sBioOffer=_bo[1]; // offer to enable biometrics
   var initPg='dashboard';try{initPg=localStorage.getItem('wf_pg')||'dashboard'}catch(e){}
   var _p=useState(initPg),pg=_p[0],_sPg=_p[1];
   function sPg(v){_sPg(v);try{localStorage.setItem('wf_pg',v)}catch(e){}}
@@ -701,11 +797,16 @@ function App(){
     }).catch(function(){clearTimeout(timeout);sAC(false)});
     var sub=sb.auth.onAuthStateChange(function(event,session){
       if(event==='PASSWORD_RECOVERY'){
-        // User clicked reset link — show reset form
         sResetMode(true);sAC(false);
         if(session&&session.user){UID=session.user.id;sUser(session.user)}
       } else if(session&&session.user){
         UID=session.user.id;sUser(session.user);
+        // Lock with biometrics if already registered and this is session restore
+        if(bioAvailable()&&event==='INITIAL_SESSION'){sLocked(true);}
+        // Offer to enable biometrics after fresh sign-in
+        if(event==='SIGNED_IN'&&bioSupported()&&!bioAvailable()){
+          setTimeout(function(){sBioOffer(true);},1500);
+        }
       } else {
         UID=null;sUser(null);sW([]);sT([]);sC([]);sB([]);sI([]);sD([]);sDP([]);sG([]);
       }
@@ -768,6 +869,11 @@ function App(){
   // Not logged in
   if(!user)return h(AuthPage,{onAuth:function(u){UID=u.id;sUser(u)}});
   if(resetMode)return h(ResetPasswordPage,{onDone:function(){sResetMode(false)}});
+  // Biometric lock screen — shown on session restore if biometric is enabled
+  if(locked)return h(AppLock,{
+    onUnlock:function(){sLocked(false);},
+    onUsePass:function(){bioClear();sLocked(false);sb.auth.signOut();}
+  });
   // Loading data
   if(ld)return h('div',{style:{width:'100%',minHeight:'100vh',background:'var(--bg)',display:'flex',flexDirection:'column'}},
     h('div',{style:{height:50,background:'var(--sbg)',borderBottom:'1px solid var(--brd)',display:'flex',alignItems:'center',padding:'0 16px',gap:10}},
@@ -810,6 +916,22 @@ function App(){
     fabOpen?h(QuickTxn,{W:W,C:C,rT:rT,rW:rW,onClose:function(){sFab(false)}}):null,
     showWN?h(WhatsNewModal,{onClose:closeWN,onShowAll:openAll}):null,
     showAll?h(AllChangelogModal,{onClose:function(){sShowAll(false)}}):null,
+    // Biometric offer — shown once after fresh login
+    bioOffer?h('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.5)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',zIndex:3000,display:'flex',alignItems:'flex-end',justifyContent:'center'},onClick:function(){sBioOffer(false)}},
+      h('div',{style:{background:'var(--bgc)',borderRadius:'20px 20px 0 0',width:'100%',maxWidth:480,padding:'20px 24px 32px',animation:'slideUp .3s cubic-bezier(.22,1,.36,1)'},onClick:function(e){e.stopPropagation()}},
+        h('div',{style:{width:36,height:4,borderRadius:2,background:'var(--brd)',margin:'0 auto 20px'}}),
+        h('div',{style:{fontSize:'2rem',marginBottom:8,textAlign:'center'}},'🔐'),
+        h('h3',{style:{fontWeight:700,fontSize:'1rem',textAlign:'center',marginBottom:6}},'Aktifkan Biometrik?'),
+        h('p',{style:{color:'var(--t2)',fontSize:'.82rem',textAlign:'center',marginBottom:20,lineHeight:1.5}},'Buka WealthFlow lebih cepat dengan Face ID atau sidik jari. Tidak perlu ketik password setiap kali buka app.'),
+        h('div',{style:{display:'flex',gap:10}},
+          h('button',{className:'btn bs',style:{flex:1,justifyContent:'center'},onClick:function(){sBioOffer(false)}},'Nanti saja'),
+          h('button',{className:'btn bp',style:{flex:1,justifyContent:'center'},onClick:function(){
+            sBioOffer(false);
+            if(!user)return;
+            bioRegister(user.id,user.email).then(function(){t('✅ Biometrik diaktifkan!');}).catch(function(e){
+              if(e.name!=='NotAllowedError')t('Gagal mengaktifkan: '+e.message,'err');
+            });
+          }},'Aktifkan 🔐')))):null,
     h('button',{className:'fab',onClick:function(){sFab(true)},title:'Tambah Transaksi'},'+'))
 }
 
@@ -1246,6 +1368,24 @@ function SettingsP(p){
     tab==='investments'?h(InvP,p):null,
     // Akun tab
     tab==='akun'?h('div',null,
+      // Biometric card
+      bioSupported()?h('div',{className:'cd',style:{marginBottom:12}},
+        h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between'}},
+          h('div',null,
+            h('div',{style:{fontWeight:700,fontSize:'.9rem',marginBottom:2}},'🔐 Buka dengan Biometrik'),
+            h('div',{style:{fontSize:'.74rem',color:'var(--t3)'}},bioAvailable()?'Face ID / Fingerprint aktif':'Aktifkan Face ID atau sidik jari')),
+          // Toggle
+          h('div',{style:{width:44,height:24,borderRadius:12,background:bioAvailable()?'var(--acc)':'var(--brd)',position:'relative',cursor:'pointer',transition:'background .2s',flexShrink:0},onClick:function(){
+            if(bioAvailable()){
+              bioClear();t('Biometrik dinonaktifkan');
+            } else {
+              if(!user)return;
+              bioRegister(user.id,user.email)
+                .then(function(){t('✅ Biometrik diaktifkan! Aktif saat buka app berikutnya.');})
+                .catch(function(e){if(e.name!=='NotAllowedError')t('Gagal: '+e.message,'err');});
+            }
+          }},
+            h('div',{style:{width:18,height:18,borderRadius:9,background:'#fff',position:'absolute',top:3,left:bioAvailable()?23:3,transition:'left .2s',boxShadow:'0 1px 3px rgba(0,0,0,.2)'}})))):null,
       h('div',{className:'cd',style:{marginBottom:12}},
         h('h3',{style:{fontSize:'.95rem',fontWeight:700,marginBottom:14}},'🔐 Ubah Password'),
         h('p',{style:{fontSize:'.78rem',color:'var(--t3)',marginBottom:14}},'Ubah password langsung tanpa perlu email. Minimal 6 karakter.'),
