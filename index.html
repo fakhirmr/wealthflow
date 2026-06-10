@@ -54,10 +54,11 @@ button svg{width:18px;height:18px;flex-shrink:0}
 .fi{width:100%;padding:9px 12px;background:var(--bgi);border:1px solid var(--brd);border-radius:8px;color:var(--t1);font-size:16px;transition:border-color .15s}.fi:focus{border-color:var(--acc)}.fi::placeholder{color:var(--t3)}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-.mo{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px}
-.moc{background:var(--bgc);border:1px solid var(--brd);border-radius:14px;width:100%;max-width:460px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px 12px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.moc{background:var(--bgc);border:1px solid var(--brd);border-radius:16px;width:100%;max-width:460px;max-height:min(88svh,88vh);display:flex;flex-direction:column;overflow:hidden;animation:mdIn .2s cubic-bezier(.22,1,.36,1)}
+@keyframes mdIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
 .moh{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:1px solid var(--brd)}.moh h3{font-size:1rem;font-weight:700}
-.mob{padding:16px 18px;overflow-y:auto;flex:1}.mof{padding:10px 18px 16px;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;border-top:1px solid var(--brd)}
+.mob{padding:16px 18px;overflow-y:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch}.mof{padding:10px 18px 16px;display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;border-top:1px solid var(--brd)}
 
 .tw{overflow-x:auto}table{width:100%;border-collapse:collapse}
 thead th{text-align:left;font-size:.7rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;padding:8px 12px;border-bottom:1px solid var(--brd)}
