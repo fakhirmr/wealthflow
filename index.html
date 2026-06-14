@@ -2167,6 +2167,8 @@ function AiP(p){
   var mrRef=React.useRef(null);var chunksRef=React.useRef([]);var voiceRef=React.useRef(null);
   var _rec=useState(false),rec=_rec[0],sRec=_rec[1];
   var _recBusy=useState(false),recBusy=_recBusy[0],sRecBusy=_recBusy[1];
+  var _recPaused=useState(false),recPaused=_recPaused[0],sRecPaused=_recPaused[1];
+  var _editIdx=useState(null),editIdx=_editIdx[0],sEditIdx=_editIdx[1];
   useEffect(function(){if(ref.current)ref.current.scrollTop=ref.current.scrollHeight},[ms]);
 
   // Auto-compute anomalies on load
@@ -2265,37 +2267,50 @@ function AiP(p){
     }).catch(function(e){sLd(false);var em=nm.concat({role:'sys',text:'❌ '+e.message});sMs(em);saveMem(em)})
   }
 
-  function toggleMic(){
-    if(recBusy||!keySet)return;
-    if(!rec){
-      navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
-        var mime=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4'].find(function(m){return MediaRecorder.isTypeSupported(m)})||'';
-        var mr=new MediaRecorder(stream,mime?{mimeType:mime}:{});
-        mrRef.current=mr;chunksRef.current=[];
-        mr.ondataavailable=function(e){if(e.data.size>0)chunksRef.current.push(e.data)};
-        mr.onstop=function(){
-          stream.getTracks().forEach(function(t){t.stop()});
-          var blobType=mr.mimeType||mime||'audio/webm';
-          var ext=blobType.includes('ogg')?'ogg':blobType.includes('mp4')||blobType.includes('m4a')?'m4a':'webm';
-          var blob=new Blob(chunksRef.current,{type:blobType});
-          sRecBusy(true);
-          var fd=new FormData();
-          fd.append('file',blob,'rec.'+ext);
-          fd.append('model','whisper-large-v3-turbo');
-          fd.append('language','id');
-          fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'Authorization':'Bearer '+key},body:fd})
-            .then(function(r){return r.json()}).then(function(d){
-              sRecBusy(false);
-              if(d.text&&d.text.trim()){voiceRef.current=d.text.trim();send();}
-              else{var em=ms.concat({role:'sys',text:'❌ Suara tidak terdeteksi'});sMs(em);saveMem(em);}
-            }).catch(function(e){sRecBusy(false);var em=ms.concat({role:'sys',text:'❌ '+e.message});sMs(em);saveMem(em);});
-        };
-        mr.start();sRec(true);
-      }).catch(function(e){var em=ms.concat({role:'sys',text:'❌ Mikrofon tidak dapat diakses: '+e.message});sMs(em);saveMem(em);});
-    } else {
-      if(mrRef.current&&mrRef.current.state==='recording')mrRef.current.stop();
-      sRec(false);
-    }
+  function startMic(){
+    if(recBusy||!keySet||rec)return;
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      var mime=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4'].find(function(m){return MediaRecorder.isTypeSupported(m)})||'';
+      var mr=new MediaRecorder(stream,mime?{mimeType:mime}:{});
+      mrRef.current=mr;chunksRef.current=[];
+      mr.ondataavailable=function(e){if(e.data.size>0)chunksRef.current.push(e.data)};
+      mr.onstop=function(){
+        stream.getTracks().forEach(function(t){t.stop()});
+        var blobType=mr.mimeType||mime||'audio/webm';
+        var ext=blobType.includes('ogg')?'ogg':blobType.includes('mp4')||blobType.includes('m4a')?'m4a':'webm';
+        var blob=new Blob(chunksRef.current,{type:blobType});
+        sRecBusy(true);sRec(false);sRecPaused(false);
+        var fd=new FormData();
+        fd.append('file',blob,'rec.'+ext);
+        fd.append('model','whisper-large-v3-turbo');
+        fd.append('language','id');
+        fetch('https://api.groq.com/openai/v1/audio/transcriptions',{method:'POST',headers:{'Authorization':'Bearer '+key},body:fd})
+          .then(function(r){return r.json()}).then(function(d){
+            sRecBusy(false);
+            if(d.text&&d.text.trim()){voiceRef.current=d.text.trim();send();}
+            else{var em=ms.concat({role:'sys',text:'❌ Suara tidak terdeteksi'});sMs(em);saveMem(em);}
+          }).catch(function(e){sRecBusy(false);var em=ms.concat({role:'sys',text:'❌ '+e.message});sMs(em);saveMem(em);});
+      };
+      mr.start();sRec(true);sRecPaused(false);
+    }).catch(function(e){var em=ms.concat({role:'sys',text:'❌ Mikrofon tidak dapat diakses: '+e.message});sMs(em);saveMem(em);});
+  }
+  function pauseResumeMic(){
+    if(!rec||recBusy||!mrRef.current)return;
+    if(recPaused){mrRef.current.resume();sRecPaused(false);}
+    else{mrRef.current.pause();sRecPaused(true);}
+  }
+  function stopMic(){
+    if(!rec||recBusy)return;
+    if(mrRef.current&&mrRef.current.state!=='inactive')mrRef.current.stop();
+    sRec(false);sRecPaused(false);
+  }
+  function updatePendingTx(idx,field,value){
+    sPendingTx(function(arr){return arr.map(function(tx,i){
+      if(i!==idx)return tx;
+      var u=Object.assign({},tx);u[field]=value;
+      if(field==='category_id')u.sub_category_id=null;
+      return u;
+    })});
   }
 
   // Feature 2: Parse natural language transaction
@@ -2474,15 +2489,37 @@ function AiP(p){
           h('div',{style:{display:'flex',gap:6}},
             h('button',{className:'btn bs',style:{fontSize:'.75rem',padding:'3px 8px'},onClick:function(){sPendingTx([])}},'Batal'),
             h('button',{className:'btn bp',style:{fontSize:'.75rem',padding:'3px 8px'},onClick:confirmTx},'✅ Simpan Semua'))),
-        h('div',{style:{display:'flex',flexDirection:'column',gap:2}},
-          pendingTx.map(function(tx,i){return h('div',{key:i,style:{fontSize:'.72rem',color:'var(--t2)',display:'flex',gap:4}},
-            h('span',null,(tx.type==='income'?'💚':'💸')+' '+fmt(tx.amount)),
-            h('span',{style:{color:'var(--t3)'}},tx.description||'—'),
-            tx.wallet_id?h('span',{style:{color:'var(--t3)'}},wn(W,tx.wallet_id)):null)}))):null,
+        h('div',{style:{display:'flex',flexDirection:'column',gap:4}},
+          pendingTx.map(function(tx,i){
+            return editIdx===i
+              ?h('div',{key:i,style:{background:'var(--bgc)',borderRadius:6,padding:'6px 8px',display:'flex',flexDirection:'column',gap:4}},
+                  h('div',{style:{display:'flex',gap:4,flexWrap:'wrap'}},
+                    h('select',{className:'fi',value:tx.type,onChange:function(e){updatePendingTx(i,'type',e.target.value)},style:{fontSize:'.75rem',padding:'3px 6px'}},
+                      h('option',{value:'expense'},'💸 Pengeluaran'),h('option',{value:'income'},'💚 Pemasukan')),
+                    h('input',{className:'fi',type:'number',value:tx.amount,onChange:function(e){updatePendingTx(i,'amount',Number(e.target.value)||0)},style:{width:90,fontSize:'.75rem',padding:'3px 6px'},placeholder:'Jumlah'}),
+                    h('input',{className:'fi',type:'text',value:tx.description||'',onChange:function(e){updatePendingTx(i,'description',e.target.value)},style:{flex:1,minWidth:80,fontSize:'.75rem',padding:'3px 6px'},placeholder:'Keterangan'})),
+                  h('div',{style:{display:'flex',gap:4,flexWrap:'wrap'}},
+                    h('select',{className:'fi',value:tx.wallet_id||'',onChange:function(e){updatePendingTx(i,'wallet_id',e.target.value||null)},style:{flex:1,fontSize:'.75rem',padding:'3px 6px'}},
+                      h('option',{value:''},'— Dompet —'),W.map(function(w){return h('option',{key:w.id,value:w.id},w.name)})),
+                    h('select',{className:'fi',value:tx.category_id||'',onChange:function(e){updatePendingTx(i,'category_id',e.target.value||null)},style:{flex:1,fontSize:'.75rem',padding:'3px 6px'}},
+                      h('option',{value:''},'— Kategori —'),C.filter(function(c){return !c.parent_id}).map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)})),
+                    tx.category_id?h('select',{className:'fi',value:tx.sub_category_id||'',onChange:function(e){updatePendingTx(i,'sub_category_id',e.target.value||null)},style:{flex:1,fontSize:'.75rem',padding:'3px 6px'}},
+                      h('option',{value:''},'— Sub —'),C.filter(function(c){return c.parent_id===tx.category_id}).map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)})):null,
+                    h('input',{className:'fi',type:'date',value:tx.date||td(),onChange:function(e){updatePendingTx(i,'date',e.target.value)},style:{width:130,fontSize:'.75rem',padding:'3px 6px'}})),
+                  h('button',{className:'btn bp',style:{fontSize:'.72rem',padding:'3px 10px',alignSelf:'flex-end'},onClick:function(){sEditIdx(null)}},'✓ Selesai Edit'))
+              :h('div',{key:i,style:{fontSize:'.72rem',color:'var(--t2)',display:'flex',gap:4,alignItems:'center'}},
+                  h('span',null,(tx.type==='income'?'💚':'💸')+' '+fmt(tx.amount)),
+                  h('span',{style:{color:'var(--t3)'}},tx.description||'—'),
+                  tx.wallet_id?h('span',{style:{color:'var(--t3)'}},wn(W,tx.wallet_id)):null,
+                  h('button',{onClick:function(){sEditIdx(i)},style:{marginLeft:'auto',background:'none',border:'none',cursor:'pointer',fontSize:'.8rem',color:'var(--t3)',padding:'0 2px'},title:'Edit transaksi'},'✏️'))
+          }))):null,
       h('div',{className:'chat-input'},
         h('input',{className:'fi',placeholder:keySet?'Tanya atau tulis transaksi...':'Paste API key kamu...',value:q,onChange:function(e){sQ(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')send()},style:{flex:1}}),
         keySet?h('button',{className:'btn bs',style:{flexShrink:0,padding:'0 10px'},onClick:parseTransaction,disabled:busy,title:'Catat transaksi'},'📝'):null,
-        keySet?h('button',{className:'btn '+(rec?'bd':'bs'),style:{flexShrink:0,padding:'0 10px',transition:'all .2s'},onClick:toggleMic,disabled:recBusy,title:rec?'Berhenti merekam':'Rekam suara'},recBusy?'⏳':rec?'⏹️':'🎤'):null,
+        keySet&&!rec&&!recBusy?h('button',{className:'btn bs',style:{flexShrink:0,padding:'0 10px'},onClick:startMic,title:'Rekam suara'},'🎤'):null,
+        keySet&&rec?h('button',{className:'btn '+(recPaused?'bp':'bs'),style:{flexShrink:0,padding:'0 10px'},onClick:pauseResumeMic,title:recPaused?'Lanjutkan rekaman':'Jeda rekaman'},recPaused?'▶️':'⏸️'):null,
+        keySet&&rec?h('button',{className:'btn bd',style:{flexShrink:0,padding:'0 10px'},onClick:stopMic,title:'Berhenti & kirim'},'⏹️'):null,
+        keySet&&recBusy?h('button',{className:'btn bs',style:{flexShrink:0,padding:'0 10px'},disabled:true},'⏳'):null,
         h('button',{className:'btn bp',style:{flexShrink:0},onClick:send,disabled:ld||busy||rec||recBusy},keySet?'Kirim':'Set')),
       h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:6}},
         h('div',{style:{display:'flex',gap:4,flexWrap:'wrap',flex:1}},keySet?quickP.map(function(qp,i){return h('button',{key:i,className:'btn bs',style:{fontSize:'.68rem',padding:'2px 7px'},onClick:function(){sQ(qp.q);setTimeout(send,30)}},qp.lb)}):h('a',{href:'https://console.groq.com/keys',target:'_blank',style:{fontSize:'.75rem',color:'var(--blu)'}},'🔑 Ambil key gratis')),
