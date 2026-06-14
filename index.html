@@ -2288,11 +2288,11 @@ function AiP(p){
           .then(function(r){return r.json()}).then(function(d){
             sRecBusy(false);
             if(d.text&&d.text.trim()){voiceRef.current=d.text.trim();send();}
-            else{var em=ms.concat({role:'sys',text:'❌ Suara tidak terdeteksi'});sMs(em);saveMem(em);}
-          }).catch(function(e){sRecBusy(false);var em=ms.concat({role:'sys',text:'❌ '+e.message});sMs(em);saveMem(em);});
+            else{sMs(function(prev){var em=prev.concat({role:'sys',text:'❌ Suara tidak terdeteksi'});saveMem(em);return em});}
+          }).catch(function(e){sRecBusy(false);sMs(function(prev){var em=prev.concat({role:'sys',text:'❌ '+e.message});saveMem(em);return em});});
       };
       mr.start();sRec(true);sRecPaused(false);
-    }).catch(function(e){var em=ms.concat({role:'sys',text:'❌ Mikrofon tidak dapat diakses: '+e.message});sMs(em);saveMem(em);});
+    }).catch(function(e){sMs(function(prev){var em=prev.concat({role:'sys',text:'❌ Mikrofon tidak dapat diakses: '+e.message});saveMem(em);return em});});
   }
   function pauseResumeMic(){
     if(!rec||recBusy||!mrRef.current)return;
@@ -2329,6 +2329,9 @@ function AiP(p){
       sBusy(false);if(d.error){var em=nm.concat({role:'sys',text:'❌ '+d.error.message});sMs(em);saveMem(em);return}
       try{
         var tx=JSON.parse(d.choices[0].message.content.replace(/```json|```/g,'').trim());
+        if(tx.wallet_id&&String(tx.wallet_id).indexOf(',')>-1)tx.wallet_id=String(tx.wallet_id).split(',')[0].trim()||null;
+        if(tx.category_id&&String(tx.category_id).indexOf(',')>-1)tx.category_id=String(tx.category_id).split(',')[0].trim()||null;
+        tx.sub_category_id=tx.sub_category_id||null;
         sPendingTx(function(prev){return prev.concat([tx])});
         var preview='📋 Transaksi terdeteksi:\n'+(tx.type==='income'?'💚 Pemasukan':'💸 Pengeluaran')+'\nJumlah: '+fmt(tx.amount)+'\nKeterangan: '+(tx.description||'-')+'\nDompet: '+(tx.wallet_id?wn(W,tx.wallet_id):'—')+'\nKategori: '+(tx.category_id?cn(C,tx.category_id):'—')+'\nTanggal: '+tx.date;
         var fm=nm.concat({role:'ai',text:preview});sMs(fm);saveMem(fm);
@@ -2338,14 +2341,15 @@ function AiP(p){
 
   function confirmTx(){
     if(!pendingTx.length||!UID)return;
-    var txs=pendingTx;sPendingTx([]);sEditIdx(null);
+    var txs=pendingTx;
     var rows=txs.map(function(tx){return{user_id:UID,type:tx.type,amount:Number(tx.amount)||0,description:tx.description||'',date:tx.date||td(),wallet_id:tx.wallet_id||null,category_id:tx.category_id||null,sub_category_id:tx.sub_category_id||null}});
     sb.from('transactions').insert(rows).then(function(r){
-      if(r.error){var em=ms.concat({role:'sys',text:'❌ '+r.error.message});sMs(em);saveMem(em);return}
-      txs.forEach(function(tx){
-        if(tx.wallet_id){var w=fid(W,tx.wallet_id);if(w){var nb=(Number(w.balance)||0)+(tx.type==='income'?Number(tx.amount):-Number(tx.amount));sb.from('wallets').update({balance:nb}).eq('id',tx.wallet_id).then(function(wr){if(wr&&wr.error)console.log(wr.error.message);rW()})}}
-      });
-      var fm=ms.concat({role:'sys',text:'✅ '+txs.length+' transaksi tersimpan!'});sMs(fm);saveMem(fm);rT();
+      if(r.error){sMs(function(prev){var em=prev.concat({role:'sys',text:'❌ '+r.error.message});saveMem(em);return em});return}
+      sPendingTx([]);sEditIdx(null);
+      var walletDeltas={};
+      txs.forEach(function(tx){if(tx.wallet_id)walletDeltas[tx.wallet_id]=(walletDeltas[tx.wallet_id]||0)+(tx.type==='income'?1:-1)*Number(tx.amount)});
+      Object.keys(walletDeltas).forEach(function(wid){var w=fid(W,wid);if(w){var nb=(Number(w.balance)||0)+walletDeltas[wid];sb.from('wallets').update({balance:nb}).eq('id',wid).then(function(wr){if(wr&&wr.error)console.log(wr.error.message);rW()})}});
+      sMs(function(prev){var fm=prev.concat({role:'sys',text:'✅ '+txs.length+' transaksi tersimpan!'});saveMem(fm);return fm});rT();
     })
   }
 
