@@ -563,8 +563,10 @@ function GoalsP(p){
       eligibleGoals.map(function(g){
         var gs2=Number(g.saved_amount)||0;var gt2=Number(g.target_amount)||0;
         var gp2=gt2>0?Math.min(Math.round((gs2/gt2)*100),100):0;
-        return h('div',{key:g.id,className:'fg'},
-          h('label',null,g.icon,' ',g.name,' ',h('span',{style:{fontWeight:400,color:'var(--t3)',fontSize:'.7rem'}},gp2+'% · sisa ',fmt(Math.max(0,gt2-gs2)))),
+        return h('div',{key:g.id,style:{marginBottom:12}},
+          h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}},
+            h('span',{style:{fontSize:'.88rem',fontWeight:600}},g.icon,' ',g.name),
+            h('span',{style:{fontSize:'.72rem',color:'var(--t3)'}},gp2,'% · sisa ',fmt(Math.max(0,gt2-gs2)))),
           h(NumInput,{value:allocF[g.id]||'',onChange:function(v){var gid=g.id;sAllocF(function(prev){var n={};for(var x in prev)n[x]=prev[x];n[gid]=v;return n})},placeholder:'Jumlah alokasi (Rp)'}))
       })),
     cfE)
