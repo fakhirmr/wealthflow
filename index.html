@@ -2751,21 +2751,35 @@ function BudgP(p){
               }},'+ Tambah Budget Sub-Kategori'))):null)
       }),
 
-      // Categories without budgets (show as suggestion)
-      parents.filter(function(par){
-        var hasDirect=activeBudgets.some(function(b){return b.category_id===par.id});
-        var hasSub=C.filter(function(c){return c.parent_id===par.id}).some(function(sub){return activeBudgets.some(function(b){return b.category_id===sub.id})});
-        return !hasDirect&&!hasSub;
-      }).length>0?h('div',{style:{marginTop:4}},
-        h('div',{style:{fontSize:'.75rem',color:'var(--t3)',padding:'6px 0',marginBottom:6}},'Kategori belum punya budget:'),
-        h('div',{style:{display:'flex',flexWrap:'wrap',gap:6}},
-          parents.filter(function(par){
-            var hasDirect=activeBudgets.some(function(b){return b.category_id===par.id});
-            var hasSub=C.filter(function(c){return c.parent_id===par.id}).some(function(sub){return activeBudgets.some(function(b){return b.category_id===sub.id})});
-            return !hasDirect&&!hasSub;
-          }).map(function(par){
-            return h('button',{key:par.id,className:'btn bs',style:{fontSize:'.75rem',padding:'4px 10px'},onClick:function(){sF({category_id:par.id,amount:'',period:'monthly'});sMo({m:'add'})}},par.icon||'',' ',par.name)
-          }))):null),
+      // Categories without budgets
+      (function(){
+        var unbudAll=parents.filter(function(par){
+          return !activeBudgets.some(function(b){return b.category_id===par.id})&&
+                 !C.filter(function(c){return c.parent_id===par.id}).some(function(sub){return activeBudgets.some(function(b){return b.category_id===sub.id})});
+        });
+        if(unbudAll.length===0)return null;
+        var unbudSpend=unbudAll.filter(function(par){return spentParent(par.id)>0});
+        var unbudNone=unbudAll.filter(function(par){return spentParent(par.id)===0});
+        return h('div',{style:{marginTop:8}},
+          unbudSpend.length>0?h('div',{style:{marginBottom:8}},
+            h('div',{style:{fontSize:'.75rem',color:'var(--t3)',padding:'4px 0',marginBottom:6,fontWeight:600}},'Pengeluaran tanpa budget:'),
+            unbudSpend.map(function(par){
+              var sp=spentParent(par.id);
+              return h('div',{key:par.id,className:'cd',style:{marginBottom:8,padding:'12px 14px',borderLeft:'3px solid var(--org)'}},
+                h('div',{style:{display:'flex',alignItems:'center',gap:10}},
+                  h('div',{style:{width:32,height:32,borderRadius:8,background:par.color||'var(--acc)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,flexShrink:0}},par.icon||'📋'),
+                  h('div',{style:{flex:1}},
+                    h('div',{style:{fontWeight:700,fontSize:'.88rem'}},par.name),
+                    h('div',{style:{fontSize:'.72rem',color:'var(--org)',fontWeight:600,marginTop:2}},fmt(sp),' bulan ini · tidak dibudgetkan')),
+                  h('button',{className:'btn bs',style:{fontSize:'.72rem',padding:'4px 10px',flexShrink:0},onClick:function(){sF({category_id:par.id,amount:'',period:'monthly'});sMo({m:'add'})}},'+ Budget')))
+            })):null,
+          unbudNone.length>0?h('div',null,
+            h('div',{style:{fontSize:'.75rem',color:'var(--t3)',padding:'4px 0',marginBottom:6}},'Belum punya budget:'),
+            h('div',{style:{display:'flex',flexWrap:'wrap',gap:6}},
+              unbudNone.map(function(par){
+                return h('button',{key:par.id,className:'btn bs',style:{fontSize:'.75rem',padding:'4px 10px'},onClick:function(){sF({category_id:par.id,amount:'',period:'monthly'});sMo({m:'add'})}},par.icon||'',' ',par.name)
+              }))):null)
+      })()),
 
     // Modal
     h(Mod,{open:!!mo,onClose:function(){sMo(null)},title:mo&&mo.m==='add'?'Tambah Anggaran':'Edit Anggaran',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sMo(null)}},'Batal'),h('button',{className:'btn bp',onClick:save},'Simpan'))},
