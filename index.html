@@ -2152,7 +2152,7 @@ function AiP(p){
   var initMsgs=function(){
     var mem=loadMem();
     if(mem.length>0)return mem;
-    return [{role:'sys',text:saved?'✅ API key tersimpan.\n\n🤖 Halo! Saya WealthFlow AI. Saya ingat percakapan kita sebelumnya dan punya akses ke data keuanganmu.\n\nCoba:\n• Tanya kondisi keuangan\n• Tulis transaksi natural\n• Minta laporan / forecast / analisis':'Masukkan API key Groq untuk mengaktifkan AI.\n\n🔑 Ambil gratis di console.groq.com/keys'}];
+    return [{role:'sys',text:saved?'✅ API key tersimpan.\n\n🤖 Halo! Saya WealthFlow AI. Saya ingat percakapan kita sebelumnya dan punya akses ke data keuanganmu.\n\nCoba:\n• Tanya kondisi keuangan\n• Tulis transaksi natural\n• Minta laporan / forecast / analisis':'Masukkan API key untuk mengaktifkan AI.\n\n🔑 Ambil key gratis di console.groq.com/keys'}];
   };
   var _ms=useState(initMsgs),ms=_ms[0],sMs=_ms[1];
   var _q=useState(''),q=_q[0],sQ=_q[1];
@@ -2239,12 +2239,13 @@ function AiP(p){
     var msg=q.trim();sQ('');var nm=ms.concat({role:'user',text:msg});sMs(nm);saveMem(nm);sLd(true);
     var hist=buildHistory();
     hist.push({role:'user',content:msg});
+    var sysPrompt='Kamu adalah WealthFlow AI — asisten keuangan pribadi yang cerdas dan analitis untuk pengguna Indonesia.\n\nGAYA: Bahasa Indonesia natural dan hangat. Emoji secukupnya. Jawaban terstruktur (bullet/list jika perlu). Maksimal 300 kata kecuali diminta lebih detail.\n\nDATA KEUANGAN: Gunakan HANYA angka dari data di bawah. Jangan pernah mengarang angka. Jika data tidak ada atau kurang, minta user input dengan jelas.\n\nPANDUAN RESPONS:\n• Kondisi umum → highlight surplus/defisit, perbandingan bulan lalu, kategori pengeluaran terbesar\n• Analisis pengeluaran → sebutkan angka spesifik per kategori, tandai yang perlu diwaspadai\n• Status budget → tampilkan % terpakai tiap kategori, yang sudah over, estimasi sisa bulan\n• Hutang → total beban cicilan/bulan, rekomendasikan urutan prioritas pelunasan\n• Tips hemat → SPESIFIK berdasarkan pola pengeluaran user, bukan saran generik\n• Pertanyaan di luar keuangan → bantu singkat lalu arahkan ke konteks keuangan user\n\nPENTING: Fokus pada insight yang actionable. Ingat percakapan sebelumnya dan bangun konteks secara koheren.\n\n'+buildCtx();
     fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1500,
-        messages:[{role:'system',content:'Kamu WealthFlow AI, asisten keuangan pribadi. Bahasa Indonesia. Emoji. Format rapi. Ingat percakapan sebelumnya.\n\n'+buildCtx()}].concat(hist)})
+      body:JSON.stringify({model:'deepseek-r1-distill-llama-70b',max_tokens:2000,
+        messages:[{role:'system',content:sysPrompt}].concat(hist)})
     }).then(function(r){return r.json()}).then(function(d){
       sLd(false);if(d.error){var em=nm.concat({role:'sys',text:'❌ '+d.error.message});sMs(em);saveMem(em);return}
-      var r=d.choices[0].message.content;var fm=nm.concat({role:'ai',text:r});sMs(fm);saveMem(fm);
+      var r=stripThink(d.choices[0].message.content);var fm=nm.concat({role:'ai',text:r});sMs(fm);saveMem(fm);
     }).catch(function(e){sLd(false);var em=nm.concat({role:'sys',text:'❌ '+e.message});sMs(em);saveMem(em)})
   }
 
@@ -2291,10 +2292,10 @@ function AiP(p){
     var nm=ms.concat({role:'user',text:msg});sMs(nm);saveMem(nm);
     var hist=buildHistory();hist.push({role:'user',content:msg+'.\nBeri analisis: apakah realistis? berapa lama? berapa nabung/bln yang dibutuhkan? rekomendasi cara mencapainya.'});
     fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1000,messages:[{role:'system',content:'WealthFlow AI. Bahasa Indonesia. Emoji.\n\n'+buildCtx()}].concat(hist)})
+      body:JSON.stringify({model:'deepseek-r1-distill-llama-70b',max_tokens:1500,messages:[{role:'system',content:'Kamu WealthFlow AI, asisten keuangan pribadi. Bahasa Indonesia natural. Analisis secara mendalam dan spesifik. Gunakan HANYA angka dari data. Beri rekomendasi yang actionable.\n\n'+buildCtx()}].concat(hist)})
     }).then(function(r){return r.json()}).then(function(d){
       sLd(false);if(d.error)return;
-      var fm=nm.concat({role:'ai',text:d.choices[0].message.content});sMs(fm);saveMem(fm);
+      var fm=nm.concat({role:'ai',text:stripThink(d.choices[0].message.content)});sMs(fm);saveMem(fm);
     }).catch(function(){sLd(false)})
   }
 
@@ -2307,16 +2308,17 @@ function AiP(p){
     var wkTxns=T.filter(function(t){return t.date&&new Date(t.date)>=wkStart});
     var wkCtx='Transaksi 7 hari terakhir ('+wkTxns.length+' transaksi): '+wkTxns.slice(0,20).map(function(t){return t.date+' '+t.type+' '+fmt(t.amount)+' '+cn(C,t.category_id)}).join('; ');
     fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1200,
-        messages:[{role:'system',content:'WealthFlow AI. Bahasa Indonesia. Buat weekly digest singkat tapi informatif.\n\n'+buildCtx()+'\n\n'+wkCtx},{role:'user',content:'Buat ringkasan minggu ini: total pengeluaran, kategori terbesar, transaksi notable, perbandingan dengan minggu lalu (estimasi), dan 2-3 saran untuk minggu depan.'}]})
+      body:JSON.stringify({model:'deepseek-r1-distill-llama-70b',max_tokens:1800,
+        messages:[{role:'system',content:'Kamu WealthFlow AI. Buat weekly digest keuangan yang tajam dan informatif dalam Bahasa Indonesia. Gunakan angka spesifik dari data. Format dengan section yang jelas. Saran harus actionable.\n\n'+buildCtx()+'\n\n'+wkCtx},{role:'user',content:'Buat weekly digest minggu ini. Sertakan: 1) Total pemasukan & pengeluaran minggu ini, 2) Kategori pengeluaran terbesar dengan angka, 3) Transaksi atau pola yang perlu diperhatikan, 4) Perbandingan dengan tren bulanan, 5) 2-3 saran konkret untuk minggu depan.'}]})
     }).then(function(r){return r.json()}).then(function(d){
       sLd(false);if(d.error)return;
-      var fm=nm.concat({role:'ai',text:d.choices[0].message.content});sMs(fm);saveMem(fm);
+      var fm=nm.concat({role:'ai',text:stripThink(d.choices[0].message.content)});sMs(fm);saveMem(fm);
     }).catch(function(){sLd(false)})
   }
 
   function rst(){try{localStorage.removeItem('wf_groq_key')}catch(e){}sK('');var nm=ms.concat({role:'sys',text:'🔑 Key dihapus.'});sMs(nm)}
   function clearChat(){var init=[{role:'sys',text:'🔄 Percakapan direset. Memori juga dihapus.'}];sMs(init);clearMem()}
+  function stripThink(t){return(t||'').replace(/<think>[\s\S]*?<\/think>/gi,'').trim()}
 
   var quickP=[
     {lb:'Kondisi keuangan',q:'Bagaimana kondisi keuangan aku bulan ini secara keseluruhan?'},
@@ -2420,7 +2422,7 @@ function AiP(p){
           h('button',{className:'btn bs',style:{fontSize:'.75rem',padding:'3px 8px'},onClick:function(){sPendingTx(null)}},'Batal'),
           h('button',{className:'btn bp',style:{fontSize:'.75rem',padding:'3px 8px'},onClick:confirmTx},'✅ Simpan'))):null,
       h('div',{className:'chat-input'},
-        h('input',{className:'fi',placeholder:keySet?'Tanya atau tulis transaksi...':'Paste API key Groq...',value:q,onChange:function(e){sQ(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')send()},style:{flex:1}}),
+        h('input',{className:'fi',placeholder:keySet?'Tanya atau tulis transaksi...':'Paste API key kamu...',value:q,onChange:function(e){sQ(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')send()},style:{flex:1}}),
         keySet?h('button',{className:'btn bs',style:{flexShrink:0,padding:'0 10px'},onClick:parseTransaction,disabled:busy,title:'Catat transaksi'},'📝'):null,
         h('button',{className:'btn bp',style:{flexShrink:0},onClick:send,disabled:ld||busy},keySet?'Kirim':'Set')),
       h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:6}},
