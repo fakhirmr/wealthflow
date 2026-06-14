@@ -880,8 +880,8 @@ function App(){
         UID=session.user.id;sUser(session.user);
         // Lock with biometrics if already registered and this is session restore
         if(bioAvailable()&&event==='INITIAL_SESSION'){sLocked(true);}
-        // Offer to enable biometrics after fresh sign-in
-        if(event==='SIGNED_IN'&&bioSupported()&&!bioAvailable()){
+        // Offer to enable biometrics after fresh sign-in (only once)
+        if(event==='SIGNED_IN'&&bioSupported()&&!bioAvailable()&&!localStorage.getItem('wf_bio_asked')){
           setTimeout(function(){sBioOffer(true);},1500);
         }
       } else {
@@ -1001,7 +1001,7 @@ function App(){
         h('h3',{style:{fontWeight:700,fontSize:'1rem',textAlign:'center',marginBottom:6}},'Aktifkan Biometrik?'),
         h('p',{style:{color:'var(--t2)',fontSize:'.82rem',textAlign:'center',marginBottom:20,lineHeight:1.5}},'Buka WealthFlow lebih cepat dengan Face ID atau sidik jari. Tidak perlu ketik password setiap kali buka app.'),
         h('div',{style:{display:'flex',gap:10}},
-          h('button',{className:'btn bs',style:{flex:1,justifyContent:'center'},onClick:function(){sBioOffer(false)}},'Nanti saja'),
+          h('button',{className:'btn bs',style:{flex:1,justifyContent:'center'},onClick:function(){sBioOffer(false);try{localStorage.setItem('wf_bio_asked','1')}catch(e){}}},'Jangan tampilkan lagi'),
           h('button',{className:'btn bp',style:{flex:1,justifyContent:'center'},onClick:function(){
             sBioOffer(false);
             if(!user)return;
