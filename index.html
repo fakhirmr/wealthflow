@@ -307,6 +307,8 @@ function GoalsP(p){
   var _cf=useCf(),cf=_cf[0],cfE=_cf[1];
   var _mo=useState(null),mo=_mo[0],sMo=_mo[1];
   var _det=useState(null),det=_det[0],sDet=_det[1];
+  var _am=useState(false),allocMo=_am[0],sAllocMo=_am[1];
+  var _allocF=useState({}),allocF=_allocF[0],sAllocF=_allocF[1];
   var defF={name:'',icon:'🎯',target_amount:'',saved_amount:'',deadline:'',wallet_id:'',priority:'medium',notes:'',color:'#10b981',status:'active'};
   var _f=useState(defF),f=_f[0],sF=_f[1];
   function uf(k,v){var n={};for(var x in f)n[x]=f[x];n[k]=v;sF(n)}
@@ -331,6 +333,23 @@ function GoalsP(p){
   }
   function del(g){cf('Hapus goal "'+g.name+'"?').then(function(ok){if(!ok)return;sb.from('goals').delete().eq('id',g.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Goal dihapus');sDet(null);rG()})})}
   function markDone(g){sb.from('goals').update({status:'completed'}).eq('id',g.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('🎉 Goal tercapai!');rG()})}
+  function oAlloc(){var init={};eligibleGoals.forEach(function(g){init[g.id]=''});sAllocF(init);sAllocMo(true)}
+  function saveAlloc(){
+    if(totalAllocated<=0){t('Masukkan minimal satu alokasi','err');return}
+    if(surplus>0&&totalAllocated>surplus){t('Total alokasi melebihi surplus ('+fmt(surplus)+')','err');return}
+    var ups=eligibleGoals.filter(function(g){return parseNum(allocF[g.id])>0});
+    if(!ups.length){t('Tidak ada alokasi','err');return}
+    var done=0;var hasErr=false;
+    ups.forEach(function(g){
+      var add=parseNum(allocF[g.id]);
+      var newSaved=(Number(g.saved_amount)||0)+add;
+      sb.from('goals').update({saved_amount:newSaved}).eq('id',g.id).then(function(r){
+        if(hasErr)return;done++;
+        if(r.error){hasErr=true;t(r.error.message,'err');return}
+        if(done===ups.length){t('Surplus berhasil dialokasikan!');sAllocMo(false);rG()}
+      })
+    })
+  }
 
   // Get effective saved amount (from wallet or manual)
   function getSaved(g){
@@ -354,6 +373,13 @@ function GoalsP(p){
     moSavings.push(Math.max(0,inc-exp));
   }
   var avgSav=moSavings.length>0?moSavings.reduce(function(s,v){return s+v},0)/moSavings.length:0;
+  var curMo=now.getMonth(),curYr=now.getFullYear();
+  var curMoTxns=T.filter(function(tx){if(!tx.date)return false;var d=new Date(tx.date);return d.getMonth()===curMo&&d.getFullYear()===curYr});
+  var mInc=curMoTxns.filter(function(tx){return tx.type==='income'}).reduce(function(s,tx){return s+(Number(tx.amount)||0)},0);
+  var mExp=curMoTxns.filter(function(tx){return tx.type==='expense'}).reduce(function(s,tx){return s+(Number(tx.amount)||0)},0);
+  var surplus=mInc-mExp;
+  var eligibleGoals=active.filter(function(g){return !g.wallet_id});
+  var totalAllocated=Object.keys(allocF).reduce(function(s,k){return s+(parseNum(allocF[k])||0)},0);
 
   // Goal card
   function GoalCard(g){
@@ -476,6 +502,13 @@ function GoalsP(p){
   // LIST VIEW
   return h('div',null,
     h('div',{className:'pg-hd'},h('div',null,h('h2',null,'Goals'),h('p',null,'Tujuan keuanganmu')),h('button',{className:'btn bp',onClick:oA},h(Ic,{n:'plus'}),' Tambah')),
+    // Surplus card
+    h('div',{className:'cd',style:{marginBottom:12,padding:'14px 16px',borderLeft:'3px solid '+(surplus>=0?'var(--acc)':'var(--red)')}},
+      h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+        h('div',null,
+          h('div',{style:{fontSize:'.72rem',color:'var(--t3)',marginBottom:2}},'Surplus Bulan Ini'),
+          h('div',{style:{fontWeight:700,fontSize:'1.05rem',color:surplus>=0?'var(--acc)':'var(--red)'}},surplus>=0?'+ ':'',(surplus<0?'- ':''),fmt(Math.abs(surplus)))),
+        surplus>0&&eligibleGoals.length>0?h('button',{className:'btn bp',style:{fontSize:'.78rem'},onClick:oAlloc},'💰 Alokasikan'):null)),
     // Summary
     active.length>0?h('div',{className:'cd',style:{marginBottom:12,padding:'16px 18px'}},
       h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}},
@@ -521,6 +554,19 @@ function GoalsP(p){
           h('option',{value:'active'},'🎯 Aktif'),
           h('option',{value:'completed'},'✅ Tercapai'),
           h('option',{value:'paused'},'⏸ Ditunda'))):null),
+    h(Mod,{open:allocMo,onClose:function(){sAllocMo(false)},title:'💰 Alokasi Surplus ke Goals',footer:h(F,null,h('button',{className:'btn bs',onClick:function(){sAllocMo(false)}},'Batal'),h('button',{className:'btn bp',onClick:saveAlloc,disabled:totalAllocated<=0},'Simpan'))},
+      h('div',{style:{marginBottom:12,padding:'10px 12px',background:totalAllocated>surplus?'var(--redbg)':'var(--accbg)',borderRadius:8,border:'1px solid '+(totalAllocated>surplus?'var(--red)':'var(--acc)')}},
+        h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.82rem',marginBottom:4}},h('span',{style:{color:'var(--t2)'}},'Surplus tersedia:'),h('span',{style:{fontWeight:700,color:'var(--acc)'}},fmt(surplus))),
+        h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.82rem'}},h('span',{style:{color:'var(--t2)'}},'Total dialokasikan:'),h('span',{style:{fontWeight:700,color:totalAllocated>surplus?'var(--red)':'var(--t1)'}},fmt(totalAllocated))),
+        totalAllocated>0?h('div',{style:{display:'flex',justifyContent:'space-between',fontSize:'.82rem',marginTop:4}},h('span',{style:{color:'var(--t3)'}},'Sisa:'),h('span',{style:{fontWeight:600,color:surplus-totalAllocated>=0?'var(--acc)':'var(--red)'}},fmt(surplus-totalAllocated))):null),
+      eligibleGoals.length===0?h('div',{className:'empty'},h('div',{className:'ei'},'🎯'),h('h3',null,'Tidak ada goal yang bisa dialokasikan'),h('p',null,'Goals yang terhubung ke dompet tidak perlu alokasi manual')):
+      eligibleGoals.map(function(g){
+        var gs2=Number(g.saved_amount)||0;var gt2=Number(g.target_amount)||0;
+        var gp2=gt2>0?Math.min(Math.round((gs2/gt2)*100),100):0;
+        return h('div',{key:g.id,className:'fg'},
+          h('label',null,g.icon,' ',g.name,' ',h('span',{style:{fontWeight:400,color:'var(--t3)',fontSize:'.7rem'}},gp2+'% · sisa ',fmt(Math.max(0,gt2-gs2)))),
+          h(NumInput,{value:allocF[g.id]||'',onChange:function(v){var gid=g.id;sAllocF(function(prev){var n={};for(var x in prev)n[x]=prev[x];n[gid]=v;return n})},placeholder:'Jumlah alokasi (Rp)'}))
+      })),
     cfE)
 }
 
