@@ -2254,7 +2254,7 @@ function AiP(p){
         if(ptx.category_id&&String(ptx.category_id).indexOf(',')>-1)ptx.category_id=String(ptx.category_id).split(',')[0].trim()||null;
         if(ptx.amount>0)txList.push(ptx)}catch(e){}}
       if(txList.length>0)sPendingTx(function(prev){return prev.concat(txList)});
-      var r=raw.replace(/\[TX\][\s\S]*?\[\/TX\]/i,'').trim();
+      var r=raw.replace(/\[TX\][\s\S]*?\[\/TX\]/gi,'').trim();
       var fm=nm.concat({role:'ai',text:r});sMs(fm);saveMem(fm);
     }).catch(function(e){sLd(false);var em=nm.concat({role:'sys',text:'❌ '+e.message});sMs(em);saveMem(em)})
   }
