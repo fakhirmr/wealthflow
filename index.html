@@ -2282,11 +2282,14 @@ function AiP(p){
 
   function confirmTx(){
     if(!pendingTx.length||!UID)return;
-    var tx=pendingTx[0];sPendingTx(function(arr){return arr.slice(1)});
-    sb.from('transactions').insert({user_id:UID,type:tx.type,amount:Number(tx.amount)||0,description:tx.description||'',date:tx.date||td(),wallet_id:tx.wallet_id||null,category_id:tx.category_id||null,sub_category_id:null}).then(function(r){
+    var txs=pendingTx;sPendingTx([]);
+    var rows=txs.map(function(tx){return{user_id:UID,type:tx.type,amount:Number(tx.amount)||0,description:tx.description||'',date:tx.date||td(),wallet_id:tx.wallet_id||null,category_id:tx.category_id||null,sub_category_id:null}});
+    sb.from('transactions').insert(rows).then(function(r){
       if(r.error){var em=ms.concat({role:'sys',text:'❌ '+r.error.message});sMs(em);saveMem(em);return}
-      if(tx.wallet_id){var w=fid(W,tx.wallet_id);if(w){var nb=(Number(w.balance)||0)+(tx.type==='income'?Number(tx.amount):-Number(tx.amount));sb.from('wallets').update({balance:nb}).eq('id',tx.wallet_id).then(function(wr){if(wr&&wr.error)console.log(wr.error.message);rW()})}}
-      var fm=ms.concat({role:'sys',text:'✅ Tersimpan!'});sMs(fm);saveMem(fm);rT();
+      txs.forEach(function(tx){
+        if(tx.wallet_id){var w=fid(W,tx.wallet_id);if(w){var nb=(Number(w.balance)||0)+(tx.type==='income'?Number(tx.amount):-Number(tx.amount));sb.from('wallets').update({balance:nb}).eq('id',tx.wallet_id).then(function(wr){if(wr&&wr.error)console.log(wr.error.message);rW()})}}
+      });
+      var fm=ms.concat({role:'sys',text:'✅ '+txs.length+' transaksi tersimpan!'});sMs(fm);saveMem(fm);rT();
     })
   }
 
@@ -2427,16 +2430,16 @@ function AiP(p){
         ms.map(function(m,i){return h('div',{key:i,className:'chat-msg '+m.role,style:{whiteSpace:'pre-wrap'}},m.text)}),
         ld||busy?h('div',{style:{display:'flex',alignItems:'center',gap:6,padding:'6px 0',color:'var(--blu)',fontSize:'.8rem'}},'🤔 ',busy?'Menganalisis transaksi...':'Menganalisis...'):null),
       pendingTx.length>0?h('div',{style:{background:'var(--accbg)',border:'1px solid var(--acc)',borderRadius:8,padding:'8px 12px',marginBottom:8}},
-        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}},
-          h('span',{style:{fontSize:'.82rem',fontWeight:600,color:'var(--acc)'}},'💾 '+(pendingTx[0].type==='income'?'💚 Pemasukan':'💸 Pengeluaran')+' '+fmt(pendingTx[0].amount)+(pendingTx.length>1?' · '+pendingTx.length+' transaksi':'')),
+        h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}},
+          h('span',{style:{fontSize:'.82rem',fontWeight:600,color:'var(--acc)'}},'💾 '+pendingTx.length+' transaksi · '+fmt(pendingTx.reduce(function(s,t){return s+(t.type==='income'?Number(t.amount):-Number(t.amount))},0))),
           h('div',{style:{display:'flex',gap:6}},
             h('button',{className:'btn bs',style:{fontSize:'.75rem',padding:'3px 8px'},onClick:function(){sPendingTx([])}},'Batal'),
-            h('button',{className:'btn bp',style:{fontSize:'.75rem',padding:'3px 8px'},onClick:confirmTx},'✅ Simpan'))),
-        h('div',{style:{fontSize:'.72rem',color:'var(--t2)'}},
-          (pendingTx[0].description||'Tanpa keterangan'),
-          pendingTx[0].wallet_id?' · '+wn(W,pendingTx[0].wallet_id):'',
-          pendingTx[0].category_id?' · '+cn(C,pendingTx[0].category_id):'',
-          pendingTx.length>1?h('span',{style:{color:'var(--t3)'}},' (+'+(pendingTx.length-1)+' lagi)'):null)):null,
+            h('button',{className:'btn bp',style:{fontSize:'.75rem',padding:'3px 8px'},onClick:confirmTx},'✅ Simpan Semua'))),
+        h('div',{style:{display:'flex',flexDirection:'column',gap:2}},
+          pendingTx.map(function(tx,i){return h('div',{key:i,style:{fontSize:'.72rem',color:'var(--t2)',display:'flex',gap:4}},
+            h('span',null,(tx.type==='income'?'💚':'💸')+' '+fmt(tx.amount)),
+            h('span',{style:{color:'var(--t3)'}},tx.description||'—'),
+            tx.wallet_id?h('span',{style:{color:'var(--t3)'}},wn(W,tx.wallet_id)):null)}))):null,
       h('div',{className:'chat-input'},
         h('input',{className:'fi',placeholder:keySet?'Tanya atau tulis transaksi...':'Paste API key kamu...',value:q,onChange:function(e){sQ(e.target.value)},onKeyDown:function(e){if(e.key==='Enter')send()},style:{flex:1}}),
         keySet?h('button',{className:'btn bs',style:{flexShrink:0,padding:'0 10px'},onClick:parseTransaction,disabled:busy,title:'Catat transaksi'},'📝'):null,
