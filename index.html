@@ -2241,7 +2241,7 @@ function AiP(p){
     hist.push({role:'user',content:msg});
     var sysPrompt='Kamu adalah WealthFlow AI — asisten keuangan pribadi yang cerdas dan analitis untuk pengguna Indonesia.\n\nGAYA: Bahasa Indonesia natural dan hangat. Emoji secukupnya. Jawaban terstruktur (bullet/list jika perlu). Maksimal 300 kata kecuali diminta lebih detail.\n\nDATA KEUANGAN: Gunakan HANYA angka dari data di bawah. Jangan pernah mengarang angka. Jika data tidak ada atau kurang, minta user input dengan jelas.\n\nPANDUAN RESPONS:\n• Kondisi umum → highlight surplus/defisit, perbandingan bulan lalu, kategori pengeluaran terbesar\n• Analisis pengeluaran → sebutkan angka spesifik per kategori, tandai yang perlu diwaspadai\n• Status budget → tampilkan % terpakai tiap kategori, yang sudah over, estimasi sisa bulan\n• Hutang → total beban cicilan/bulan, rekomendasikan urutan prioritas pelunasan\n• Tips hemat → SPESIFIK berdasarkan pola pengeluaran user, bukan saran generik\n• Pertanyaan di luar keuangan → bantu singkat lalu arahkan ke konteks keuangan user\n\nPENTING: Fokus pada insight yang actionable. Ingat percakapan sebelumnya dan bangun konteks secara koheren.\n\n'+buildCtx();
     fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:'deepseek-r1-distill-llama-70b',max_tokens:2000,
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:2000,
         messages:[{role:'system',content:sysPrompt}].concat(hist)})
     }).then(function(r){return r.json()}).then(function(d){
       sLd(false);if(d.error){var em=nm.concat({role:'sys',text:'❌ '+d.error.message});sMs(em);saveMem(em);return}
@@ -2292,7 +2292,7 @@ function AiP(p){
     var nm=ms.concat({role:'user',text:msg});sMs(nm);saveMem(nm);
     var hist=buildHistory();hist.push({role:'user',content:msg+'.\nBeri analisis: apakah realistis? berapa lama? berapa nabung/bln yang dibutuhkan? rekomendasi cara mencapainya.'});
     fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:'deepseek-r1-distill-llama-70b',max_tokens:1500,messages:[{role:'system',content:'Kamu WealthFlow AI, asisten keuangan pribadi. Bahasa Indonesia natural. Analisis secara mendalam dan spesifik. Gunakan HANYA angka dari data. Beri rekomendasi yang actionable.\n\n'+buildCtx()}].concat(hist)})
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1500,messages:[{role:'system',content:'Kamu WealthFlow AI, asisten keuangan pribadi. Bahasa Indonesia natural. Analisis secara mendalam dan spesifik. Gunakan HANYA angka dari data. Beri rekomendasi yang actionable.\n\n'+buildCtx()}].concat(hist)})
     }).then(function(r){return r.json()}).then(function(d){
       sLd(false);if(d.error)return;
       var fm=nm.concat({role:'ai',text:stripThink(d.choices[0].message.content)});sMs(fm);saveMem(fm);
@@ -2308,7 +2308,7 @@ function AiP(p){
     var wkTxns=T.filter(function(t){return t.date&&new Date(t.date)>=wkStart});
     var wkCtx='Transaksi 7 hari terakhir ('+wkTxns.length+' transaksi): '+wkTxns.slice(0,20).map(function(t){return t.date+' '+t.type+' '+fmt(t.amount)+' '+cn(C,t.category_id)}).join('; ');
     fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-      body:JSON.stringify({model:'deepseek-r1-distill-llama-70b',max_tokens:1800,
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1800,
         messages:[{role:'system',content:'Kamu WealthFlow AI. Buat weekly digest keuangan yang tajam dan informatif dalam Bahasa Indonesia. Gunakan angka spesifik dari data. Format dengan section yang jelas. Saran harus actionable.\n\n'+buildCtx()+'\n\n'+wkCtx},{role:'user',content:'Buat weekly digest minggu ini. Sertakan: 1) Total pemasukan & pengeluaran minggu ini, 2) Kategori pengeluaran terbesar dengan angka, 3) Transaksi atau pola yang perlu diperhatikan, 4) Perbandingan dengan tren bulanan, 5) 2-3 saran konkret untuk minggu depan.'}]})
     }).then(function(r){return r.json()}).then(function(d){
       sLd(false);if(d.error)return;
