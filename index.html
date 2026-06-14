@@ -125,8 +125,8 @@ input,textarea{user-select:text;-webkit-user-select:text}
 .mni:active,.mni-fab:active{opacity:.6}
 .cd{transition:opacity .1s}.cd.tappable:active{opacity:.85}
 /* Page slide-up animation on page change */
-@keyframes pgIn{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}
-.pg-page{animation:pgIn .2s cubic-bezier(.22,1,.36,1) forwards}
+@keyframes pgIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.pg-page{animation:pgIn .2s cubic-bezier(.22,1,.36,1)}
 /* What's New modal slide up */
 @keyframes slideUp{0%{transform:translateY(100%);opacity:0}100%{transform:translateY(0);opacity:1}}
 /* Skeleton pulse — GPU-friendly, no flicker */
