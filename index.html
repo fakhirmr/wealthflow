@@ -2152,7 +2152,7 @@ function AiP(p){
   var initMsgs=function(){
     var mem=loadMem();
     if(mem.length>0)return mem;
-    return [{role:'sys',text:saved?'✅ API key tersimpan.\n\n🤖 Halo! Saya WealthFlow AI. Saya ingat percakapan kita sebelumnya dan punya akses ke data keuanganmu.\n\nCoba:\n• Tanya kondisi keuangan\n• Tulis transaksi natural\n• Minta laporan / forecast / analisis':'Masukkan API key untuk mengaktifkan AI.\n\n🔑 Ambil key gratis di console.groq.com/keys'}];
+    return [{role:'sys',text:saved?'✅ API key tersimpan.\n\n🤖 Halo! Saya WealthFlow AI. Saya ingat percakapan kita sebelumnya dan punya akses ke data keuanganmu.\n\nCoba:\n• Tanya kondisi keuangan\n• Tulis transaksi natural\n• Minta laporan / forecast / analisis':'Masukkan API key untuk mengaktifkan AI.\n\n🔑 Klik link di bawah untuk ambil API key gratis'}];
   };
   var _ms=useState(initMsgs),ms=_ms[0],sMs=_ms[1];
   var _q=useState(''),q=_q[0],sQ=_q[1];
