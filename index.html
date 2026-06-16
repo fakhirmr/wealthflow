@@ -1666,15 +1666,22 @@ function TxnsP(p){
         var applyNew=f.type==='income'?newAmt:-newAmt;
         function done(){t('Diperbarui');sM(null);rT();setTimeout(rW,300)}
         if(f.wallet_id===oldTx.wallet_id&&f.wallet_id){
-          var w=fid(W,f.wallet_id);if(w){
-            var nb=(Number(w.balance)||0)+reverseOld+applyNew;
-            sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(wr){
-              if(wr.error)t('Saldo: '+wr.error.message,'err');done()})
-          }else{done()}
+          // Fetch fresh balance to avoid stale state
+          sb.from('wallets').select('balance').eq('id',f.wallet_id).single().then(function(wr){
+            var freshBal=wr.data?Number(wr.data.balance)||0:0;
+            sb.from('wallets').update({balance:freshBal+reverseOld+applyNew}).eq('id',f.wallet_id).then(function(wr2){
+              if(wr2.error)t('Saldo: '+wr2.error.message,'err');done()})
+          })
         }else{
-          var p1=oldTx.wallet_id?sb.from('wallets').update({balance:(Number((fid(W,oldTx.wallet_id)||{}).balance)||0)+reverseOld}).eq('id',oldTx.wallet_id).then(function(){}):Promise.resolve();
-          var p2=f.wallet_id?sb.from('wallets').update({balance:(Number((fid(W,f.wallet_id)||{}).balance)||0)+applyNew}).eq('id',f.wallet_id).then(function(){}):Promise.resolve();
-          Promise.all([p1,p2]).then(done)
+          // Fetch fresh balances for both wallets before updating
+          var ids=[oldTx.wallet_id,f.wallet_id].filter(Boolean);
+          sb.from('wallets').select('id,balance').in('id',ids).then(function(wr){
+            var freshW=wr.data||[];
+            function fb(id){var r=freshW.find(function(x){return x.id===id});return r?Number(r.balance)||0:0}
+            var p1=oldTx.wallet_id?sb.from('wallets').update({balance:fb(oldTx.wallet_id)+reverseOld}).eq('id',oldTx.wallet_id).then(function(){}):Promise.resolve();
+            var p2=f.wallet_id?sb.from('wallets').update({balance:fb(f.wallet_id)+applyNew}).eq('id',f.wallet_id).then(function(){}):Promise.resolve();
+            Promise.all([p1,p2]).then(done)
+          })
         }
       })
     }}
@@ -1682,9 +1689,10 @@ function TxnsP(p){
     var isTransfer=tx.type==='transfer_out'||tx.type==='transfer_in';
     cf(isTransfer?'Hapus transfer ini? (kedua sisi akan dihapus)':'Hapus transaksi ini?').then(function(ok){if(!ok)return;
     if(isTransfer){
-      // Find paired transfer (same amount+date+description, opposite type)
+      // Find paired transfer — match by type+amount+date+description, different wallet, closest created_at
       var pairType=tx.type==='transfer_out'?'transfer_in':'transfer_out';
-      var pair=T.find(function(tt){return tt.type===pairType&&Number(tt.amount)===Number(tx.amount)&&tt.date===tx.date&&tt.description===tx.description&&tt.id!==tx.id});
+      var pairCands=T.filter(function(tt){return tt.type===pairType&&Number(tt.amount)===Number(tx.amount)&&tt.date===tx.date&&tt.description===tx.description&&tt.id!==tx.id&&tt.wallet_id!==tx.wallet_id});
+      var pair=pairCands.length<=1?pairCands[0]:pairCands.slice().sort(function(a,b){var da=Math.abs(new Date(a.created_at)-new Date(tx.created_at));var db=Math.abs(new Date(b.created_at)-new Date(tx.created_at));return da-db})[0];
       // Determine which wallet is source (transfer_out) and dest (transfer_in)
       var outTx=tx.type==='transfer_out'?tx:pair;var inTx=tx.type==='transfer_in'?tx:pair;
       // Delete both transactions
