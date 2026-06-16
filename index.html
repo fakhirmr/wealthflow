@@ -1543,7 +1543,7 @@ function WalletsP(p){
   var _tf=useState(false),tfOpen=_tf[0],sTf=_tf[1];
   function oA(){sF({name:'',balance:'',color:COLORS[Math.floor(Math.random()*COLORS.length)],group_type:'cash'});sM({m:'add'})}
   function oE(w){sF({name:w.name,balance:String(w.balance||0),color:w.color||COLORS[0],group_type:w.group_type||'others'});sM({m:'edit',d:w})}
-  function save(){if(!UID){t('Sesi habis, login ulang','err');return}if(!f.name.trim()){t('Nama wajib','err');return}var upd={name:f.name.trim(),balance:Number(f.balance)||0,color:f.color,group_type:f.group_type};if(mo.m==='add'){upd.user_id=UID;sb.from('wallets').insert(upd).then(function(r){if(r.error){t(r.error.message,'err');return}t('Ditambahkan');sM(null);rW()})}else{sb.from('wallets').update(upd).eq('id',mo.d.id).then(function(r){if(r.error){t(r.error.message,'err');return}t('Diperbarui');sM(null);rW()})}}
+  function save(){if(!UID){t('Sesi habis, login ulang','err');return}if(!f.name.trim()){t('Nama wajib','err');return}var upd={name:f.name.trim(),balance:Number(f.balance)||0,color:f.color,group_type:f.group_type};if(mo.m==='add'){upd.user_id=UID;sb.from('wallets').insert(upd).then(function(r){if(r.error){t(r.error.message,'err');return}t('Ditambahkan');sM(null);rW()})}else{var oldBal=Number(mo.d.balance)||0;var newBal=Number(f.balance)||0;var diff=newBal-oldBal;sb.from('wallets').update(upd).eq('id',mo.d.id).then(function(r){if(r.error){t(r.error.message,'err');return}if(diff!==0){var adjTx={user_id:UID,type:diff>0?'income':'expense',wallet_id:mo.d.id,amount:Math.abs(diff),description:'⚙️ Penyesuaian saldo',date:td()};sb.from('transactions').insert(adjTx).then(function(tr){if(tr.error)console.log('Adj err:',tr.error.message);t('Diperbarui');sM(null);rW();rT()})}else{t('Diperbarui');sM(null);rW()}})}}
   function del(w){cf('Hapus "'+w.name+'"?\n\nTransaksi terkait akan tetap ada (wallet-nya dikosongkan).').then(function(ok){if(!ok)return;
     sb.from('wallets').delete().eq('id',w.id).then(function(r){
       if(r.error){t(r.error.message,'err');return}
@@ -1657,7 +1657,7 @@ function TxnsP(p){
     }
     var pay={user_id:UID,type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,sub_category_id:f.sub_category_id||null,amount:amt,description:f.description.trim(),date:f.date};
     if(f.is_installment){pay.installment_count=f.installment_count;pay.installment_monthly=Math.ceil(Number(f.amount)/f.installment_count)}
-    if(mo.m==='add'){sb.from('transactions').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(wr){if(wr&&wr.error)console.log('Bal err:',wr.error.message);rW()})}}t('Ditambahkan');sM(null);rT()})}
+    if(mo.m==='add'){sb.from('transactions').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(wr){if(wr&&wr.error)console.log('Bal err:',wr.error.message);t('Ditambahkan');sM(null);rT();rW()});return}}t('Ditambahkan');sM(null);rT()})}
     else{
       var oldTx=mo.d;var oldAmt=Number(oldTx.amount)||0;var newAmt=Number(f.amount)||0;
       var updPay={};for(var k in pay){if(k!=='user_id')updPay[k]=pay[k]}
@@ -1728,7 +1728,9 @@ function TxnsP(p){
     });
     W.forEach(function(w){
       var txns=(byW[w.id]||[]).slice().sort(function(a,b){
-        if(a.date<b.date)return 1;if(a.date>b.date)return -1;return 0;
+        if(a.date<b.date)return 1;if(a.date>b.date)return -1;
+        var ac=a.created_at||a.id||'';var bc=b.created_at||b.id||'';
+        return ac<bc?1:ac>bc?-1:0;
       });
       var bal=Number(w.balance)||0;
       for(var i=0;i<txns.length;i++){
