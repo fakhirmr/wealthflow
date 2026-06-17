@@ -2147,6 +2147,24 @@ function StatsP(p){
           ):null)})))
 }
 
+/* ═══ MARKDOWN RENDERER ═══ */
+function renderMd(text){
+  if(!text)return'';
+  return text.split('\n').map(function(line){
+    var s=line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+    s=s.replace(/\*([^*\n]+)\*/g,'<em style="color:var(--t2)">$1</em>');
+    if(/^###\s/.test(line))return'<div style="font-weight:700;font-size:.85rem;color:var(--acc);margin:10px 0 3px">'+s.replace(/^###\s*/,'')+'</div>';
+    if(/^##\s/.test(line))return'<div style="font-weight:700;font-size:.9rem;color:var(--acc);padding-bottom:4px;border-bottom:1px solid var(--brd);margin:12px 0 4px">'+s.replace(/^##\s*/,'')+'</div>';
+    if(/^#\s/.test(line))return'<div style="font-weight:800;font-size:.95rem;margin:12px 0 5px">'+s.replace(/^#\s*/,'')+'</div>';
+    var nm=line.match(/^(\d+)\.\s+/);
+    if(nm)return'<div style="display:flex;gap:8px;padding:3px 0"><span style="color:var(--acc);font-weight:700;min-width:18px;flex-shrink:0">'+nm[1]+'.</span><span>'+s.replace(/^\d+\.\s+/,'')+'</span></div>';
+    if(/^[-•]\s/.test(line))return'<div style="display:flex;gap:8px;padding:2px 0"><span style="color:var(--acc);flex-shrink:0">•</span><span>'+s.slice(2)+'</span></div>';
+    if(!line.trim())return'<div style="height:6px"></div>';
+    return'<div style="padding:1px 0">'+s+'</div>';
+  }).join('');
+}
+
 /* ═══ AI ASSISTANT ═══ */
 function AiP(p){
   var T=p.T,C=p.C,W=p.W,B=p.B,D=p.D||[],I=p.I||[],rT=p.rT,rW=p.rW;
@@ -2392,7 +2410,7 @@ function AiP(p){
     var wkCtx='Transaksi 7 hari terakhir ('+wkTxns.length+' transaksi): '+wkTxns.slice(0,20).map(function(t){return t.date+' '+t.type+' '+fmt(t.amount)+' '+cn(C,t.category_id)}).join('; ');
     fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
       body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:1800,
-        messages:[{role:'system',content:'Kamu WealthFlow AI. Buat weekly digest keuangan yang tajam dan informatif dalam Bahasa Indonesia. Gunakan angka spesifik dari data. Format dengan section yang jelas. Saran harus actionable.\n\n'+buildCtx()+'\n\n'+wkCtx},{role:'user',content:'Buat weekly digest minggu ini. Sertakan: 1) Total pemasukan & pengeluaran minggu ini, 2) Kategori pengeluaran terbesar dengan angka, 3) Transaksi atau pola yang perlu diperhatikan, 4) Perbandingan dengan tren bulanan, 5) 2-3 saran konkret untuk minggu depan.'}]})
+        messages:[{role:'system',content:'Kamu WealthFlow AI. Buat weekly digest keuangan yang tajam dan informatif dalam Bahasa Indonesia. Gunakan angka spesifik dari data. Saran harus actionable.\n\nFormat OUTPUT wajib menggunakan markdown:\n- Judul section pakai ## (contoh: ## 📊 Pemasukan & Pengeluaran)\n- Sub-poin pakai **teks tebal** untuk angka/highlight\n- Daftar saran pakai 1. 2. 3.\n- Jangan pakai *** atau ___ sebagai pemisah\n\n'+buildCtx()+'\n\n'+wkCtx},{role:'user',content:'Buat weekly digest minggu ini. Sertakan: 1) Total pemasukan & pengeluaran minggu ini, 2) Kategori pengeluaran terbesar dengan angka, 3) Transaksi atau pola yang perlu diperhatikan, 4) Perbandingan dengan tren bulanan, 5) 2-3 saran konkret untuk minggu depan.'}]})
     }).then(function(r){return r.json()}).then(function(d){
       sLd(false);if(d.error)return;
       var fm=nm.concat({role:'ai',text:stripThink(d.choices[0].message.content)});sMs(fm);saveMem(fm);
@@ -2497,7 +2515,10 @@ function AiP(p){
     // CHAT TAB
     tab==='chat'?h('div',{className:'cd',style:{marginBottom:0,display:'flex',flexDirection:'column'}},
       h('div',{className:'chat-msgs',ref:ref,style:{maxHeight:360,overflowY:'auto',marginBottom:8}},
-        ms.map(function(m,i){return h('div',{key:i,className:'chat-msg '+m.role,style:{whiteSpace:'pre-wrap'}},m.text)}),
+        ms.map(function(m,i){
+          if(m.role==='ai')return h('div',{key:i,className:'chat-msg ai',dangerouslySetInnerHTML:{__html:renderMd(m.text)}});
+          return h('div',{key:i,className:'chat-msg '+m.role,style:{whiteSpace:'pre-wrap'}},m.text);
+        }),
         ld||busy?h('div',{style:{display:'flex',alignItems:'center',gap:6,padding:'6px 0',color:'var(--blu)',fontSize:'.8rem'}},'🤔 ',busy?'Menganalisis transaksi...':'Menganalisis...'):null),
       pendingTx.length>0?h('div',{style:{background:'var(--accbg)',border:'1px solid var(--acc)',borderRadius:8,padding:'8px 12px',marginBottom:8}},
         h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}},
