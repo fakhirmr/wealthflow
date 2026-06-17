@@ -2170,6 +2170,16 @@ function AiP(p){
   var T=p.T,C=p.C,W=p.W,B=p.B,D=p.D||[],I=p.I||[],rT=p.rT,rW=p.rW;
   var saved='';try{saved=localStorage.getItem('wf_groq_key')||''}catch(e){}
   var _k=useState(saved),key=_k[0],sK=_k[1];var keySet=!!key;
+  useEffect(function(){
+    if(!UID)return;
+    sb.from('user_settings').select('groq_key').eq('user_id',UID).maybeSingle().then(function(r){
+      if(r.data&&r.data.groq_key&&r.data.groq_key!==key){
+        var k=r.data.groq_key;
+        try{localStorage.setItem('wf_groq_key',k)}catch(e){}
+        sK(k);
+      }
+    });
+  },[]);
 
   // Feature 7: Conversation Memory — stored in localStorage
   var MEM_KEY='wf_ai_memory';
@@ -2269,6 +2279,7 @@ function AiP(p){
     var msg=(voiceRef.current||q).trim();voiceRef.current=null;
     if(!msg||ld)return;
     if(!keySet){var k=msg;sK(k);try{localStorage.setItem('wf_groq_key',k)}catch(e){}
+      if(UID)sb.from('user_settings').upsert({user_id:UID,groq_key:k},{onConflict:'user_id'}).then(function(){});
       var nm=ms.concat({role:'sys',text:'✅ Key tersimpan!'});sMs(nm);saveMem(nm);sQ('');return}
     sQ('');var nm=ms.concat({role:'user',text:msg});sMs(nm);saveMem(nm);sLd(true);
     var hist=buildHistory();
@@ -2417,7 +2428,7 @@ function AiP(p){
     }).catch(function(){sLd(false)})
   }
 
-  function rst(){try{localStorage.removeItem('wf_groq_key')}catch(e){}sK('');var nm=ms.concat({role:'sys',text:'🔑 Key dihapus.'});sMs(nm)}
+  function rst(){try{localStorage.removeItem('wf_groq_key')}catch(e){}if(UID)sb.from('user_settings').delete().eq('user_id',UID).then(function(){});sK('');var nm=ms.concat({role:'sys',text:'🔑 Key dihapus.'});sMs(nm)}
   function clearChat(){var init=[{role:'sys',text:'🔄 Percakapan direset. Memori juga dihapus.'}];sMs(init);clearMem()}
   function stripThink(t){return(t||'').replace(/<think>[\s\S]*?<\/think>/gi,'').trim()}
 
