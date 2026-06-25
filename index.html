@@ -1656,7 +1656,10 @@ function TxnsP(p){
       return
     }
     var pay={user_id:UID,type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,sub_category_id:f.sub_category_id||null,amount:amt,description:f.description.trim(),date:f.date};
-    if(f.is_installment){pay.installment_count=f.installment_count;pay.installment_monthly=Math.ceil(Number(f.amount)/f.installment_count)}
+    if(f.is_installment&&mo.m==='add'){
+      var splitN=f.installment_count;var perAmt=Math.floor(amt/splitN);var rows=[];var baseD=new Date(f.date+'T00:00:00');
+      for(var si=0;si<splitN;si++){var sd=new Date(baseD);sd.setMonth(sd.getMonth()+si);var sAmt=si===splitN-1?amt-perAmt*(splitN-1):perAmt;var sDate=sd.getFullYear()+'-'+String(sd.getMonth()+1).padStart(2,'0')+'-'+String(sd.getDate()).padStart(2,'0');rows.push({user_id:UID,type:f.type,wallet_id:f.wallet_id||null,category_id:f.category_id||null,sub_category_id:f.sub_category_id||null,amount:sAmt,description:f.description.trim()+' ('+(si+1)+'/'+splitN+')',date:sDate})}
+      sb.from('transactions').insert(rows).then(function(r){if(r.error){t(r.error.message,'err');return}if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=(Number(w.balance)||0)-amt;sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(wr){if(wr&&wr.error)console.log('Bal err:',wr.error.message);t(splitN+' transaksi ditambahkan');sM(null);rT();rW()});return}}t(splitN+' transaksi ditambahkan');sM(null);rT()});return}
     if(mo.m==='add'){sb.from('transactions').insert(pay).then(function(r){if(r.error){t(r.error.message,'err');return}if(f.wallet_id){var w=fid(W,f.wallet_id);if(w){var nb=f.type==='income'?(Number(w.balance)||0)+Number(f.amount):(Number(w.balance)||0)-Number(f.amount);sb.from('wallets').update({balance:nb}).eq('id',f.wallet_id).then(function(wr){if(wr&&wr.error)console.log('Bal err:',wr.error.message);t('Ditambahkan');sM(null);rT();rW()});return}}t('Ditambahkan');sM(null);rT()})}
     else{
       var oldTx=mo.d;var oldAmt=Number(oldTx.amount)||0;var newAmt=Number(f.amount)||0;
@@ -1716,7 +1719,7 @@ function TxnsP(p){
     })
   })}
   var relC=C.filter(function(c){return c.type===f.type&&!c.parent_id});
-  var selW=fid(W,f.wallet_id);var canInst=selW&&(selW.group_type==='card')&&f.type==='expense';
+  var selW=fid(W,f.wallet_id);var canInst=f.type==='expense'&&mo&&mo.m==='add';
   var mAmt=f.is_installment&&Number(f.amount)>0?Math.ceil(Number(f.amount)/f.installment_count):0;
   // ⚠ These must be BEFORE any early return (React hooks rule)
   var grouped=useMemo(function(){
@@ -1841,8 +1844,8 @@ function TxnsP(p){
         h('div',{className:'fg'},h('label',null,'Kategori'),h('select',{className:'fi',value:f.category_id,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.category_id=e.target.value;n.sub_category_id='';sF(n)}},h('option',{value:''},'-- Pilih --'),relC.map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))),
         f.category_id?h('div',{className:'fg'},h('label',null,'Sub-Kategori'),h('select',{className:'fi',value:f.sub_category_id,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.sub_category_id=e.target.value;sF(n)}},h('option',{value:''},'-- Tidak ada --'),C.filter(function(c){return c.parent_id===f.category_id}).map(function(c){return h('option',{key:c.id,value:c.id},(c.icon||'')+' '+c.name)}))):null),
       h('div',{className:'fg'},h('label',null,'Keterangan'),h('input',{className:'fi',placeholder:'cth: Makan siang, Gaji...',value:f.description,onChange:function(e){var n={};for(var x in f)n[x]=f[x];n.description=e.target.value;sF(n)}})),
-      canInst?h(F,null,h('div',{style:{display:'flex',alignItems:'center',gap:12,cursor:'pointer',padding:'10px 12px',background:'var(--bgi)',borderRadius:8},onClick:function(){var n={};for(var x in f)n[x]=f[x];n.is_installment=!f.is_installment;sF(n)}},h('div',{style:{width:44,height:24,borderRadius:12,background:f.is_installment?'var(--acc)':'var(--brd)',position:'relative',transition:'background .2s',flexShrink:0}},h('div',{style:{width:18,height:18,borderRadius:9,background:'#fff',position:'absolute',top:3,left:f.is_installment?23:3,transition:'left .2s'}})),h('span',{style:{fontWeight:600,fontSize:'.85rem'}},'Cicilan Kartu Kredit')),
-        f.is_installment?h('div',{className:'fg'},h('label',null,'Tenor'),h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},[3,6,9,12,24].map(function(m){return h('button',{key:m,className:'btn '+(f.installment_count===m?'bp':'bs'),style:{padding:'4px 12px',fontSize:'.78rem'},onClick:function(){var n={};for(var x in f)n[x]=f[x];n.installment_count=m;sF(n)}},m+'x')})),mAmt>0?h('div',{style:{marginTop:6,fontSize:'.8rem',color:'var(--blu)',background:'var(--blubg)',padding:'8px 12px',borderRadius:8}},'💳 ',fmt(mAmt),'/bln × ',f.installment_count,' = ',fmt(Number(f.amount))):null):null):null),
+      canInst?h(F,null,h('div',{style:{display:'flex',alignItems:'center',gap:12,cursor:'pointer',padding:'10px 12px',background:'var(--bgi)',borderRadius:8},onClick:function(){var n={};for(var x in f)n[x]=f[x];n.is_installment=!f.is_installment;sF(n)}},h('div',{style:{width:44,height:24,borderRadius:12,background:f.is_installment?'var(--acc)':'var(--brd)',position:'relative',transition:'background .2s',flexShrink:0}},h('div',{style:{width:18,height:18,borderRadius:9,background:'#fff',position:'absolute',top:3,left:f.is_installment?23:3,transition:'left .2s'}})),h('span',{style:{fontWeight:600,fontSize:'.85rem'}},'Bagi ke Beberapa Bulan')),
+        f.is_installment?h('div',{className:'fg'},h('label',null,'Jumlah Bulan'),h('div',{style:{display:'flex',gap:8,flexWrap:'wrap'}},[2,3,4,6,12].map(function(m){return h('button',{key:m,className:'btn '+(f.installment_count===m?'bp':'bs'),style:{padding:'4px 12px',fontSize:'.78rem'},onClick:function(){var n={};for(var x in f)n[x]=f[x];n.installment_count=m;sF(n)}},m+'x')})),mAmt>0?h('div',{style:{marginTop:6,fontSize:'.8rem',color:'var(--blu)',background:'var(--blubg)',padding:'8px 12px',borderRadius:8}},'📅 ',fmt(mAmt),'/bln × ',f.installment_count,' bln = ',fmt(Number(f.amount))):null):null):null),
     cfE)
 }
 
