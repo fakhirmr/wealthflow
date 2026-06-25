@@ -3034,20 +3034,26 @@ ReactDOM.createRoot(document.getElementById('root')).render(h(TP,null,h(App)));
 <script>
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
-    // First: force-update any existing SW to clear broken caches
+    var reloading=false;
+    function doReload(){if(reloading)return;reloading=true;window.location.reload();}
+
+    // Force-update any existing SW
     navigator.serviceWorker.getRegistrations().then(function(regs){
       regs.forEach(function(reg){reg.update()});
     });
-    // Register/update the SW
+    // Register SW + periodic check every 10 min (for long-running sessions)
     navigator.serviceWorker.register('/sw.js').then(function(r){
       console.log('[WF] SW registered');
+      setInterval(function(){r.update()},10*60*1000);
     }).catch(function(e){
       console.log('[WF] SW error (non-critical):', e.message);
     });
-    // Auto-reload when a new SW takes control — user gets latest version automatically
-    navigator.serviceWorker.addEventListener('controllerchange',function(){
-      window.location.reload();
+    // Primary: SW explicitly tells us to reload after clients.claim()
+    navigator.serviceWorker.addEventListener('message',function(e){
+      if(e.data&&e.data.type==='SW_UPDATED')doReload();
     });
+    // Fallback: controller changed (catches cases message was missed)
+    navigator.serviceWorker.addEventListener('controllerchange',doReload);
   });
 }
 </script>

@@ -1,56 +1,58 @@
-// WealthFlow Service Worker — v4.1
-// Minimal: enables PWA install without caching interference
+// WealthFlow Service Worker — v4.2
 
-const CACHE_NAME = 'wealthflow-v4';
+const CACHE_NAME = 'wealthflow-v5';
 
-// Install: skip waiting, take over immediately
 self.addEventListener('install', function(e) {
   self.skipWaiting();
 });
 
-// Activate: wipe ALL old caches to fix broken cached resources
 self.addEventListener('activate', function(e) {
   e.waitUntil(
     caches.keys().then(function(keys) {
-      return Promise.all(
-        keys.map(function(key) {
-          console.log('[SW] Clearing old cache:', key);
-          return caches.delete(key);
-        })
-      );
-    }).then(function() {
+      return Promise.all(keys.map(function(key) {
+        return caches.delete(key);
+      }));
+    })
+    .then(function() {
       return self.clients.claim();
+    })
+    .then(function() {
+      // Tell every open window to reload so they get the new version
+      return self.clients.matchAll({type: 'window', includeUncontrolled: true});
+    })
+    .then(function(clients) {
+      clients.forEach(function(client) {
+        client.postMessage({type: 'SW_UPDATED'});
+      });
     })
   );
 });
 
-// Fetch: ONLY cache the main HTML file (app shell)
-// Everything else (Supabase API, CDN scripts) goes straight to network
 self.addEventListener('fetch', function(e) {
   var url = e.request.url;
 
-  // Never intercept Supabase API, CDN, or external requests
   if (url.includes('supabase.co') ||
       url.includes('cdn.jsdelivr.net') ||
       url.includes('unpkg.com') ||
       url.includes('googleapis.com') ||
-      url.includes('anthropic.com') ||
+      url.includes('groq.com') ||
       !url.startsWith(self.location.origin)) {
-    return; // Let browser handle it normally
+    return;
   }
 
-  // For the app's own HTML — network first, cache fallback
+  // Always bypass HTTP cache so we always serve the freshest HTML
   e.respondWith(
-    fetch(e.request).then(function(response) {
-      if (response && response.status === 200) {
-        var clone = response.clone();
-        caches.open(CACHE_NAME).then(function(cache) {
-          cache.put(e.request, clone);
-        });
-      }
-      return response;
-    }).catch(function() {
-      return caches.match(e.request);
-    })
+    fetch(new Request(e.request.url, {cache: 'no-store', credentials: e.request.credentials}))
+      .then(function(response) {
+        if (response && response.status === 200) {
+          caches.open(CACHE_NAME).then(function(cache) {
+            cache.put(e.request, response.clone());
+          });
+        }
+        return response;
+      })
+      .catch(function() {
+        return caches.match(e.request);
+      })
   );
 });
