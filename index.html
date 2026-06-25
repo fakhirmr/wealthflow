@@ -2052,7 +2052,7 @@ function DebtP(p){
         h('div',{style:{display:'flex',alignItems:'flex-start',gap:10,marginBottom:12}},
           h('div',{style:{flex:1}},
             h('div',{style:{display:'flex',alignItems:'center',gap:8,marginBottom:4}},
-              h('span',{style:{fontSize:'.75rem',background:isPaid?'var(--accbg)':isOver?'var(--redbg)':'var(--blubg)',color:isPaid?'var(--acc)':isOver?'var(--red)':'var(--blu)',padding:'2px 8px',borderRadius:10,fontWeight:600}},isPaid?'✅ Lunas':isOver?'⚠️ Lewat jatuh tempo':'Active'),
+              h('span',{style:{fontSize:'.75rem',background:isPaid?'var(--accbg)':'var(--blubg)',color:isPaid?'var(--acc)':'var(--blu)',padding:'2px 8px',borderRadius:10,fontWeight:600}},isPaid?'✅ Lunas':'Active'),
               h('span',{style:{fontSize:'.72rem',color:'var(--t3)'}},CATS[d.category]||d.category)),
             h('div',{style:{fontSize:'1rem',fontWeight:700}},d.name),
             d.description?h('div',{style:{fontSize:'.78rem',color:'var(--t3)',marginTop:2}},d.description):null),
@@ -2074,7 +2074,7 @@ function DebtP(p){
           d.tenor?h('span',null,'⏱ ',d.tenor,' bln'):null,
           (d.total_with_interest&&d.total_with_interest>d.total_amount)?h('span',{style:{color:'var(--org)'}},
             'Bunga: ',fmt(Math.round(d.total_with_interest-d.total_amount))):null,
-          d.due_date?h('span',{style:{color:isOver?'var(--red)':'var(--t3)'}},'🗓 ',new Date(d.due_date).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})):null,
+          d.due_date?h('span',{style:{color:'var(--t3)'}},'🗓 ',new Date(d.due_date).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})):null,
           d.wallet_id?h('span',null,'💳 ',wn(W,d.wallet_id)):null),
         // Recent payments
         payments.length>0?h('div',{style:{borderTop:'1px solid var(--brd)',paddingTop:10}},
