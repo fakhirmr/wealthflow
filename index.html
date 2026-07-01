@@ -1329,7 +1329,7 @@ function Dash(p){
 /* ═══ SETTINGS PAGE ═══ */
 function SettingsP(p){
   var user=p.user,theme=p.theme,sTh=p.sTh;
-  var W=p.W,T=p.T,C=p.C,B=p.B,I=p.I,rW=p.rW,rT=p.rT,rC=p.rC,rB=p.rB,rI=p.rI;
+  var W=p.W,T=p.T,C=p.C,B=p.B,I=p.I,D=p.D||[],DP=p.DP||[],rW=p.rW,rT=p.rT,rC=p.rC,rB=p.rB,rI=p.rI;
   var t=useContext(TCtx);
   var _tab=useState('wallets'),tab=_tab[0],sTab=_tab[1];
   var _imp=useState(false),impBusy=_imp[0],sImp=_imp[1];
@@ -1359,16 +1359,26 @@ function SettingsP(p){
     var a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)
   }
   function exportCSV(){
-    var rows=[['Tanggal','Tipe','Jumlah','Keterangan','Kategori','Sub-Kategori','Dompet','Cicilan']];
-    T.forEach(function(tx){
-      rows.push([tx.date||'',tx.type||'',tx.amount||0,'"'+(tx.description||'').replace(/"/g,'""')+'"',cn(C,tx.category_id),cn(C,tx.sub_category_id),wn(W,tx.wallet_id),tx.installment_count||''])
-    });
-    var csv=rows.map(function(r){return r.join(',')}).join('\n');
-    dlFile('wealthflow_transaksi_'+td()+'.csv',csv,'text/csv');
-    t('CSV terdownload ('+T.length+' transaksi)')
+    var lines=[];
+    // Section 1: Wallets
+    lines.push('=== DOMPET ===');
+    lines.push(['Nama','Saldo','Tipe'].join(','));
+    W.forEach(function(w){lines.push(['"'+w.name+'"',w.balance||0,w.group_type||''].join(','))});
+    lines.push('');
+    // Section 2: Transactions
+    lines.push('=== TRANSAKSI ===');
+    lines.push(['Tanggal','Tipe','Jumlah','Keterangan','Kategori','Sub-Kategori','Dompet'].join(','));
+    T.forEach(function(tx){lines.push([tx.date||'',tx.type||'',tx.amount||0,'"'+(tx.description||'').replace(/"/g,'""')+'"',cn(C,tx.category_id),cn(C,tx.sub_category_id),wn(W,tx.wallet_id)].join(','))});
+    lines.push('');
+    // Section 3: Debts & Receivables
+    lines.push('=== HUTANG & PIUTANG ===');
+    lines.push(['Jenis','Nama','Keterangan','Total','Sisa','Cicilan/Bln','Jatuh Tempo','Status'].join(','));
+    D.forEach(function(d){lines.push([d.type||'','"'+(d.name||'')+'"','"'+(d.description||'')+'"',d.total_amount||0,d.remaining_amount||0,d.monthly_payment||0,d.due_date||'',d.status||''].join(','))});
+    dlFile('wealthflow_ekspor_'+td()+'.csv',lines.join('\n'),'text/csv');
+    t('CSV terdownload ('+T.length+' transaksi, '+W.length+' dompet, '+D.length+' hutang/piutang)')
   }
   function exportJSON(){
-    var data={exported_at:new Date().toISOString(),wallets:W,categories:C,transactions:T,budgets:B,investments:I};
+    var data={exported_at:new Date().toISOString(),wallets:W,categories:C,transactions:T,budgets:B,investments:I,debts:D,debt_payments:DP};
     dlFile('wealthflow_backup_'+td()+'.json',JSON.stringify(data,null,2),'application/json');
     t('Backup JSON terdownload')
   }
@@ -1985,13 +1995,13 @@ function DebtP(p){
         // Step 3: Deduct/add wallet balance
         function afterWallet(){
           // Step 4: Create transaction if toggle ON
-          if(pf.record_txn&&pf.wallet_id){
+          if(pf.record_txn&&pf.wallet_id&&UID){
             var txType=debt.type==='hutang'?'expense':'income';
             var txDesc=(debt.type==='hutang'?'Bayar utang: ':'Terima tagihan: ')+debt.name+(pf.notes?' ('+pf.notes+')':'');
             sb.from('transactions').insert({user_id:UID,type:txType,wallet_id:pf.wallet_id,amount:amt,date:pf.paid_date,description:txDesc,category_id:null,sub_category_id:null}).then(function(r3){
-              if(r3.error)console.log('Txn err:',r3.error.message);
-              rT();
-            })
+              if(r3.error){t('Gagal catat transaksi: '+r3.error.message,'err');return}
+              rT();rW();
+            }).catch(function(e){t('Error transaksi: '+e.message,'err')})
           }
           t(newRem<=0?'Lunas! 🎉':'Pembayaran tercatat');sPMo(null);rD();rDP();
         }
