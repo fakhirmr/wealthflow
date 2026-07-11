@@ -3110,10 +3110,11 @@
 
       /* ═══ WALLETS ═══ */
       function WalletsP(p) {
-        var W = p.W, rW = p.rW, rT = p.rT; var t = useContext(TCtx);
+        var W = p.W, T = p.T || [], C = p.C || [], rW = p.rW, rT = p.rT; var t = useContext(TCtx);
         var _m = useState(null), mo = _m[0], sM = _m[1]; var _cf = useCf(), cf = _cf[0], cfE = _cf[1];
         var _f = useState({ name: '', color: COLORS[0], group_type: 'cash' }), f = _f[0], sF = _f[1];
         var _tf = useState(false), tfOpen = _tf[0], sTf = _tf[1];
+        var _sw = useState(null), selW = _sw[0], sSelW = _sw[1];
         function oA() { sF({ name: '', balance: '', color: COLORS[Math.floor(Math.random() * COLORS.length)], group_type: 'cash' }); sM({ m: 'add' }) }
         function oE(w) { sF({ name: w.name, balance: String(w.balance || 0), color: w.color || COLORS[0], group_type: w.group_type || 'others' }); sM({ m: 'edit', d: w }) }
         function save() { if (!UID) { t('Sesi habis, login ulang', 'err'); return } if (!f.name.trim()) { t('Nama wajib', 'err'); return } var upd = { name: f.name.trim(), balance: Number(f.balance) || 0, color: f.color, group_type: f.group_type }; if (mo.m === 'add') { upd.user_id = UID; sb.from('wallets').insert(upd).then(function (r) { if (r.error) { t(r.error.message, 'err'); return } t('Ditambahkan'); sM(null); rW() }) } else { var oldBal = Number(mo.d.balance) || 0; var newBal = Number(f.balance) || 0; var diff = newBal - oldBal; sb.from('wallets').update(upd).eq('id', mo.d.id).then(function (r) { if (r.error) { t(r.error.message, 'err'); return } if (diff !== 0) { var adjTx = { user_id: UID, type: diff > 0 ? 'income' : 'expense', wallet_id: mo.d.id, amount: Math.abs(diff), description: '⚙️ Penyesuaian saldo', date: td() }; sb.from('transactions').insert(adjTx).then(function (tr) { if (tr.error) console.log('Adj err:', tr.error.message); t('Diperbarui'); sM(null); rW(); rT() }) } else { t('Diperbarui'); sM(null); rW() } }) } }
@@ -3160,14 +3161,13 @@
                   grouped[g.id].map(function (w, i) {
                     var bal = Number(w.balance) || 0;
                     return h('div', { key: w.id, style: { display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderBottom: i < grouped[g.id].length - 1 ? '1px solid var(--brd)' : 'none' } },
-                      // Color dot
-                      h('div', { style: { width: 10, height: 10, borderRadius: '50%', background: w.color || 'var(--acc)', flexShrink: 0 } }),
-                      // Name
-                      h('div', { style: { flex: 1 } }, h('span', { style: { fontSize: '.9rem', fontWeight: 600 } }, w.name)),
-                      // Balance
-                      h('span', { style: { fontFamily: 'Outfit,sans-serif', fontWeight: 700, fontSize: '.92rem', color: bal >= 0 ? 'var(--acc)' : 'var(--red)', marginRight: 8 } }, fmt(bal)),
-                      // Action buttons — use bi class so svg sizing works
-                      h('button', { className: 'bi', onClick: function () { oE(w) }, title: 'Edit' }, h(Ic, { n: 'edit' })),
+                      // Clickable area: dot + name + balance
+                      h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, flex: 1, cursor: 'pointer', minWidth: 0 }, onClick: function () { sSelW(w) } },
+                        h('div', { style: { width: 10, height: 10, borderRadius: '50%', background: w.color || 'var(--acc)', flexShrink: 0 } }),
+                        h('span', { style: { fontSize: '.9rem', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, w.name),
+                        h('span', { style: { fontFamily: 'Outfit,sans-serif', fontWeight: 700, fontSize: '.92rem', color: bal >= 0 ? 'var(--acc)' : 'var(--red)', flexShrink: 0 } }, fmt(bal))),
+                      // Action buttons
+                      h('button', { className: 'bi', style: { marginLeft: 4 }, onClick: function () { oE(w) }, title: 'Edit' }, h(Ic, { n: 'edit' })),
                       h('button', { className: 'bi', style: { color: 'var(--red)' }, onClick: function () { del(w) }, title: 'Hapus' }, h(Ic, { n: 'trash' })))
                   })))
             }),
@@ -3177,15 +3177,62 @@
             h('div', { className: 'fg' }, h('label', null, 'Saldo (Rp)'), h(NumInput, { value: f.balance, onChange: function (v) { uf(f, 'balance', v, sF) } })),
             h('div', { className: 'fg' }, h('label', null, 'Warna'), h('div', { className: 'clr' }, COLORS.map(function (c) { return h('div', { key: c, className: 'co' + (f.color === c ? ' sel' : ''), style: { background: c }, onClick: function () { uf(f, 'color', c, sF) } }) })))),
           cfE,
-          tfOpen ? h(TransferMod, { W: W, rW: rW, rT: p.rT, onClose: function () { sTf(false) } }) : null)
+          tfOpen ? h(TransferMod, { W: W, rW: rW, rT: p.rT, onClose: function () { sTf(false) } }) : null,
+
+          // Wallet detail modal
+          h(Mod, { open: !!selW, onClose: function () { sSelW(null) }, title: selW ? selW.name : '' },
+            selW ? (function () {
+              var wTxns = T.filter(function (tx) { return tx.wallet_id === selW.id }).sort(function (a, b) { return (b.date || '') > (a.date || '') ? 1 : -1 });
+              var wInc = wTxns.filter(function (tx) { return tx.type === 'income' }).reduce(function (s, tx) { return s + (Number(tx.amount) || 0) }, 0);
+              var wExp = wTxns.filter(function (tx) { return tx.type === 'expense' }).reduce(function (s, tx) { return s + (Number(tx.amount) || 0) }, 0);
+              var wTrOut = wTxns.filter(function (tx) { return tx.type === 'transfer_out' }).reduce(function (s, tx) { return s + (Number(tx.amount) || 0) }, 0);
+              var wTrIn = T.filter(function (tx) { return tx.type === 'transfer_in' && tx.wallet_id === selW.id }).reduce(function (s, tx) { return s + (Number(tx.amount) || 0) }, 0);
+              var allTxns = T.filter(function (tx) { return tx.wallet_id === selW.id }).sort(function (a, b) { return (b.date || '') > (a.date || '') ? 1 : -1 });
+              return h(F, null,
+                // Balance header
+                h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', marginBottom: 14, background: 'var(--bgi)', borderRadius: 10 } },
+                  h('div', { style: { width: 36, height: 36, borderRadius: '50%', background: selW.color || 'var(--acc)', flexShrink: 0 } }),
+                  h('div', { style: { flex: 1 } },
+                    h('div', { style: { fontSize: '.72rem', color: 'var(--t3)' } }, (WGROUPS.find(function(g){return g.id===selW.group_type}) || {lb:selW.group_type}).lb || selW.group_type),
+                    h('div', { style: { fontSize: '1.3rem', fontWeight: 800, color: (Number(selW.balance) || 0) >= 0 ? 'var(--acc)' : 'var(--red)', lineHeight: 1.1 } }, fmt(Number(selW.balance) || 0)))),
+                // Mini stats
+                h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 } },
+                  h('div', { style: { background: 'var(--accbg)', borderRadius: 8, padding: '8px 12px' } },
+                    h('div', { style: { fontSize: '.65rem', color: 'var(--t3)', marginBottom: 2 } }, 'Total Masuk'),
+                    h('div', { style: { fontWeight: 700, color: 'var(--acc)', fontSize: '.88rem' } }, fmt(wInc + wTrIn))),
+                  h('div', { style: { background: 'var(--redbg)', borderRadius: 8, padding: '8px 12px' } },
+                    h('div', { style: { fontSize: '.65rem', color: 'var(--t3)', marginBottom: 2 } }, 'Total Keluar'),
+                    h('div', { style: { fontWeight: 700, color: 'var(--red)', fontSize: '.88rem' } }, fmt(wExp + wTrOut)))),
+                // Transaction list
+                h('div', { style: { fontWeight: 600, fontSize: '.8rem', color: 'var(--t3)', marginBottom: 8 } }, allTxns.length + ' transaksi'),
+                allTxns.length === 0
+                  ? h('div', { style: { textAlign: 'center', color: 'var(--t3)', padding: '20px 0', fontSize: '.85rem' } }, 'Belum ada transaksi')
+                  : h('div', { style: { maxHeight: 340, overflowY: 'auto' } },
+                    allTxns.map(function (tx) {
+                      var isInc = tx.type === 'income'; var isTrIn = tx.type === 'transfer_in'; var isTrOut = tx.type === 'transfer_out';
+                      var col = isInc || isTrIn ? 'var(--acc)' : 'var(--red)';
+                      var icon = isInc ? '↗' : isTrIn ? '↙' : isTrOut ? '↗' : '↘';
+                      var catName = cn(C, tx.sub_category_id) || cn(C, tx.category_id);
+                      return h('div', { key: tx.id, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--brd)' } },
+                        h('div', { style: { width: 30, height: 30, borderRadius: 8, background: isInc || isTrIn ? 'var(--accbg)' : 'var(--redbg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: col, flexShrink: 0 } }, icon),
+                        h('div', { style: { flex: 1, minWidth: 0 } },
+                          h('div', { style: { fontSize: '.82rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, tx.description || catName || (isTrIn ? 'Transfer masuk' : isTrOut ? 'Transfer keluar' : '-')),
+                          h('div', { style: { fontSize: '.68rem', color: 'var(--t3)', display: 'flex', gap: 6 } },
+                            h('span', null, fdt(tx.date)),
+                            catName ? h('span', null, '· ', catName) : null)),
+                        h('div', { style: { fontWeight: 700, fontSize: '.82rem', color: col, flexShrink: 0 } }, (isInc || isTrIn ? '+' : '-'), fmt(tx.amount)));
+                    })));
+            })() : null))
       }
 
       /* ═══ TRANSACTIONS ═══ */
       function TxnsP(p) {
         var W = p.W, T = p.T, C = p.C, rT = p.rT, rW = p.rW; var t = useContext(TCtx);
         var _pg = useState('list'), txPg = _pg[0], sTxPg = _pg[1];
-        var _m = useState(null), mo = _m[0], sM = _m[1]; var _cf = useCf(), cf = _cf[0], cfE = _cf[1];
-        var _f = useState({ type: 'expense', wallet_id: '', category_id: '', sub_category_id: '', amount: '', description: '', date: td(), is_installment: false, installment_count: 6 }), f = _f[0], sF = _f[1];
+        var _m = useState(function() { try { return sessionStorage.getItem('wf_txn_draft') ? { m: 'add' } : null } catch(e) { return null } }), mo = _m[0], sM = _m[1]; var _cf = useCf(), cf = _cf[0], cfE = _cf[1];
+        var _defF = { type: 'expense', wallet_id: '', category_id: '', sub_category_id: '', amount: '', description: '', date: td(), is_installment: false, installment_count: 6 };
+        var _f = useState(function() { try { var _r = sessionStorage.getItem('wf_txn_draft'); return _r ? JSON.parse(_r) : _defF } catch(e) { return _defF } }), f = _f[0], sF = _f[1];
+        var _dr = useState(function() { try { return !!sessionStorage.getItem('wf_txn_draft') } catch(e) { return false } }), draftRestored = _dr[0], sDr = _dr[1];
         var _ft = useState('all'), fTy = _ft[0], sFT = _ft[1]; var _fw = useState('all'), fWl = _fw[0], sFW = _fw[1]; var _q = useState(''), q = _q[0], sQ = _q[1];
         var now2 = new Date(); var _yr = useState(now2.getFullYear()), vYr = _yr[0], sVYr = _yr[1]; var _mn = useState(now2.getMonth()), vMn = _mn[0], sVMn = _mn[1];
         var MOS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -3201,7 +3248,11 @@
           if (q.trim()) { var s = q.toLowerCase(); l = l.filter(function (t) { return (t.description || '').toLowerCase().indexOf(s) >= 0 || cn(C, t.category_id).toLowerCase().indexOf(s) >= 0 }) }
           return l
         }, [T, fTy, fWl, q, C, vMn, vYr]);
-        function oA() { sF({ type: 'expense', wallet_id: W.length ? W[0].id : '', wallet_id_to: '', category_id: '', sub_category_id: '', amount: '', description: '', date: td(), is_installment: false, installment_count: 6 }); sM({ m: 'add' }) }
+        useEffect(function() {
+          if (mo && mo.m === 'add') { try { sessionStorage.setItem('wf_txn_draft', JSON.stringify(f)) } catch(e) {} }
+          else if (!mo) { try { sessionStorage.removeItem('wf_txn_draft') } catch(e) {} }
+        }, [f, mo]);
+        function oA() { sF({ type: 'expense', wallet_id: W.length ? W[0].id : '', wallet_id_to: '', category_id: '', sub_category_id: '', amount: '', description: '', date: td(), is_installment: false, installment_count: 6 }); sM({ m: 'add' }); sDr(false) }
         function oE(tx) {
           if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
             t('Transfer tidak bisa diedit. Hapus lalu buat ulang.', 'err'); return;
@@ -3425,6 +3476,9 @@
                   }))
               })),
           h(Mod, { open: !!mo, onClose: function () { sM(null) }, title: mo && mo.m === 'add' ? 'Tambah Transaksi' : 'Edit Transaksi', footer: h(F, null, h('button', { className: 'btn bs', onClick: function () { sM(null) } }, 'Batal'), h('button', { className: 'btn bp', onClick: save }, 'Simpan')) },
+            mo && mo.m === 'add' && draftRestored ? h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--accbg)', border: '1px solid var(--acc)', padding: '8px 12px', borderRadius: 8, marginBottom: 12, fontSize: '.78rem' } },
+              h('span', { style: { flex: 1, color: 'var(--acc)', fontWeight: 600 } }, '📋 Form dilanjutkan dari sebelumnya'),
+              h('button', { style: { border: 'none', background: 'none', color: 'var(--t3)', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: '0 2px', flexShrink: 0 }, onClick: function() { sDr(false) } }, '✕')) : null,
             h('div', { className: 'fg' }, h('label', null, 'Tipe'), h('div', { className: 'tabs' },
               h('button', { className: 'tab' + (f.type === 'expense' ? ' act' : ''), onClick: function () { var n = {}; for (var x in f) n[x] = f[x]; n.type = 'expense'; sF(n) } }, 'Pengeluaran'),
               h('button', { className: 'tab' + (f.type === 'income' ? ' act' : ''), onClick: function () { var n = {}; for (var x in f) n[x] = f[x]; n.type = 'income'; sF(n) } }, 'Pemasukan'),
