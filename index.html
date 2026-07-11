@@ -3467,6 +3467,8 @@
         var _tab = useState('hutang'), tab = _tab[0], sTab = _tab[1];
         var _mo = useState(null), mo = _mo[0], sMo = _mo[1];
         var _pMo = useState(null), pMo = _pMo[0], sPMo = _pMo[1];
+        var _tip = useState(function() { try { return !localStorage.getItem('wf_debt_tip_closed') } catch(e) { return true } }), showTip = _tip[0], sShowTip = _tip[1];
+        function closeTip() { sShowTip(false); try { localStorage.setItem('wf_debt_tip_closed', '1') } catch(e) {} }
         var _f = useState({ type: 'hutang', name: '', description: '', category: 'personal', total_amount: '', remaining_amount: '', monthly_payment: '', interest_rate: '', interest_model: 'flat', tenor: '', start_date: td(), due_date: '', wallet_id: '', record_txn: true, txn_wallet_id: '' }), f = _f[0], sF = _f[1];
         var _pf = useState({ amount: '', paid_date: td(), wallet_id: '', notes: '', record_txn: true }), pf = _pf[0], sPf = _pf[1];
         var CATS = { kpr: '🏠 KPR/Rumah', kendaraan: '🚗 Kendaraan', personal: '👤 Personal', usaha: '💼 Usaha', pendidikan: '🎓 Pendidikan', lainnya: '📦 Lainnya' };
@@ -3592,6 +3594,27 @@
 
         return h('div', null,
           h('div', { className: 'pg-hd' }, h('div', null, h('h2', null, 'Hutang & Piutang')), h('button', { className: 'btn bp', onClick: openAdd }, h(Ic, { n: 'plus' }), ' Tambah')),
+
+          // Tips banner
+          showTip ? h('div', { style: { marginBottom: 14, padding: '14px 16px', borderRadius: 12, background: 'var(--blubg)', border: '1px solid rgba(59,130,246,.25)', position: 'relative' } },
+            h('button', { onClick: closeTip, style: { position: 'absolute', top: 10, right: 10, border: 'none', background: 'none', color: 'var(--t3)', fontSize: '1.1rem', cursor: 'pointer', lineHeight: 1, padding: '2px 6px' } }, '×'),
+            h('div', { style: { fontWeight: 700, fontSize: '.85rem', color: 'var(--blu)', marginBottom: 10 } }, '💡 Kapan pakai Hutang vs Dompet?'),
+            h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+              h('div', { style: { display: 'flex', gap: 10, fontSize: '.8rem' } },
+                h('div', { style: { fontSize: '1rem', flexShrink: 0 } }, '💳'),
+                h('div', null,
+                  h('div', { style: { fontWeight: 600, color: 'var(--t1)' } }, 'Kartu Kredit'),
+                  h('div', { style: { color: 'var(--t3)', lineHeight: 1.4 } }, 'Sebaiknya buat sebagai ', h('b', null, 'Dompet'), ' (bukan hutang). Setiap belanja langsung tercatat sebagai pengeluaran. Bayar tagihan = Transfer ke kartu.'))),
+              h('div', { style: { display: 'flex', gap: 10, fontSize: '.8rem' } },
+                h('div', { style: { fontSize: '1rem', flexShrink: 0 } }, '🏠'),
+                h('div', null,
+                  h('div', { style: { fontWeight: 600, color: 'var(--t1)' } }, 'Cicilan (KPR, Motor)'),
+                  h('div', { style: { color: 'var(--t3)', lineHeight: 1.4 } }, 'Catat sebagai hutang. Saat bayar cicilan, pilih kategori "Cicilan" — bukan kategori konsumsi.'))),
+              h('div', { style: { display: 'flex', gap: 10, fontSize: '.8rem' } },
+                h('div', { style: { fontSize: '1rem', flexShrink: 0 } }, '🤝'),
+                h('div', null,
+                  h('div', { style: { fontWeight: 600, color: 'var(--t1)' } }, 'Utang Personal'),
+                  h('div', { style: { color: 'var(--t3)', lineHeight: 1.4 } }, 'Catat sebagai hutang. Pembayaran bisa tanpa kategori karena bukan pengeluaran konsumsi baru.'))))) : null,
 
           // Summary cards
           h('div', { className: 'sg', style: { marginBottom: 16 } },
