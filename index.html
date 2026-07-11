@@ -78,7 +78,7 @@
       --t2: #94a3b8;
       --t3: #64748b;
       --sbg: #0d1220;
-      --csh: 0 4px 20px rgba(0,0,0,.45), 0 1px 4px rgba(0,0,0,.3);
+      --csh: 0 6px 28px rgba(0,0,0,.55), 0 2px 8px rgba(0,0,0,.35);
       color-scheme: dark
     }
 
@@ -101,7 +101,7 @@
       --t2: #475569;
       --t3: #94a3b8;
       --sbg: #ffffff;
-      --csh: 0 2px 12px rgba(0,0,0,.07), 0 1px 3px rgba(0,0,0,.05);
+      --csh: 0 4px 20px rgba(0,0,0,.13), 0 1px 5px rgba(0,0,0,.08);
       color-scheme: light
     }
 
@@ -2344,7 +2344,7 @@
         var cardMap = {};
 
         cardMap.networth = function() {
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'18px 20px',background:'linear-gradient(150deg,#0f172a 0%,#1e293b 100%)',color:'#f1f5f9',border:'none',borderRadius:16}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'18px 20px',background:'linear-gradient(150deg,#0f172a 0%,#1e293b 100%)',color:'#f1f5f9',border:'none',borderRadius:16}},
             h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:14}},
               h('div',null,
                 h('div',{style:{fontSize:'.68rem',letterSpacing:'.1em',opacity:.5,marginBottom:4,textTransform:'uppercase'}},'Total Kekayaan Bersih'),
@@ -2366,7 +2366,7 @@
         };
 
         cardMap.cashflow = function() {
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'16px 18px'}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'16px 18px'}},
             h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}},
               h('div',{style:{fontWeight:700,fontSize:'.88rem'}},'Arus Kas — ',MO[mo]),
               h('div',{style:{fontSize:'.75rem',fontWeight:700,color:savRate>=0?'var(--acc)':'var(--red)',background:'var(--bgi)',padding:'2px 8px',borderRadius:10}},savRate>=0?'+'+savRate+'%':savRate+'%',' tabungan')),
@@ -2392,7 +2392,7 @@
         };
 
         cardMap.budget = function() {
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'16px 18px'}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'16px 18px'}},
             h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}},
               h('div',{style:{fontWeight:700,fontSize:'.88rem'}},'Anggaran'),
               h('div',{style:{fontSize:'.78rem',fontWeight:700,color:bCol}},budgetPct+'% terpakai')),
@@ -2420,7 +2420,7 @@
         };
 
         cardMap.daily = function() {
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'18px 20px'}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'18px 20px'}},
             h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}},
               h('div',null,
                 h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:4,textTransform:'uppercase',letterSpacing:'.08em'}},'Batas Belanja Harian'),
@@ -2443,7 +2443,7 @@
         cardMap.emergency = function() {
           var pct3=avgMonthlyExp>0?Math.min((liquidAssets/(avgMonthlyExp*3))*100,100):0;
           var pct6=avgMonthlyExp>0?Math.min((liquidAssets/(avgMonthlyExp*6))*100,100):0;
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'18px 20px'}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'18px 20px'}},
             h('div',{style:{fontSize:'.68rem',color:'var(--t3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:10}},'Dana Darurat'),
             h('div',{style:{display:'flex',alignItems:'baseline',gap:6,marginBottom:4}},
               h('div',{style:{fontSize:'clamp(1.4rem,5vw,2rem)',fontWeight:800,color:emgColor,lineHeight:1}},coverage.toFixed(1)),
@@ -2465,7 +2465,7 @@
         };
 
         cardMap.upcoming = function() {
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'16px 18px'}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'16px 18px'}},
             h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:12}},'Tagihan Mendatang'),
             upcoming.length===0
               ?h('div',{style:{fontSize:'.82rem',color:activeHutang.length===0?'var(--acc)':'var(--t3)',textAlign:'center',padding:'12px 0'}},activeHutang.length===0?'✓ Tidak ada hutang aktif':'✓ Tidak ada tagihan 14 hari ke depan')
@@ -2488,7 +2488,7 @@
           var curRate=savTrend[5].rate; var prevRate=savTrend[4].rate;
           var dir=curRate>prevRate?'↑':curRate<prevRate?'↓':'→';
           var rCol=curRate>=20?'var(--acc)':curRate>=0?'var(--org)':'var(--red)';
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'16px 18px'}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'16px 18px'}},
             h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}},
               h('div',{style:{fontWeight:700,fontSize:'.88rem'}},'Tren Tabungan'),
               h('div',{style:{fontSize:'.78rem',fontWeight:700,color:rCol,background:'var(--bgi)',padding:'2px 8px',borderRadius:10}},dir,' ',curRate+'% bln ini')),
@@ -2502,7 +2502,7 @@
         };
 
         cardMap.goals = function() {
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'16px 18px'}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'16px 18px'}},
             h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:12}},'Goals Aktif'),
             activeGoals.length===0
               ?h('div',{style:{fontSize:'.82rem',color:'var(--t3)',textAlign:'center',padding:'12px 0'}},'Belum ada goals aktif')
@@ -2521,7 +2521,7 @@
         };
 
         cardMap.topspend = function() {
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'16px 18px'}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'16px 18px'}},
             h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
               h('div',{style:{fontWeight:700,fontSize:'.88rem'}},'Kategori Terboros'),
               h('div',{style:{fontSize:'.68rem',color:'var(--t3)'}},MO[mo])),
@@ -2542,7 +2542,7 @@
         };
 
         cardMap.forecast = function() {
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'18px 20px'}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'18px 20px'}},
             h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}},
               h('div',null,
                 h('div',{style:{fontSize:'.68rem',color:'var(--t3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:4}},'Proyeksi Akhir Bulan'),
@@ -2561,7 +2561,7 @@
         };
 
         cardMap.investment = function() {
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'16px 18px'}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'16px 18px'}},
             h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}},
               h('div',{style:{fontWeight:700,fontSize:'.88rem'}},'Portofolio Investasi'),
               h('div',{style:{fontSize:'.88rem',fontWeight:800,color:'var(--blu)'}},fmt(invBal))),
@@ -2579,7 +2579,7 @@
         };
 
         cardMap.debtpay = function() {
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'16px 18px'}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'16px 18px'}},
             h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}},
               h('div',{style:{fontWeight:700,fontSize:'.88rem'}},'Pelunasan Hutang'),
               monthsToFree!==null?h('div',{style:{fontSize:'.72rem',color:'var(--t3)',background:'var(--bgi)',padding:'2px 8px',borderRadius:10}},'~',monthsToFree,' bln lagi'):null),
@@ -2604,7 +2604,7 @@
         };
 
         cardMap.wallets = function() {
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'16px 18px'}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'16px 18px'}},
             h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:12}},'Dompet Utama'),
             h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:topW.length>0?10:0}},
               h('div',{style:{background:'var(--bgi)',borderRadius:8,padding:'10px 12px'}},
@@ -2623,7 +2623,7 @@
         };
 
         cardMap.recent = function() {
-          return h('div',{className:'cd',style:{marginBottom:10,padding:'16px 18px'}},
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'16px 18px'}},
             h('div',{style:{fontWeight:700,fontSize:'.88rem',marginBottom:12}},'Transaksi Terbaru'),
             rec.length===0?h('div',{style:{color:'var(--t3)',textAlign:'center',padding:16,fontSize:'.82rem'}},'Belum ada'):
               rec.map(function(tx){
@@ -3499,7 +3499,7 @@
 
         function openAdd() { sF({ type: tab, name: '', description: '', category: 'personal', total_amount: '', remaining_amount: '', monthly_payment: '', interest_rate: '', interest_model: 'flat', tenor: '', start_date: td(), due_date: '', wallet_id: '', record_txn: true, txn_wallet_id: W.length ? W[0].id : '' }); sMo({ m: 'add' }) }
         function openEdit(d) { sF({ type: d.type, name: d.name || '', description: d.description || '', category: d.category || 'personal', total_amount: String(d.total_amount || 0), remaining_amount: String(d.remaining_amount || 0), monthly_payment: String(d.monthly_payment || 0), interest_rate: String(d.interest_rate || 0), interest_model: d.interest_model || 'flat', tenor: String(d.tenor || 0), start_date: d.start_date || td(), due_date: d.due_date || '', wallet_id: d.wallet_id || '', record_txn: false, txn_wallet_id: '' }); sMo({ m: 'edit', d: d }) }
-        function openPay(d) { sPf({ amount: String(d.monthly_payment || 0), paid_date: td(), wallet_id: W.length ? W[0].id : '', notes: '', record_txn: true }); sPMo(d) }
+        function openPay(d) { sPf({ amount: String(d.monthly_payment || 0), paid_date: td(), wallet_id: W.length ? W[0].id : '', notes: '', record_txn: true, category_id: '', sub_category_id: '' }); sPMo(d) }
 
         function saveDebt() {
           if (!UID) { t('Sesi habis', 'err'); return }
@@ -3553,7 +3553,7 @@
                 if (pf.record_txn && pf.wallet_id && UID) {
                   var txType = debt.type === 'hutang' ? 'expense' : 'income';
                   var txDesc = (debt.type === 'hutang' ? 'Bayar utang: ' : 'Terima tagihan: ') + debt.name + (pf.notes ? ' (' + pf.notes + ')' : '');
-                  sb.from('transactions').insert({ user_id: UID, type: txType, wallet_id: pf.wallet_id, amount: amt, date: pf.paid_date, description: txDesc, category_id: null, sub_category_id: null }).then(function (r3) {
+                  sb.from('transactions').insert({ user_id: UID, type: txType, wallet_id: pf.wallet_id, amount: amt, date: pf.paid_date, description: txDesc, category_id: pf.category_id || null, sub_category_id: pf.sub_category_id || null }).then(function (r3) {
                     if (r3.error) { t('Gagal catat transaksi: ' + r3.error.message, 'err'); return }
                     rT(); rW();
                   }).catch(function (e) { t('Error transaksi: ' + e.message, 'err') })
@@ -3696,7 +3696,23 @@
                   h('div', null,
                     h('div', { style: { fontWeight: 600, fontSize: '.85rem' } }, 'Catat di Transaksi'),
                     h('div', { style: { fontSize: '.72rem', color: 'var(--t3)' } }, pf.record_txn ? 'Muncul di tab Transaksi sebagai ' + (pMo && pMo.type === 'hutang' ? 'pengeluaran' : 'pemasukan') : 'Hanya tercatat di Hutang & Piutang'))),
-                pf.record_txn && !pf.wallet_id ? h('div', { style: { marginTop: 6, fontSize: '.72rem', color: 'var(--org)', background: 'rgba(251,146,60,.1)', padding: '6px 10px', borderRadius: 6 } }, '⚠️ Pilih dompet agar bisa tercatat di transaksi') : null)) : null),
+                pf.record_txn ? h(F, null,
+                  h('div', { className: 'fg', style: { marginTop: 10 } },
+                    h('label', null, 'Kategori ', h('span', { style: { color: 'var(--t3)', fontWeight: 400 } }, '(opsional)')),
+                    h('select', { className: 'fi', value: pf.category_id, onChange: function (e) { var n = {}; for (var x in pf) n[x] = pf[x]; n.category_id = e.target.value; n.sub_category_id = ''; sPf(n) } },
+                      h('option', { value: '' }, '-- Tanpa kategori --'),
+                      C.filter(function (c) { return c.type === (pMo && pMo.type === 'hutang' ? 'expense' : 'income') && !c.parent_id }).map(function (c) {
+                        return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name);
+                      }))),
+                  pf.category_id ? h('div', { className: 'fg' },
+                    h('label', null, 'Sub-Kategori'),
+                    h('select', { className: 'fi', value: pf.sub_category_id, onChange: function (e) { var n = {}; for (var x in pf) n[x] = pf[x]; n.sub_category_id = e.target.value; sPf(n) } },
+                      h('option', { value: '' }, '-- Tanpa --'),
+                      C.filter(function (c) { return c.parent_id === pf.category_id }).map(function (c) {
+                        return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name);
+                      }))) : null,
+                  !pf.wallet_id ? h('div', { style: { marginTop: 6, fontSize: '.72rem', color: 'var(--org)', background: 'rgba(251,146,60,.1)', padding: '6px 10px', borderRadius: 6 } }, '⚠️ Pilih dompet agar bisa tercatat di transaksi') : null
+                ) : null)) : null),
           cfE)
       }
 
