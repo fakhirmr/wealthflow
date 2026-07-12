@@ -3,6 +3,7 @@
 
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://wkhjxgrjkrakfhwckriu.supabase.co wss://wkhjxgrjkrakfhwckriu.supabase.co https://api.groq.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>WealthFlow</title>
   <link rel="manifest" href="/manifest.json">
@@ -1131,12 +1132,12 @@
       </div>
     </div>
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js" crossorigin></script>
-  <script>if (!window.React) document.write('<scr' + 'ipt src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"><\/scr' + 'ipt>')</script>
-  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
-  <script>if (!window.ReactDOM) document.write('<scr' + 'ipt src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"><\/scr' + 'ipt>')</script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js" crossorigin></script>
-  <script>if (!window.supabase) document.write('<scr' + 'ipt src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"><\/scr' + 'ipt>')</script>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+  <script>if (!window.React) document.write('<scr' + 'ipt src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"><\/scr' + 'ipt>')</script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+  <script>if (!window.ReactDOM) document.write('<scr' + 'ipt src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"><\/scr' + 'ipt>')</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js" integrity="sha384-YieCqqg9gQufX7+5HcFvCEg/n3KUEdl8/Jb+A6J0npf1mB740VayvwKjTrtCeUoy" crossorigin="anonymous"></script>
+  <script>if (!window.supabase) document.write('<scr' + 'ipt src="https://unpkg.com/@supabase/supabase-js@2.49.1/dist/umd/supabase.js" integrity="sha384-tuevtT+97g9yLeuT/m52ejUJbc0hzsN6MPLiQEccySreiGjrcgk2tMBJR7/l6HGM" crossorigin="anonymous"><\/scr' + 'ipt>')</script>
   <script>
     if (!window.React || !window.ReactDOM || !window.supabase) { document.getElementById('root').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;color:#ef4444;padding:20px;text-align:center"><div>⚠️ Library gagal dimuat. Refresh halaman.</div></div>' } else {
       var h = React.createElement, F = React.Fragment, useState = React.useState, useEffect = React.useEffect, useCallback = React.useCallback, useMemo = React.useMemo, createContext = React.createContext, useContext = React.useContext, useRef = React.useRef;
@@ -1209,7 +1210,8 @@
         }
         function doRegister() {
           if (!email || !pass) { sErr('Email dan password wajib diisi'); return }
-          if (pass.length < 6) { sErr('Password minimal 6 karakter'); return }
+          if (pass.length < 8) { sErr('Password minimal 8 karakter'); return }
+          if (!/[a-zA-Z]/.test(pass) || !/[0-9]/.test(pass)) { sErr('Password harus mengandung huruf dan angka'); return }
           sLoading(true); sErr('');
           sb.auth.signUp({ email: email, password: pass }).then(function (r) {
             sLoading(false);
@@ -1229,7 +1231,8 @@
           })
         }
         function doResetPassword() {
-          if (!newPass || newPass.length < 6) { sErr('Password minimal 6 karakter'); return }
+          if (!newPass || newPass.length < 8) { sErr('Password minimal 8 karakter'); return }
+          if (!/[a-zA-Z]/.test(newPass) || !/[0-9]/.test(newPass)) { sErr('Password harus mengandung huruf dan angka'); return }
           sLoading(true); sErr('');
           sb.auth.updateUser({ password: newPass }).then(function (r) {
             sLoading(false);
@@ -1651,7 +1654,8 @@
 
         function doReset() {
           if (!pass) { sErr('Masukkan password baru'); return }
-          if (pass.length < 6) { sErr('Password minimal 6 karakter'); return }
+          if (pass.length < 8) { sErr('Password minimal 8 karakter'); return }
+          if (!/[a-zA-Z]/.test(pass) || !/[0-9]/.test(pass)) { sErr('Password harus mengandung huruf dan angka'); return }
           if (pass !== confirm) { sErr('Konfirmasi password tidak cocok'); return }
           sLoading(true); sErr('');
           sb.auth.updateUser({ password: pass }).then(function (r) {
@@ -2676,7 +2680,8 @@
         var _ptimer2 = useRef(null);
 
         function changePassword() {
-          if (!newPw || newPw.length < 6) { sPwMsg({ t: 'err', m: 'Password baru minimal 6 karakter' }); return }
+          if (!newPw || newPw.length < 8) { sPwMsg({ t: 'err', m: 'Password baru minimal 8 karakter' }); return }
+          if (!/[a-zA-Z]/.test(newPw) || !/[0-9]/.test(newPw)) { sPwMsg({ t: 'err', m: 'Password harus mengandung huruf dan angka' }); return }
           if (newPw !== cfmPw) { sPwMsg({ t: 'err', m: 'Konfirmasi password tidak cocok' }); return }
           sPwBusy(true); sPwMsg(null);
           sb.auth.updateUser({ password: newPw }).then(function (r) {
