@@ -121,7 +121,10 @@ export default async function handler(req) {
     } else {
       // --- CHAT / VISION (endpoint Gemini kompatibel-OpenAI) ---
       var body = await req.json();
-      if (!body || ALLOWED_CHAT_MODELS.indexOf(body.model) < 0) return json({ error: 'model_not_allowed', model: body && body.model }, 400);
+      if (!body) return json({ error: 'bad_request' }, 400);
+      // Normalisasi model: apa pun yang diminta client (termasuk index.html lama yang di-cache) dipetakan
+      // ke Gemini Flash. Mencegah error beda-versi client/proxy sekaligus mencegah pemakaian model mahal.
+      body.model = (String(body.model || '').indexOf('lite') >= 0) ? 'gemini-flash-lite-latest' : 'gemini-flash-latest';
       if (body.max_tokens && body.max_tokens > MAX_TOKENS_CAP) body.max_tokens = MAX_TOKENS_CAP;
       if (!body.reasoning_effort) body.reasoning_effort = 'low'; // kurangi overhead "thinking" Gemini agar cepat & tak timeout
       var cr = await fetch(GEMINI_BASE + '/openai/chat/completions', {
