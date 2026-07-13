@@ -1,9 +1,9 @@
-// WealthFlow AI Proxy — Vercel Edge Function
-// Menyembunyikan GROQ_API_KEY di server, verifikasi login Supabase,
+// WealthFlow AI Proxy — Vercel Edge Function (Google Gemini)
+// Menyembunyikan GEMINI_API_KEY di server, verifikasi login Supabase,
 // dan menegakkan kuota pemakaian per-customer.
 //
 // Environment variables yang WAJIB diset di Vercel (Project Settings → Environment Variables):
-//   GROQ_API_KEY                → API key Groq milik Anda (RAHASIA)
+//   GEMINI_API_KEY              → API key Gemini Anda dari aistudio.google.com (RAHASIA)
 //   SUPABASE_URL                → https://wkhjxgrjkrakfhwckriu.supabase.co
 //   SUPABASE_ANON_KEY           → anon key (boleh publik)
 //   SUPABASE_SERVICE_ROLE_KEY   → service_role key (SANGAT RAHASIA — jangan pernah taruh di frontend)
@@ -11,15 +11,11 @@
 
 export const config = { runtime: 'edge' };
 
-// Hanya model ini yang boleh dipanggil (mencegah customer meminta model mahal).
-// Kalau Groq mengubah nama model, sesuaikan di sini.
-var ALLOWED_CHAT_MODELS = [
-  'llama-3.3-70b-versatile',
-  'llama-3.1-8b-instant',
-  'meta-llama/llama-4-scout-17b-16e-instruct' // vision — untuk baca struk
-];
-var ALLOWED_AUDIO_MODELS = ['whisper-large-v3', 'whisper-large-v3-turbo'];
-var MAX_TOKENS_CAP = 2048; // mutasi bisa berisi banyak transaksi
+// Model yang boleh dipanggil (mencegah customer meminta model mahal).
+var ALLOWED_CHAT_MODELS = ['gemini-2.5-flash', 'gemini-2.5-flash-lite']; // flash juga menangani vision (struk/mutasi)
+var AUDIO_MODEL = 'gemini-2.5-flash';
+var MAX_TOKENS_CAP = 2048;
+var GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 function json(obj, status) {
   return new Response(JSON.stringify(obj), {
@@ -28,16 +24,22 @@ function json(obj, status) {
   });
 }
 
+function b64FromBuffer(buf) {
+  var bytes = new Uint8Array(buf); var bin = '';
+  for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
 export default async function handler(req) {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
-  var GROQ_KEY = process.env.GROQ_API_KEY;
+  var GKEY = process.env.GEMINI_API_KEY;
   var SB_URL = process.env.SUPABASE_URL;
   var SB_ANON = process.env.SUPABASE_ANON_KEY;
   var SB_SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
   var LIMIT = parseInt(process.env.AI_FREE_LIMIT || '30', 10);
 
-  if (!GROQ_KEY || !SB_URL || !SB_SERVICE || !SB_ANON) {
+  if (!GKEY || !SB_URL || !SB_SERVICE || !SB_ANON) {
     return json({ error: 'server_misconfig', detail: 'Environment variables belum lengkap' }, 500);
   }
 
@@ -71,7 +73,8 @@ export default async function handler(req) {
     if (Array.isArray(pRows) && pRows[0] && pRows[0].ai_plan) plan = pRows[0].ai_plan;
   } catch (e) { /* default free */ }
 
-  if (plan !== 'premium' && plan !== 'unlimited') {
+  var unlimited = (plan === 'premium' || plan === 'unlimited');
+  if (!unlimited) {
     try {
       var cRes = await fetch(SB_URL + '/rest/v1/ai_usage?user_id=eq.' + uid + '&period=eq.' + period + '&select=count', { headers: sbHeaders });
       var cRows = await cRes.json();
@@ -83,44 +86,56 @@ export default async function handler(req) {
     }
   }
 
-  // 3) Teruskan ke Groq — bedakan chat/vision (JSON) vs audio (multipart)
+  // 3) Teruskan ke Gemini — bedakan chat/vision (JSON) vs audio (multipart)
   var contentType = req.headers.get('content-type') || '';
-  var groqRes;
+  var outText, outStatus, providerOk;
   try {
     if (contentType.indexOf('multipart/form-data') >= 0) {
-      // --- AUDIO (transcription) ---
+      // --- AUDIO (transkripsi via Gemini native generateContent) ---
       var form = await req.formData();
-      var amodel = form.get('model') || 'whisper-large-v3-turbo';
-      if (ALLOWED_AUDIO_MODELS.indexOf(String(amodel)) < 0) return json({ error: 'model_not_allowed' }, 400);
-      var fwd = new FormData();
-      var entries = form.entries();
-      for (var pair = entries.next(); !pair.done; pair = entries.next()) {
-        fwd.append(pair.value[0], pair.value[1]);
-      }
-      groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + GROQ_KEY },
-        body: fwd
+      var file = form.get('file');
+      if (!file || typeof file.arrayBuffer !== 'function') return json({ error: 'no_audio' }, 400);
+      var buf = await file.arrayBuffer();
+      var b64 = b64FromBuffer(buf);
+      var mime = file.type || 'audio/webm';
+      var gBody = {
+        contents: [{
+          parts: [
+            { text: 'Transkripsikan audio ini menjadi teks Bahasa Indonesia. Keluarkan HANYA teksnya, tanpa penjelasan atau tanda kutip.' },
+            { inlineData: { mimeType: mime, data: b64 } }
+          ]
+        }]
+      };
+      var ar = await fetch(GEMINI_BASE + '/models/' + AUDIO_MODEL + ':generateContent?key=' + GKEY, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(gBody)
       });
+      var aj = await ar.json();
+      providerOk = ar.ok; outStatus = ar.status;
+      if (!ar.ok) {
+        outText = JSON.stringify({ error: { message: (aj && aj.error && aj.error.message) || 'gemini_audio_error' } });
+      } else {
+        var txt = '';
+        try { txt = (aj.candidates[0].content.parts || []).map(function (p) { return p.text || '' }).join('').trim(); } catch (e) { txt = ''; }
+        outText = JSON.stringify({ text: txt }); // meniru bentuk respons Whisper agar client tak berubah
+      }
     } else {
-      // --- CHAT / VISION ---
+      // --- CHAT / VISION (endpoint Gemini kompatibel-OpenAI) ---
       var body = await req.json();
       if (!body || ALLOWED_CHAT_MODELS.indexOf(body.model) < 0) return json({ error: 'model_not_allowed', model: body && body.model }, 400);
       if (body.max_tokens && body.max_tokens > MAX_TOKENS_CAP) body.max_tokens = MAX_TOKENS_CAP;
-      groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      var cr = await fetch(GEMINI_BASE + '/openai/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GROQ_KEY },
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY },
         body: JSON.stringify(body)
       });
+      outText = await cr.text(); providerOk = cr.ok; outStatus = cr.status;
     }
   } catch (e) {
     return json({ error: 'upstream_failed', detail: String(e && e.message || e) }, 502);
   }
 
-  var payload = await groqRes.text();
-
-  // 4) Hitung pemakaian hanya bila Groq sukses
-  if (groqRes.ok && plan !== 'premium' && plan !== 'unlimited') {
+  // 4) Hitung pemakaian hanya bila provider sukses
+  if (providerOk && !unlimited) {
     try {
       await fetch(SB_URL + '/rest/v1/rpc/increment_ai_usage', {
         method: 'POST', headers: sbHeaders,
@@ -130,8 +145,8 @@ export default async function handler(req) {
     } catch (e) { /* jangan gagalkan request hanya karena logging */ }
   }
 
-  return new Response(payload, {
-    status: groqRes.status,
+  return new Response(outText, {
+    status: outStatus,
     headers: {
       'Content-Type': 'application/json',
       'X-AI-Quota-Limit': String(LIMIT),
