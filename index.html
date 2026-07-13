@@ -3533,7 +3533,7 @@
 
       /* ═══ HUTANG & PIUTANG ═══ */
       function DebtP(p) {
-        var W = p.W, D = p.D, DP = p.DP, rD = p.rD, rDP = p.rDP, rW = p.rW;
+        var W = p.W, C = p.C || [], D = p.D, DP = p.DP, rD = p.rD, rDP = p.rDP, rW = p.rW;
         var t = useContext(TCtx); var _cf = useCf(), cf = _cf[0], cfE = _cf[1];
         var _tab = useState('hutang'), tab = _tab[0], sTab = _tab[1];
         var _mo = useState(null), mo = _mo[0], sMo = _mo[1];
@@ -4891,7 +4891,26 @@
             h('div', { className: 'fr' }, h('div', { className: 'fg' }, h('label', null, 'Modal'), h(NumInput, { value: f.amount, onChange: function (v) { uf(f, 'amount', v, sF) } })), h('div', { className: 'fg' }, h('label', null, 'Nilai'), h(NumInput, { value: f.current_value, onChange: function (v) { uf(f, 'current_value', v, sF) } })))), cfE)
       }
 
-      ReactDOM.createRoot(document.getElementById('root')).render(h(TP, null, h(App)));
+      class ErrBoundary extends React.Component {
+        constructor(props) { super(props); this.state = { err: null }; }
+        static getDerivedStateFromError(err) { return { err: err }; }
+        componentDidCatch(err, info) { try { console.error('WealthFlow render error:', err, info); } catch (e) { } }
+        render() {
+          if (this.state.err) {
+            var msg = (this.state.err && this.state.err.message) || String(this.state.err);
+            return h('div', { style: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--bg)', color: 'var(--t1)' } },
+              h('div', { style: { maxWidth: 420, textAlign: 'center' } },
+                h('div', { style: { fontSize: 44, marginBottom: 12 } }, '⚠️'),
+                h('h2', { style: { fontSize: '1.15rem', fontWeight: 700, marginBottom: 8 } }, 'Ups, terjadi kesalahan'),
+                h('p', { style: { fontSize: '.85rem', color: 'var(--t2)', marginBottom: 16, lineHeight: 1.5 } }, 'Aplikasi mengalami error tak terduga. Coba muat ulang. Kalau masih terjadi, screenshot pesan di bawah lalu laporkan ke kami.'),
+                h('pre', { style: { fontSize: '.72rem', color: 'var(--red)', background: 'var(--bgi)', border: '1px solid var(--brd)', padding: '10px 12px', borderRadius: 8, textAlign: 'left', overflow: 'auto', marginBottom: 16, whiteSpace: 'pre-wrap' } }, msg),
+                h('button', { className: 'btn bp', style: { justifyContent: 'center' }, onClick: function () { try { location.reload() } catch (e) { } } }, 'Muat Ulang')));
+          }
+          return this.props.children;
+        }
+      }
+
+      ReactDOM.createRoot(document.getElementById('root')).render(h(TP, null, h(ErrBoundary, null, h(App))));
     }
   </script>
   <script>
