@@ -123,6 +123,7 @@ export default async function handler(req) {
       var body = await req.json();
       if (!body || ALLOWED_CHAT_MODELS.indexOf(body.model) < 0) return json({ error: 'model_not_allowed', model: body && body.model }, 400);
       if (body.max_tokens && body.max_tokens > MAX_TOKENS_CAP) body.max_tokens = MAX_TOKENS_CAP;
+      if (!body.reasoning_effort) body.reasoning_effort = 'low'; // kurangi overhead "thinking" Gemini agar cepat & tak timeout
       var cr = await fetch(GEMINI_BASE + '/openai/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY },

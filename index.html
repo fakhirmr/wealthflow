@@ -3915,6 +3915,7 @@
             return fetch('/api/ai', { method: 'POST', headers: { 'Authorization': 'Bearer ' + tok }, body: fd }).then(function (r) { syncQuota(r); return r });
           });
         }
+        function pj(r) { return r.text().then(function (t) { try { return JSON.parse(t) } catch (e) { return { error: { message: 'Server sibuk atau timeout. Coba lagi sebentar.' } } } }) }
         function aiErrMsg(d) {
           if (!d || !d.error) return null;
           if (d.error === 'quota_exceeded') return '🚫 Jatah AI bulan ini habis (' + d.used + '/' + d.limit + '). Kuota reset awal bulan depan.';
@@ -4040,7 +4041,7 @@
           aiFetch({
             model: 'gemini-flash-latest', max_tokens: 2048,
             messages: [{ role: 'system', content: sysPrompt }].concat(hist)
-          }).then(function (r) { return r.json() }).then(function (d) {
+          }).then(pj).then(function (d) {
             sLd(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
             if (!d.choices || !d.choices[0] || !d.choices[0].message) { var emc = nm.concat({ role: 'sys', text: '❌ Respons AI kosong atau terpotong. Coba lagi.' }); sMs(emc); saveMem(emc); return }
             var raw = stripThink(d.choices[0].message.content);
@@ -4078,7 +4079,7 @@
               fd.append('model', 'whisper-large-v3-turbo');
               fd.append('language', 'id');
               aiFetchForm(fd)
-                .then(function (r) { return r.json() }).then(function (d) {
+                .then(pj).then(function (d) {
                   sRecBusy(false);
                   var errM = aiErrMsg(d); if (errM) { sMs(function (prev) { var em = prev.concat({ role: 'sys', text: errM }); saveMem(em); return em }); return }
                   if (d.text && d.text.trim()) { voiceRef.current = d.text.trim(); send(); }
@@ -4121,7 +4122,7 @@
           aiFetch({
             model: 'gemini-flash-lite-latest', max_tokens: 1024,
             messages: [{ role: 'system', content: 'Parser transaksi. Jawab HANYA JSON. Format: {"type":"expense"|"income","amount":number,"description":"string","date":"YYYY-MM-DD","wallet_id":"id atau null","category_id":"id atau null"}\nDompet: ' + wList + '\nKategori: ' + cList + '\nHari ini: ' + td() }, { role: 'user', content: input }]
-          }).then(function (r) { return r.json() }).then(function (d) {
+          }).then(pj).then(function (d) {
             sBusy(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
             try {
               var tx = JSON.parse(d.choices[0].message.content.replace(/```json|```/g, '').trim());
@@ -4158,7 +4159,7 @@
                     { type: 'image_url', image_url: { url: dataUrl } }
                   ]
                 }]
-              }).then(function (r) { return r.json() }).then(function (d) {
+              }).then(pj).then(function (d) {
                 sScanBusy(false);
                 var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
                 var content = d.choices && d.choices[0] && d.choices[0].message ? stripThink(d.choices[0].message.content) : '';
@@ -4199,7 +4200,7 @@
                     { type: 'image_url', image_url: { url: dataUrl } }
                   ]
                 }]
-              }).then(function (r) { return r.json() }).then(function (d) {
+              }).then(pj).then(function (d) {
                 sScanBusy(false);
                 var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
                 var content = d.choices && d.choices[0] && d.choices[0].message ? stripThink(d.choices[0].message.content) : '';
@@ -4243,7 +4244,7 @@
           var nm = ms.concat({ role: 'user', text: msg }); sMs(nm); saveMem(nm);
           var hist = buildHistory(); hist.push({ role: 'user', content: msg + '.\nBeri analisis: apakah realistis? berapa lama? berapa nabung/bln yang dibutuhkan? rekomendasi cara mencapainya.' });
           aiFetch({ model: 'gemini-flash-latest', max_tokens: 2048, messages: [{ role: 'system', content: 'Kamu WealthFlow AI, asisten keuangan pribadi. Bahasa Indonesia natural. Analisis secara mendalam dan spesifik. Gunakan HANYA angka dari data. Beri rekomendasi yang actionable.\n\n' + buildCtx() }].concat(hist) })
-            .then(function (r) { return r.json() }).then(function (d) {
+            .then(pj).then(function (d) {
               sLd(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
               if (!d.choices || !d.choices[0] || !d.choices[0].message) { var emc = nm.concat({ role: 'sys', text: '❌ Respons AI kosong atau terpotong. Coba lagi.' }); sMs(emc); saveMem(emc); return }
               var fm = nm.concat({ role: 'ai', text: stripThink(d.choices[0].message.content) }); sMs(fm); saveMem(fm);
@@ -4261,7 +4262,7 @@
           aiFetch({
             model: 'gemini-flash-latest', max_tokens: 2048,
             messages: [{ role: 'system', content: 'Kamu WealthFlow AI. Buat weekly digest keuangan yang tajam dan informatif dalam Bahasa Indonesia. Gunakan angka spesifik dari data. Saran harus actionable.\n\nFormat OUTPUT wajib menggunakan markdown:\n- Judul section pakai ## (contoh: ## 📊 Pemasukan & Pengeluaran)\n- Sub-poin pakai **teks tebal** untuk angka/highlight\n- Daftar saran pakai 1. 2. 3.\n- Jangan pakai *** atau ___ sebagai pemisah\n\n' + buildCtx() + '\n\n' + wkCtx }, { role: 'user', content: 'Buat weekly digest minggu ini. Sertakan: 1) Total pemasukan & pengeluaran minggu ini, 2) Kategori pengeluaran terbesar dengan angka, 3) Transaksi atau pola yang perlu diperhatikan, 4) Perbandingan dengan tren bulanan, 5) 2-3 saran konkret untuk minggu depan.' }]
-          }).then(function (r) { return r.json() }).then(function (d) {
+          }).then(pj).then(function (d) {
             sLd(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
             if (!d.choices || !d.choices[0] || !d.choices[0].message) { var emc = nm.concat({ role: 'sys', text: '❌ Respons AI kosong atau terpotong. Coba lagi.' }); sMs(emc); saveMem(emc); return }
             var fm = nm.concat({ role: 'ai', text: stripThink(d.choices[0].message.content) }); sMs(fm); saveMem(fm);
