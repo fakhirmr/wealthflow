@@ -14,7 +14,7 @@ export const config = { runtime: 'edge' };
 // Model yang boleh dipanggil (mencegah customer meminta model mahal).
 var ALLOWED_CHAT_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest']; // alias rolling — selalu ke model terbaru; flash juga menangani vision
 var AUDIO_MODEL = 'gemini-flash-latest';
-var MAX_TOKENS_CAP = 2048;
+var MAX_TOKENS_CAP = 4096; // ruang ekstra: Gemini Flash pakai token untuk "thinking"
 var GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 function json(obj, status) {
