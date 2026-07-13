@@ -1,6 +1,6 @@
-// WealthFlow Service Worker — v4.2
+// WealthFlow Service Worker — v4.3
 
-const CACHE_NAME = 'wealthflow-v5';
+const CACHE_NAME = 'wealthflow-v6';
 
 self.addEventListener('install', function(e) {
   self.skipWaiting();
@@ -31,7 +31,10 @@ self.addEventListener('activate', function(e) {
 self.addEventListener('fetch', function(e) {
   var url = e.request.url;
 
-  if (url.includes('supabase.co') ||
+  // Jangan intercept: non-GET (POST ke /api/ai), endpoint API server, & host eksternal
+  if (e.request.method !== 'GET' ||
+      url.indexOf('/api/') >= 0 ||
+      url.includes('supabase.co') ||
       url.includes('cdn.jsdelivr.net') ||
       url.includes('unpkg.com') ||
       url.includes('googleapis.com') ||
