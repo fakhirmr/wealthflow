@@ -14,7 +14,7 @@ export const config = { runtime: 'edge' };
 // Model yang boleh dipanggil (mencegah customer meminta model mahal).
 var ALLOWED_CHAT_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest']; // alias rolling — selalu ke model terbaru; flash juga menangani vision
 var AUDIO_MODEL = 'gemini-flash-latest';
-var MAX_TOKENS_CAP = 4096; // ruang ekstra: Gemini Flash pakai token untuk "thinking"
+var MAX_TOKENS_CAP = 8192; // ruang ekstra: Gemini Flash pakai token untuk "thinking"
 var GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 function json(obj, status) {
@@ -133,7 +133,7 @@ export default async function handler(req) {
       // Normalisasi model: apa pun yang diminta client dipetakan ke Gemini Flash (tahan beda-versi & cegah model mahal)
       body.model = (String(body.model || '').indexOf('lite') >= 0) ? 'gemini-flash-lite-latest' : 'gemini-flash-latest';
       if (body.max_tokens && body.max_tokens > MAX_TOKENS_CAP) body.max_tokens = MAX_TOKENS_CAP;
-      delete body.reasoning_effort; // JANGAN kirim reasoning_effort — bikin endpoint compat Gemini lambat/hang
+      body.reasoning_effort = 'low'; // kurangi thinking Gemini (nilai valid); 'none' tidak didukung -> hang
       var cr = await fetchTO(GEMINI_BASE + '/openai/chat/completions', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body)
       }, 24000);

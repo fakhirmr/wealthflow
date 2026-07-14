@@ -4039,7 +4039,7 @@
           var sList = C.filter(function (c) { return !!c.parent_id }).map(function (c) { return c.id + '=' + c.name + '[parent:' + c.parent_id + ']' }).join(',');
           var sysPrompt = 'Kamu adalah WealthFlow AI — asisten keuangan pribadi yang cerdas dan analitis untuk pengguna Indonesia.\n\nGAYA: Bahasa Indonesia natural dan hangat. Emoji secukupnya. Jawaban terstruktur (bullet/list jika perlu). Maksimal 300 kata kecuali diminta lebih detail.\n\nDATA KEUANGAN: Gunakan HANYA angka dari data di bawah. Jangan pernah mengarang angka. Jika data tidak ada atau kurang, minta user input dengan jelas.\n\nPANDUAN RESPONS:\n• Kondisi umum → highlight surplus/defisit, perbandingan bulan lalu, kategori pengeluaran terbesar\n• Analisis pengeluaran → sebutkan angka spesifik per kategori, tandai yang perlu diwaspadai\n• Status budget → tampilkan % terpakai tiap kategori, yang sudah over, estimasi sisa bulan\n• Hutang → total beban cicilan/bulan, rekomendasikan urutan prioritas pelunasan\n• Tips hemat → SPESIFIK berdasarkan pola pengeluaran user, bukan saran generik\n• Pertanyaan di luar keuangan → bantu singkat lalu arahkan ke konteks keuangan user\n\nCATAT TRANSAKSI OTOMATIS: Jika pesan user mengandung transaksi keuangan (beli, bayar, makan, transfer, terima, gaji, dll), sertakan di AKHIR respons satu blok [TX] per transaksi dalam SATU BARIS:\n[TX]{"type":"expense","amount":0,"description":"","date":"' + td() + '","wallet_id":"UUID_ATAU_null","category_id":"UUID_ATAU_null","sub_category_id":"UUID_ATAU_null"}[/TX]\nATURAN KETAT: (1) Setiap blok [TX]...{json}...[/TX] harus ditulis dalam SATU BARIS, jangan dipecah. (2) Semua ID harus UUID TUNGGAL, bukan gabungan koma. (3) sub_category_id harus anak dari category_id yang dipilih, atau null. (4) Jika tidak ada transaksi, JANGAN sertakan [TX].\nDompet: ' + wList + '\nKategori: ' + cList + '\nSub-Kategori: ' + sList + '\n\nPENTING: Fokus pada insight yang actionable. Ingat percakapan sebelumnya.\n\n' + buildCtx();
           aiFetch({
-            model: 'gemini-flash-latest', max_tokens: 2048,
+            model: 'gemini-flash-latest', max_tokens: 4096,
             messages: [{ role: 'system', content: sysPrompt }].concat(hist)
           }).then(pj).then(function (d) {
             sLd(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
@@ -4193,7 +4193,7 @@
               var dataUrl = cv.toDataURL('image/jpeg', 0.85);
               var thisYear = new Date().getFullYear();
               aiFetch({
-                model: 'gemini-flash-latest', max_tokens: 2048,
+                model: 'gemini-flash-latest', max_tokens: 4096,
                 messages: [{
                   role: 'user', content: [
                     { type: 'text', text: 'Ini screenshot mutasi rekening bank / e-wallet. Ekstrak SEMUA transaksi yang terlihat menjadi JSON array. Balas HANYA JSON valid tanpa penjelasan apa pun, format: [{"type":"income"|"expense","amount":number,"description":"keterangan singkat transaksi","date":"YYYY-MM-DD"}]. Aturan type: uang MASUK / kredit / CR / tanda + = "income"; uang KELUAR / debit / DB / tanda - = "expense". Ambil tanggal tiap transaksi; jika tahun tidak terlihat gunakan ' + thisYear + '. JANGAN masukkan baris saldo/total. Jika tidak ada transaksi yang terbaca, balas [].' },
@@ -4243,7 +4243,7 @@
           var msg = 'Analisis tujuan tabungan: "' + goal.name + '" target ' + fmt(goal.amount) + (goal.deadline ? ' dalam waktu sampai ' + goal.deadline : '');
           var nm = ms.concat({ role: 'user', text: msg }); sMs(nm); saveMem(nm);
           var hist = buildHistory(); hist.push({ role: 'user', content: msg + '.\nBeri analisis: apakah realistis? berapa lama? berapa nabung/bln yang dibutuhkan? rekomendasi cara mencapainya.' });
-          aiFetch({ model: 'gemini-flash-latest', max_tokens: 2048, messages: [{ role: 'system', content: 'Kamu WealthFlow AI, asisten keuangan pribadi. Bahasa Indonesia natural. Analisis secara mendalam dan spesifik. Gunakan HANYA angka dari data. Beri rekomendasi yang actionable.\n\n' + buildCtx() }].concat(hist) })
+          aiFetch({ model: 'gemini-flash-latest', max_tokens: 4096, messages: [{ role: 'system', content: 'Kamu WealthFlow AI, asisten keuangan pribadi. Bahasa Indonesia natural. Analisis secara mendalam dan spesifik. Gunakan HANYA angka dari data. Beri rekomendasi yang actionable.\n\n' + buildCtx() }].concat(hist) })
             .then(pj).then(function (d) {
               sLd(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
               if (!d.choices || !d.choices[0] || !d.choices[0].message) { var emc = nm.concat({ role: 'sys', text: '❌ Respons AI kosong atau terpotong. Coba lagi.' }); sMs(emc); saveMem(emc); return }
@@ -4260,7 +4260,7 @@
           var wkTxns = T.filter(function (t) { return t.date && new Date(t.date) >= wkStart });
           var wkCtx = 'Transaksi 7 hari terakhir (' + wkTxns.length + ' transaksi): ' + wkTxns.slice(0, 20).map(function (t) { return t.date + ' ' + t.type + ' ' + fmt(t.amount) + ' ' + cn(C, t.category_id) }).join('; ');
           aiFetch({
-            model: 'gemini-flash-latest', max_tokens: 2048,
+            model: 'gemini-flash-latest', max_tokens: 4096,
             messages: [{ role: 'system', content: 'Kamu WealthFlow AI. Buat weekly digest keuangan yang tajam dan informatif dalam Bahasa Indonesia. Gunakan angka spesifik dari data. Saran harus actionable.\n\nFormat OUTPUT wajib menggunakan markdown:\n- Judul section pakai ## (contoh: ## 📊 Pemasukan & Pengeluaran)\n- Sub-poin pakai **teks tebal** untuk angka/highlight\n- Daftar saran pakai 1. 2. 3.\n- Jangan pakai *** atau ___ sebagai pemisah\n\n' + buildCtx() + '\n\n' + wkCtx }, { role: 'user', content: 'Buat weekly digest minggu ini. Sertakan: 1) Total pemasukan & pengeluaran minggu ini, 2) Kategori pengeluaran terbesar dengan angka, 3) Transaksi atau pola yang perlu diperhatikan, 4) Perbandingan dengan tren bulanan, 5) 2-3 saran konkret untuk minggu depan.' }]
           }).then(pj).then(function (d) {
             sLd(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
