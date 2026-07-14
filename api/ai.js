@@ -133,7 +133,7 @@ export default async function handler(req) {
       // Normalisasi model: apa pun yang diminta client dipetakan ke Gemini Flash (tahan beda-versi & cegah model mahal)
       body.model = (String(body.model || '').indexOf('lite') >= 0) ? 'gemini-flash-lite-latest' : 'gemini-flash-latest';
       if (body.max_tokens && body.max_tokens > MAX_TOKENS_CAP) body.max_tokens = MAX_TOKENS_CAP;
-      body.reasoning_effort = 'none'; // matikan "thinking" Gemini agar respons cepat
+      delete body.reasoning_effort; // JANGAN kirim reasoning_effort — bikin endpoint compat Gemini lambat/hang
       var cr = await fetchTO(GEMINI_BASE + '/openai/chat/completions', {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body)
       }, 24000);
