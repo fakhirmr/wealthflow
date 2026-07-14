@@ -30,6 +30,14 @@ function b64FromBuffer(buf) {
   return btoa(bin);
 }
 
+// fetch dengan batas waktu — cegah function dibunuh Vercel (timeout mentah)
+async function fetchTO(url, opts, ms) {
+  var ctrl = new AbortController();
+  var id = setTimeout(function () { ctrl.abort(); }, ms || 24000);
+  try { return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal })); }
+  finally { clearTimeout(id); }
+}
+
 export default async function handler(req) {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
@@ -106,9 +114,9 @@ export default async function handler(req) {
           ]
         }]
       };
-      var ar = await fetch(GEMINI_BASE + '/models/' + AUDIO_MODEL + ':generateContent?key=' + GKEY, {
+      var ar = await fetchTO(GEMINI_BASE + '/models/' + AUDIO_MODEL + ':generateContent?key=' + GKEY, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(gBody)
-      });
+      }, 24000);
       var aj = await ar.json();
       providerOk = ar.ok; outStatus = ar.status;
       if (!ar.ok) {
@@ -147,9 +155,9 @@ export default async function handler(req) {
       });
       var gReq = { contents: contents, generationConfig: { maxOutputTokens: maxOut, thinkingConfig: { thinkingBudget: 0 } } };
       if (sysParts.length) gReq.systemInstruction = { parts: sysParts };
-      var cr = await fetch(GEMINI_BASE + '/models/' + model + ':generateContent?key=' + GKEY, {
+      var cr = await fetchTO(GEMINI_BASE + '/models/' + model + ':generateContent?key=' + GKEY, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(gReq)
-      });
+      }, 24000);
       var cj = await cr.json();
       providerOk = cr.ok; outStatus = cr.status;
       if (!cr.ok) {
