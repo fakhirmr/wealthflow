@@ -3922,7 +3922,7 @@
           if (d.error === 'unauthorized') return '🔒 Sesi habis. Silakan login ulang.';
           if (d.error === 'server_misconfig') return '⚙️ AI belum dikonfigurasi. Hubungi admin.';
           if (d.error === 'model_not_allowed') return '⚠️ Model tidak didukung.';
-          if (d.error === 'upstream_failed') return '❌ Layanan AI sedang bermasalah. Coba lagi sebentar.';
+          if (d.error === 'upstream_failed') return '❌ AI bermasalah: ' + (d.detail || 'timeout / tak diketahui');
           if (typeof d.error === 'object' && d.error.message) {
             var m = d.error.message; var ml = m.toLowerCase();
             if (ml.indexOf('rate') > -1 || ml.indexOf('429') > -1 || ml.indexOf('limit') > -1 || ml.indexOf('quota') > -1 || ml.indexOf('exhaust') > -1) return '⏳ Layanan AI sedang sibuk / jatah sesaat penuh. Tunggu ~1 menit lalu coba lagi.';

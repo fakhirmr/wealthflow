@@ -127,47 +127,17 @@ export default async function handler(req) {
         outText = JSON.stringify({ text: txt }); // meniru bentuk respons Whisper agar client tak berubah
       }
     } else {
-      // --- CHAT / VISION (Gemini native, thinking DIMATIKAN agar respons cepat) ---
+      // --- CHAT / VISION (endpoint Gemini kompatibel-OpenAI, terbukti stabil) ---
       var body = await req.json();
       if (!body) return json({ error: 'bad_request' }, 400);
       // Normalisasi model: apa pun yang diminta client dipetakan ke Gemini Flash (tahan beda-versi & cegah model mahal)
-      var model = (String(body.model || '').indexOf('lite') >= 0) ? 'gemini-flash-lite-latest' : 'gemini-flash-latest';
-      var maxOut = Math.min(Number(body.max_tokens) || 2048, MAX_TOKENS_CAP);
-      // Konversi pesan format OpenAI -> format native Gemini
-      var sysParts = [], contents = [];
-      (body.messages || []).forEach(function (mm) {
-        if (mm.role === 'system') { if (typeof mm.content === 'string') sysParts.push({ text: mm.content }); return; }
-        var role = (mm.role === 'assistant') ? 'model' : 'user';
-        var parts = [];
-        if (typeof mm.content === 'string') { parts.push({ text: mm.content }); }
-        else if (Array.isArray(mm.content)) {
-          mm.content.forEach(function (part) {
-            if (part.type === 'text') parts.push({ text: part.text || '' });
-            else if (part.type === 'image_url' && part.image_url && part.image_url.url) {
-              var url = part.image_url.url, mt = 'image/jpeg', dt = url;
-              var mtc = /^data:([^;]+);base64,(.*)$/.exec(url);
-              if (mtc) { mt = mtc[1]; dt = mtc[2]; }
-              parts.push({ inlineData: { mimeType: mt, data: dt } });
-            }
-          });
-        }
-        if (parts.length) contents.push({ role: role, parts: parts });
-      });
-      var gReq = { contents: contents, generationConfig: { maxOutputTokens: maxOut, thinkingConfig: { thinkingBudget: 0 } } };
-      if (sysParts.length) gReq.systemInstruction = { parts: sysParts };
-      var cr = await fetchTO(GEMINI_BASE + '/models/' + model + ':generateContent?key=' + GKEY, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(gReq)
+      body.model = (String(body.model || '').indexOf('lite') >= 0) ? 'gemini-flash-lite-latest' : 'gemini-flash-latest';
+      if (body.max_tokens && body.max_tokens > MAX_TOKENS_CAP) body.max_tokens = MAX_TOKENS_CAP;
+      body.reasoning_effort = 'none'; // matikan "thinking" Gemini agar respons cepat
+      var cr = await fetchTO(GEMINI_BASE + '/openai/chat/completions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body)
       }, 24000);
-      var cj = await cr.json();
-      providerOk = cr.ok; outStatus = cr.status;
-      if (!cr.ok) {
-        outText = JSON.stringify({ error: { message: (cj && cj.error && cj.error.message) || 'gemini_error' } });
-      } else {
-        var ctext = '';
-        try { ctext = (cj.candidates[0].content.parts || []).map(function (pp) { return pp.text || '' }).join(''); } catch (e) { ctext = ''; }
-        // Bungkus jadi bentuk OpenAI agar client tak perlu berubah
-        outText = JSON.stringify({ choices: [{ message: { role: 'assistant', content: ctext }, finish_reason: 'stop' }] });
-      }
+      outText = await cr.text(); providerOk = cr.ok; outStatus = cr.status;
     }
   } catch (e) {
     return json({ error: 'upstream_failed', detail: String(e && e.message || e) }, 502);
