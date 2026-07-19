@@ -693,6 +693,67 @@
       justify-content: space-between
     }
 
+    .notif-badge {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      border-radius: 8px;
+      background: var(--red);
+      color: #fff;
+      font-size: .6rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      box-sizing: border-box
+    }
+
+    .notif-fixed {
+      display: none
+    }
+
+    .notif-panel {
+      position: fixed;
+      top: 56px;
+      right: 10px;
+      width: min(340px, calc(100vw - 20px));
+      max-height: 72vh;
+      overflow-y: auto;
+      background: var(--bgc);
+      border: 1px solid var(--brd);
+      border-radius: 14px;
+      box-shadow: var(--csh);
+      z-index: 120
+    }
+
+    @media(min-width:769px) {
+      .notif-fixed {
+        display: flex;
+        position: fixed;
+        top: 14px;
+        right: 18px;
+        z-index: 95;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: var(--bgc);
+        border: 1px solid var(--brd);
+        color: var(--t1);
+        cursor: pointer
+      }
+
+      .notif-panel {
+        top: 60px;
+        right: 18px
+      }
+    }
+
     .mn {
       display: none;
       position: fixed;
@@ -1953,6 +2014,7 @@
         _prevPg.current = pg;
         var _mb = useState(false), mob = _mb[0], sMb = _mb[1];
         var _W = useState([]), W = _W[0], sW = _W[1]; var _T = useState([]), T = _T[0], sT = _T[1]; var _C = useState([]), C = _C[0], sC = _C[1]; var _B = useState([]), B = _B[0], sB = _B[1]; var _I = useState([]), I = _I[0], sI = _I[1]; var _D = useState([]), D = _D[0], sD = _D[1]; var _DP = useState([]), DP = _DP[0], sDP = _DP[1]; var _G = useState([]), G = _G[0], sG = _G[1]; var _R = useState([]), R = _R[0], sR = _R[1];
+        var _notifOpen = useState(false), notifOpen = _notifOpen[0], sNotifOpen = _notifOpen[1];
         var _l = useState(false), ld = _l[0], sL = _l[1]; var _e = useState(''), dbE = _e[0], sE = _e[1]; var _sl = useState(false), slow = _sl[0], sSl = _sl[1];
         var initTheme = 'dark'; try { initTheme = localStorage.getItem('wf_theme') || 'dark' } catch (e) { }
         var _th = useState(initTheme), theme = _th[0], sTh = _th[1];
@@ -2086,6 +2148,35 @@
             })));
 
         var cx = { W: W, T: T, C: C, B: B, I: I, D: D, DP: DP, G: G, R: R, rW: rW, rT: rT, rC: rC, rB: rB, rI: rI, rD: rD, rDP: rDP, rG: rG, rR: rR };
+        // Notifikasi pengingat: tagihan/cicilan yang terlambat atau jatuh tempo ≤7 hari
+        var _ntoday = new Date(); _ntoday.setHours(0, 0, 0, 0);
+        function _ndays(ds) { if (!ds) return null; var d = new Date(ds); d.setHours(0, 0, 0, 0); return Math.round((d - _ntoday) / 86400000); }
+        var notifItems = [];
+        R.forEach(function (r) { if (r.is_active !== false && r.due_date) { var dd = _ndays(r.due_date); if (dd !== null && dd <= 7) notifItems.push({ key: 'r' + r.id, name: r.name, amount: Number(r.amount) || 0, days: dd }); } });
+        D.forEach(function (d) { if (d.status === 'active' && d.type === 'hutang' && d.due_date) { var dd = _ndays(d.due_date); if (dd !== null && dd <= 7) notifItems.push({ key: 'd' + d.id, name: 'Cicilan ' + d.name, amount: Number(d.monthly_payment) || 0, days: dd }); } });
+        notifItems.sort(function (a, b) { return a.days - b.days; });
+        var notifCount = notifItems.length;
+        function bellBtn(cls) { return h('button', { className: cls, onClick: function () { sNotifOpen(!notifOpen) }, title: 'Pengingat', style: { position: 'relative' } }, h(Ic, { n: 'bell' }), notifCount > 0 ? h('span', { className: 'notif-badge' }, notifCount > 9 ? '9+' : notifCount) : null); }
+        var notifPanel = notifOpen ? h(F, null,
+          h('div', { style: { position: 'fixed', inset: 0, zIndex: 118 }, onClick: function () { sNotifOpen(false) } }),
+          h('div', { className: 'notif-panel' },
+            h('div', { style: { padding: '12px 16px', borderBottom: '1px solid var(--brd)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
+              h('span', { style: { fontWeight: 700, fontSize: '.9rem' } }, '🔔 Pengingat'),
+              h('span', { style: { fontSize: '.72rem', color: 'var(--t3)' } }, notifCount + ' tagihan')),
+            notifItems.length === 0
+              ? h('div', { style: { padding: '28px 16px', textAlign: 'center', color: 'var(--t3)', fontSize: '.85rem' } }, '✓ Tidak ada tagihan mendekat')
+              : h('div', null, notifItems.map(function (it) {
+                var col = it.days <= 0 ? 'var(--red)' : it.days <= 3 ? 'var(--org)' : 'var(--blu)';
+                var lbl = it.days < 0 ? ('Terlambat ' + Math.abs(it.days) + ' hari') : it.days === 0 ? 'Jatuh tempo hari ini' : (it.days + ' hari lagi');
+                return h('div', { key: it.key, onClick: function () { sNotifOpen(false); go('reminders') }, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '11px 16px', borderBottom: '1px solid var(--brd)', cursor: 'pointer' } },
+                  h('div', { style: { width: 8, height: 8, borderRadius: '50%', background: col, flexShrink: 0 } }),
+                  h('div', { style: { flex: 1, minWidth: 0 } },
+                    h('div', { style: { fontSize: '.85rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, it.name),
+                    h('div', { style: { fontSize: '.7rem', color: col, fontWeight: 600 } }, lbl)),
+                  h('div', { style: { fontWeight: 700, fontSize: '.82rem', flexShrink: 0 } }, fmt(it.amount)));
+              })),
+            h('div', { style: { padding: '10px 14px' } }, h('button', { className: 'btn bs', style: { width: '100%', justifyContent: 'center', fontSize: '.8rem' }, onClick: function () { sNotifOpen(false); go('reminders') } }, 'Lihat semua reminder'))))
+          : null;
         return h(F, null,
           h('aside', { className: 'sb' + (mob ? ' open' : ''), onClick: function (e) { e.stopPropagation() }, onTouchStart: function (e) { e.stopPropagation() } }, h('div', { className: 'sb-brand' }, h('h1', null, 'Wealth', h('span', null, 'Flow'))),
             h('nav', { className: 'sb-nav' }, sideNav.map(function (n) { return h('button', { key: n.id, className: 'nv' + (pg === n.id ? ' act' : '') + (bnav.indexOf(n.id) >= 0 ? ' nv-dup' : ''), onClick: function () { go(n.id) } }, h(Ic, { n: n.ic }), n.lb) })),
@@ -2094,7 +2185,9 @@
               h('div', { style: { display: 'flex', gap: 6 } },
                 h('button', { className: 'theme-btn', style: { flex: 1 }, onClick: function () { sTh(theme === 'dark' ? 'light' : 'dark') } }, h(Ic, { n: theme === 'dark' ? 'sun' : 'moon' }), theme === 'dark' ? 'Light' : 'Dark'),
                 h('button', { className: 'theme-btn', style: { color: 'var(--red)' }, onClick: function () { sb.auth.signOut() } }, 'Logout')))),
-          h('div', { className: 'mh' }, h('button', { className: 'bi', onClick: function () { sMb(!mob) } }, h(Ic, { n: 'menu' })), h('h1', { style: { fontSize: '.95rem', fontWeight: 700 } }, 'Wealth', h('span', { style: { color: 'var(--acc)' } }, 'Flow')), h('button', { className: 'bi', onClick: function () { sTh(theme === 'dark' ? 'light' : 'dark') } }, h(Ic, { n: theme === 'dark' ? 'sun' : 'moon' }))),
+          h('div', { className: 'mh' }, h('button', { className: 'bi', onClick: function () { sMb(!mob) } }, h(Ic, { n: 'menu' })), h('h1', { style: { fontSize: '.95rem', fontWeight: 700 } }, 'Wealth', h('span', { style: { color: 'var(--acc)' } }, 'Flow')), h('div', { style: { display: 'flex', alignItems: 'center', gap: 2 } }, bellBtn('bi'), h('button', { className: 'bi', onClick: function () { sTh(theme === 'dark' ? 'light' : 'dark') } }, h(Ic, { n: theme === 'dark' ? 'sun' : 'moon' })))),
+          h('button', { className: 'notif-fixed', onClick: function () { sNotifOpen(!notifOpen) }, title: 'Pengingat' }, h(Ic, { n: 'bell' }), notifCount > 0 ? h('span', { className: 'notif-badge' }, notifCount > 9 ? '9+' : notifCount) : null),
+          notifPanel,
           mob ? h('div', { style: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.3)', zIndex: 98 }, onClick: function () { sMb(false) }, onTouchStart: function () { sMb(false) } }) : null,
           h('div', { className: 'mn' },
             bnav.map(function (id, idx) {
