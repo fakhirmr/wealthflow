@@ -3694,6 +3694,7 @@
           else { delete pay.user_id; sb.from('debts').update(pay).eq('id', mo.d.id).then(function (r) { if (r.error) { t(r.error.message, 'err'); return } t('Diperbarui'); sMo(null); rD() }) }
         }
 
+        function addMonths(ds, n) { var d = new Date(ds); d.setMonth(d.getMonth() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
         function payDebt() {
           if (!UID) { t('Sesi habis', 'err'); return }
           var amt = Number(pf.amount) || 0; if (amt <= 0) { t('Jumlah > 0', 'err'); return }
@@ -3702,8 +3703,10 @@
           // Step 1: Insert payment record
           sb.from('debt_payments').insert({ user_id: UID, debt_id: debt.id, amount: amt, paid_date: pf.paid_date, wallet_id: pf.wallet_id || null, notes: pf.notes }).then(function (r) {
             if (r.error) { t(r.error.message, 'err'); return }
-            // Step 2: Update remaining amount on debt
-            sb.from('debts').update({ remaining_amount: newRem, status: newStatus }).eq('id', debt.id).then(function (r2) {
+            // Step 2: Update sisa + majukan jatuh tempo cicilan 1 bulan (jika masih ada sisa & ini cicilan bulanan)
+            var updDebt = { remaining_amount: newRem, status: newStatus };
+            if (newRem > 0 && debt.due_date && Number(debt.monthly_payment) > 0) updDebt.due_date = addMonths(debt.due_date, 1);
+            sb.from('debts').update(updDebt).eq('id', debt.id).then(function (r2) {
               if (r2.error) { t(r2.error.message, 'err'); return }
               // Step 3: Deduct/add wallet balance
               function afterWallet() {
@@ -3818,7 +3821,8 @@
                   d.tenor ? h('span', null, '⏱ ', d.tenor, ' bln') : null,
                   (d.total_with_interest && d.total_with_interest > d.total_amount) ? h('span', { style: { color: 'var(--org)' } },
                     'Bunga: ', fmt(Math.round(d.total_with_interest - d.total_amount))) : null,
-                  d.due_date ? h('span', { style: { color: 'var(--t3)' } }, '🗓 ', new Date(d.due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })) : null,
+                  d.due_date ? h('span', { style: { color: 'var(--t3)' } }, '🗓 ', (Number(d.monthly_payment) > 0 && d.status === 'active' ? 'Cicilan: ' : 'Tempo: '), new Date(d.due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })) : null,
+                  (d.status === 'active' && Number(d.monthly_payment) > 0 && Number(d.remaining_amount) > 0 && d.due_date) ? (function () { var ml = Math.ceil((Number(d.remaining_amount) || 0) / Number(d.monthly_payment)); var po = addMonths(d.due_date, Math.max(0, ml - 1)); return h('span', { style: { color: 'var(--acc)' } }, '🏁 Lunas ~', new Date(po).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }), ' (', ml, 'x lagi)'); })() : null,
                   d.wallet_id ? h('span', null, '💳 ', wn(W, d.wallet_id)) : null),
                 // Recent payments
                 payments.length > 0 ? h('div', { style: { borderTop: '1px solid var(--brd)', paddingTop: 10 } },
@@ -3853,7 +3857,7 @@
                   c.cicilanPerBulan > 0 ? h('div', { style: { background: 'rgba(255,255,255,.1)', borderRadius: 6, padding: '8px 10px' } }, h('div', { style: { fontSize: '.68rem', color: 'var(--t3)' } }, 'Cicilan/Bulan'), h('div', { style: { fontWeight: 700, fontSize: '.85rem', color: 'var(--blu)' } }, fmt(Math.round(c.cicilanPerBulan)))) : null),
                 h('button', { className: 'btn bs', style: { marginTop: 8, width: '100%', fontSize: '.78rem' }, onClick: function () { var c2 = calcInterest(f.total_amount, f.interest_rate, f.tenor, f.interest_model); var n = {}; for (var x in f) n[x] = f[x]; n.remaining_amount = String(Math.round(c2.totalBayar)); n.monthly_payment = String(Math.round(c2.cicilanPerBulan)); sF(n) } }, '⬆ Terapkan ke form'))
             }()) : null,
-            h('div', { className: 'fr' }, h('div', { className: 'fg' }, h('label', null, 'Tgl Mulai'), h('input', { className: 'fi', type: 'date', value: f.start_date, onChange: function (e) { ufx('start_date', e.target.value) } })), h('div', { className: 'fg' }, h('label', null, 'Jatuh Tempo'), h('input', { className: 'fi', type: 'date', value: f.due_date, onChange: function (e) { ufx('due_date', e.target.value) } }))),
+            h('div', { className: 'fr' }, h('div', { className: 'fg' }, h('label', null, 'Tgl Mulai'), h('input', { className: 'fi', type: 'date', value: f.start_date, onChange: function (e) { ufx('start_date', e.target.value) } })), h('div', { className: 'fg' }, h('label', null, 'Jatuh Tempo Cicilan'), h('input', { className: 'fi', type: 'date', value: f.due_date, onChange: function (e) { ufx('due_date', e.target.value) } }))),
             h('div', { className: 'fg' }, h('label', null, 'Dompet Terkait (untuk cicilan)'), h('select', { className: 'fi', value: f.wallet_id, onChange: function (e) { ufx('wallet_id', e.target.value) } }, h('option', { value: '' }, '-- Tidak ada --'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name) }))),
             mo && mo.m === 'add' ? h(DebtAddSection, { f: f, ufx: ufx, W: W }) : null),
 
