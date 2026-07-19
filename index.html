@@ -3984,10 +3984,13 @@
         var relC = C.filter(function (c) { return c.type === 'expense' && !c.parent_id; });
         return h('div', null,
           h('div', { className: 'pg-hd' }, h('div', null, h('h2', null, 'Reminder'), h('p', null, 'Tagihan, cicilan & apa pun yang harus dibayar')), h('button', { className: 'btn bp', onClick: oA }, h(Ic, { n: 'plus' }), ' Tambah')),
-          h('div', { className: 'sg', style: { marginBottom: 16 } },
-            h('div', { className: 'cd st', style: { borderTop: '3px solid var(--red)' } }, h('div', { className: 'lb' }, 'Terlambat'), h('div', { className: 'vl', style: { color: 'var(--red)' } }, overdue.length), h('div', { className: 'sub' }, 'perlu segera')),
-            h('div', { className: 'cd st', style: { borderTop: '3px solid var(--org)' } }, h('div', { className: 'lb' }, 'Minggu ini'), h('div', { className: 'vl', style: { color: 'var(--org)' } }, week.length), h('div', { className: 'sub' }, fmt(weekTotal))),
-            h('div', { className: 'cd st', style: { borderTop: '3px solid var(--blu)' } }, h('div', { className: 'lb' }, 'Total aktif'), h('div', { className: 'vl' }, all.length), h('div', { className: 'sub' }, 'reminder'))),
+          h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 } },
+            h('div', { style: { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--redbg)', color: 'var(--red)', padding: '6px 12px', borderRadius: 100, fontSize: '.8rem', fontWeight: 600 } },
+              h('span', { style: { width: 8, height: 8, borderRadius: '50%', background: 'var(--red)', flexShrink: 0 } }), h('b', null, overdue.length), ' Terlambat'),
+            h('div', { style: { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(217,119,6,.12)', color: 'var(--org)', padding: '6px 12px', borderRadius: 100, fontSize: '.8rem', fontWeight: 600 } },
+              h('span', { style: { width: 8, height: 8, borderRadius: '50%', background: 'var(--org)', flexShrink: 0 } }), h('b', null, week.length), ' Minggu ini', weekTotal > 0 ? h('span', { style: { fontWeight: 500, opacity: .85 } }, ' · ', fmt(weekTotal)) : null),
+            h('div', { style: { display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--blubg)', color: 'var(--blu)', padding: '6px 12px', borderRadius: 100, fontSize: '.8rem', fontWeight: 600 } },
+              h('span', { style: { width: 8, height: 8, borderRadius: '50%', background: 'var(--blu)', flexShrink: 0 } }), h('b', null, all.length), ' Aktif')),
           all.length === 0 ? h('div', { className: 'cd' }, h('div', { className: 'empty' }, h('div', { className: 'ei' }, '🔔'), h('h3', null, 'Belum ada reminder'), h('p', null, 'Tambah tagihan/cicilan yang harus dibayar'))) :
             all.map(function (item) {
               var days = daysUntil(item.due), u = urg(days), isDebt = item.src === 'debt';
