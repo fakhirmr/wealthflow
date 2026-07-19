@@ -712,7 +712,7 @@
       box-sizing: border-box
     }
 
-    .notif-fixed {
+    .notif-sb {
       display: none
     }
 
@@ -731,26 +731,14 @@
     }
 
     @media(min-width:769px) {
-      .notif-fixed {
-        display: flex;
-        position: fixed;
-        top: 14px;
-        right: 18px;
-        z-index: 95;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        background: var(--bgc);
-        border: 1px solid var(--brd);
-        color: var(--t1);
-        cursor: pointer
+      .notif-sb {
+        display: inline-flex
       }
 
       .notif-panel {
-        top: 60px;
-        right: 18px
+        top: 56px;
+        left: 14px;
+        right: auto
       }
     }
 
@@ -2178,7 +2166,7 @@
             h('div', { style: { padding: '10px 14px' } }, h('button', { className: 'btn bs', style: { width: '100%', justifyContent: 'center', fontSize: '.8rem' }, onClick: function () { sNotifOpen(false); go('reminders') } }, 'Lihat semua reminder'))))
           : null;
         return h(F, null,
-          h('aside', { className: 'sb' + (mob ? ' open' : ''), onClick: function (e) { e.stopPropagation() }, onTouchStart: function (e) { e.stopPropagation() } }, h('div', { className: 'sb-brand' }, h('h1', null, 'Wealth', h('span', null, 'Flow'))),
+          h('aside', { className: 'sb' + (mob ? ' open' : ''), onClick: function (e) { e.stopPropagation() }, onTouchStart: function (e) { e.stopPropagation() } }, h('div', { className: 'sb-brand', style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' } }, h('h1', null, 'Wealth', h('span', null, 'Flow')), h('span', { className: 'notif-sb' }, bellBtn('bi'))),
             h('nav', { className: 'sb-nav' }, sideNav.map(function (n) { return h('button', { key: n.id, className: 'nv' + (pg === n.id ? ' act' : '') + (bnav.indexOf(n.id) >= 0 ? ' nv-dup' : ''), onClick: function () { go(n.id) } }, h(Ic, { n: n.ic }), n.lb) })),
             h('div', { className: 'sb-ft', style: { flexDirection: 'column', gap: 8, alignItems: 'stretch' } },
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, fontSize: '.72rem', color: 'var(--t2)', overflow: 'hidden' } }, h('span', null, '👤'), h('span', { style: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 } }, user.email || 'User')),
@@ -2186,7 +2174,6 @@
                 h('button', { className: 'theme-btn', style: { flex: 1 }, onClick: function () { sTh(theme === 'dark' ? 'light' : 'dark') } }, h(Ic, { n: theme === 'dark' ? 'sun' : 'moon' }), theme === 'dark' ? 'Light' : 'Dark'),
                 h('button', { className: 'theme-btn', style: { color: 'var(--red)' }, onClick: function () { sb.auth.signOut() } }, 'Logout')))),
           h('div', { className: 'mh' }, h('button', { className: 'bi', onClick: function () { sMb(!mob) } }, h(Ic, { n: 'menu' })), h('h1', { style: { fontSize: '.95rem', fontWeight: 700 } }, 'Wealth', h('span', { style: { color: 'var(--acc)' } }, 'Flow')), h('div', { style: { display: 'flex', alignItems: 'center', gap: 2 } }, bellBtn('bi'), h('button', { className: 'bi', onClick: function () { sTh(theme === 'dark' ? 'light' : 'dark') } }, h(Ic, { n: theme === 'dark' ? 'sun' : 'moon' })))),
-          h('button', { className: 'notif-fixed', onClick: function () { sNotifOpen(!notifOpen) }, title: 'Pengingat' }, h(Ic, { n: 'bell' }), notifCount > 0 ? h('span', { className: 'notif-badge' }, notifCount > 9 ? '9+' : notifCount) : null),
           notifPanel,
           mob ? h('div', { style: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.3)', zIndex: 98 }, onClick: function () { sMb(false) }, onTouchStart: function () { sMb(false) } }) : null,
           h('div', { className: 'mn' },
