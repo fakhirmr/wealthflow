@@ -3779,13 +3779,17 @@
                   h('div', { style: { color: 'var(--t3)', lineHeight: 1.4 } }, 'Catat sebagai hutang. Pembayaran bisa tanpa kategori karena bukan pengeluaran konsumsi baru.'))))) : null,
 
           // Summary cards
-          h('div', { className: 'sg', style: { marginBottom: 16 } },
-            h('div', { className: 'cd st', style: { borderTop: '3px solid var(--red)' } },
-              h('div', { className: 'lb' }, 'Total Hutang'), h('div', { className: 'vl', style: { color: 'var(--red)' } }, fmt(totalHutang)), h('div', { className: 'sub' }, monthlyTotal > 0 ? 'Cicilan/bln: ' + fmt(monthlyTotal) : hutang.length + ' item')),
-            h('div', { className: 'cd st', style: { borderTop: '3px solid var(--acc)' } },
-              h('div', { className: 'lb' }, 'Total Piutang'), h('div', { className: 'vl', style: { color: 'var(--acc)' } }, fmt(totalPiutang)), h('div', { className: 'sub' }, piutang.length + ' item')),
-            h('div', { className: 'cd st', style: { borderTop: '3px solid var(--blu)' } },
-              h('div', { className: 'lb' }, 'Selisih Bersih'), h('div', { className: 'vl', style: { color: totalPiutang - totalHutang >= 0 ? 'var(--acc)' : 'var(--red)' } }, fmt(totalPiutang - totalHutang)))),
+          h('div', { className: 'cd', style: { marginBottom: 16, padding: 0, display: 'flex', overflow: 'hidden' } },
+            h('div', { style: { flex: 1, padding: '12px 8px', textAlign: 'center', minWidth: 0 } },
+              h('div', { style: { fontWeight: 800, fontSize: 'clamp(.74rem,2.7vw,.95rem)', color: 'var(--red)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, fmt(totalHutang)),
+              h('div', { style: { fontSize: '.68rem', color: 'var(--t3)', marginTop: 4 } }, 'Hutang'),
+              monthlyTotal > 0 ? h('div', { style: { fontSize: '.6rem', color: 'var(--t3)', marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, fmt(monthlyTotal) + '/bln') : null),
+            h('div', { style: { flex: 1, padding: '12px 8px', textAlign: 'center', minWidth: 0, borderLeft: '1px solid var(--brd)', borderRight: '1px solid var(--brd)' } },
+              h('div', { style: { fontWeight: 800, fontSize: 'clamp(.74rem,2.7vw,.95rem)', color: 'var(--acc)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, fmt(totalPiutang)),
+              h('div', { style: { fontSize: '.68rem', color: 'var(--t3)', marginTop: 4 } }, 'Piutang')),
+            h('div', { style: { flex: 1, padding: '12px 8px', textAlign: 'center', minWidth: 0 } },
+              h('div', { style: { fontWeight: 800, fontSize: 'clamp(.74rem,2.7vw,.95rem)', color: totalPiutang - totalHutang >= 0 ? 'var(--acc)' : 'var(--red)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, fmt(totalPiutang - totalHutang)),
+              h('div', { style: { fontSize: '.68rem', color: 'var(--t3)', marginTop: 4 } }, 'Selisih'))),
 
           // Tabs
           h('div', { className: 'tabs', style: { marginBottom: 14 } },
@@ -5111,7 +5115,16 @@
         var tl = { stock: 'Saham', crypto: 'Crypto', mutual_fund: 'Reksa Dana', gold: 'Emas', property: 'Properti', other: 'Lainnya' };
         return h(F, null,
           h('div', { className: 'pg-hd' }, h('div', null, h('h2', null, 'Investasi')), h('button', { className: 'btn bp', onClick: oA }, h(Ic, { n: 'plus' }), ' Tambah')),
-          h('div', { className: 'sg' }, h('div', { className: 'cd st' }, h('div', { className: 'lb' }, 'Modal'), h('div', { className: 'vl' }, fmt(tI))), h('div', { className: 'cd st' }, h('div', { className: 'lb' }, 'Nilai'), h('div', { className: 'vl', style: { color: 'var(--blu)' } }, fmt(tC))), h('div', { className: 'cd st' }, h('div', { className: 'lb' }, 'G/L'), h('div', { className: 'vl', style: { color: gl >= 0 ? 'var(--acc)' : 'var(--red)' } }, gl >= 0 ? '+' : '', fmt(gl)))),
+          h('div', { className: 'cd', style: { marginBottom: 16, padding: 0, display: 'flex', overflow: 'hidden' } },
+            h('div', { style: { flex: 1, padding: '12px 8px', textAlign: 'center', minWidth: 0 } },
+              h('div', { style: { fontWeight: 800, fontSize: 'clamp(.74rem,2.7vw,.95rem)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, fmt(tI)),
+              h('div', { style: { fontSize: '.68rem', color: 'var(--t3)', marginTop: 4 } }, 'Modal')),
+            h('div', { style: { flex: 1, padding: '12px 8px', textAlign: 'center', minWidth: 0, borderLeft: '1px solid var(--brd)', borderRight: '1px solid var(--brd)' } },
+              h('div', { style: { fontWeight: 800, fontSize: 'clamp(.74rem,2.7vw,.95rem)', color: 'var(--blu)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, fmt(tC)),
+              h('div', { style: { fontSize: '.68rem', color: 'var(--t3)', marginTop: 4 } }, 'Nilai')),
+            h('div', { style: { flex: 1, padding: '12px 8px', textAlign: 'center', minWidth: 0 } },
+              h('div', { style: { fontWeight: 800, fontSize: 'clamp(.74rem,2.7vw,.95rem)', color: gl >= 0 ? 'var(--acc)' : 'var(--red)', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, (gl >= 0 ? '+' : '') + fmt(gl)),
+              h('div', { style: { fontSize: '.68rem', color: 'var(--t3)', marginTop: 4 } }, 'Untung/Rugi'))),
           I.length === 0 ? h('div', { className: 'cd' }, h('div', { className: 'empty' }, h('h3', null, 'Belum ada'))) :
             h('div', { className: 'cd' }, h('div', { className: 'tw' }, h('table', null, h('thead', null, h('tr', null, h('th', null, 'Nama'), h('th', null, 'Tipe'), h('th', { style: { textAlign: 'right' } }, 'Modal'), h('th', { style: { textAlign: 'right' } }, 'Nilai'), h('th', { style: { textAlign: 'right' } }, 'G/L'), h('th'))), h('tbody', null, I.map(function (i) { var g = (Number(i.current_value) || 0) - (Number(i.amount) || 0); return h('tr', { key: i.id }, h('td', { style: { fontWeight: 600 } }, i.name), h('td', null, h('span', { className: 'badge', style: { background: 'var(--blubg)', color: 'var(--blu)' } }, tl[i.type] || '-')), h('td', { style: { textAlign: 'right' } }, fmt(i.amount)), h('td', { style: { textAlign: 'right' } }, fmt(i.current_value)), h('td', { style: { textAlign: 'right', fontWeight: 600, color: g >= 0 ? 'var(--acc)' : 'var(--red)' } }, g >= 0 ? '+' : '', fmt(g)), h('td', { style: { whiteSpace: 'nowrap' } }, h('button', { className: 'bi', style: { width: 26, height: 26 }, onClick: function () { oE(i) } }, h(Ic, { n: 'edit' })), h('button', { className: 'bi', style: { width: 26, height: 26, color: 'var(--red)' }, onClick: function () { del(i) } }, h(Ic, { n: 'trash' })))) }))))),
           h(Mod, { open: !!mo, onClose: function () { sM(null) }, title: mo && mo.m === 'add' ? 'Tambah' : 'Edit', footer: h(F, null, h('button', { className: 'btn bs', onClick: function () { sM(null) } }, 'Batal'), h('button', { className: 'btn bp', onClick: save }, 'Simpan')) },
