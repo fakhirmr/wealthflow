@@ -1998,6 +1998,7 @@
         // Track page changes: only animate AFTER first navigation, not on initial mount
         var _prevPg = useRef(null);
         var _navKey = useRef(0);
+        var txnWalletRef = useRef(null);
         if (_prevPg.current !== null && _prevPg.current !== pg) { _navKey.current++; }
         _prevPg.current = pg;
         var _mb = useState(false), mob = _mb[0], sMb = _mb[1];
@@ -2105,6 +2106,7 @@
 
         var sideNav = ALL_PAGES;
         function go(p) { sPg(p); sMb(false) }
+        function openWalletTxns(wid) { txnWalletRef.current = wid; go('transactions') }
         // Auth checking
         if (authChecking) return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', width: '100%' } }, h('div', { style: { textAlign: 'center' } }, h('div', { style: { display: 'flex', justifyContent: 'center', marginBottom: 16 } }, h(WFMark, { size: 52 })), h('h1', { style: { fontSize: '1.4rem', fontWeight: 800, marginBottom: 6 } }, 'Wealth', h('span', { style: { color: 'var(--acc)' } }, 'Flow')), h('p', { style: { color: 'var(--t3)', fontSize: '.82rem' } }, 'Memuat...')));
         // Not logged in
@@ -2186,7 +2188,7 @@
             })),
           h('main', { className: 'main' }, h('div', { className: 'pg' + (_navKey.current > 0 ? ' pg-page' : ''), key: _navKey.current },
             dbE ? h('div', { style: { background: 'var(--redbg)', border: '1px solid var(--red)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: '.8rem', color: 'var(--red)' } }, dbE) : null,
-            pg === 'dashboard' ? h(Dash, Object.assign({}, cx, { dashCards: dashCards, sDash: sDash })) : null, pg === 'transactions' ? h(TxnsP, cx) : null, pg === 'budgets' ? h(BudgP, cx) : null, pg === 'wallets' ? h(WalletsP, cx) : null, pg === 'goals' ? h(GoalsP, cx) : null, pg === 'debts' ? h(DebtP, cx) : null, pg === 'reminders' ? h(ReminderP, Object.assign({}, cx, { go: go })) : null, pg === 'ai' ? h(AiP, cx) : null, pg === 'investments' ? h(InvP, cx) : null, pg === 'categories' ? h(CatsP, cx) : null, pg === 'settings' ? h(SettingsP, Object.assign({}, cx, { theme: theme, sTh: sTh, user: user, bnav: bnav, sBnav: sBnav, dashCards: dashCards, sDash: sDash })) : null)),
+            pg === 'dashboard' ? h(Dash, Object.assign({}, cx, { dashCards: dashCards, sDash: sDash })) : null, pg === 'transactions' ? h(TxnsP, Object.assign({}, cx, { txnWalletRef: txnWalletRef })) : null, pg === 'budgets' ? h(BudgP, cx) : null, pg === 'wallets' ? h(WalletsP, Object.assign({}, cx, { openTxns: openWalletTxns })) : null, pg === 'goals' ? h(GoalsP, cx) : null, pg === 'debts' ? h(DebtP, cx) : null, pg === 'reminders' ? h(ReminderP, Object.assign({}, cx, { go: go })) : null, pg === 'ai' ? h(AiP, cx) : null, pg === 'investments' ? h(InvP, cx) : null, pg === 'categories' ? h(CatsP, cx) : null, pg === 'settings' ? h(SettingsP, Object.assign({}, cx, { theme: theme, sTh: sTh, user: user, bnav: bnav, sBnav: sBnav, dashCards: dashCards, sDash: sDash })) : null)),
           tfOpen ? h(TransferMod, { W: W, rW: rW, rT: rT, onClose: function () { sTf(false) } }) : null,
           fabOpen ? h(QuickTxn, { W: W, C: C, rT: rT, rW: rW, onClose: function () { sFab(false) } }) : null,
           showWN ? h(WhatsNewModal, { onClose: closeWN, onShowAll: openAll }) : null,
@@ -3264,7 +3266,7 @@
                     var bal = Number(w.balance) || 0;
                     return h('div', { key: w.id, style: { display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', borderBottom: i < grouped[g.id].length - 1 ? '1px solid var(--brd)' : 'none' } },
                       // Clickable area: dot + name + balance
-                      h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, flex: 1, cursor: 'pointer', minWidth: 0 }, onClick: function () { sSelW(w) } },
+                      h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, flex: 1, cursor: 'pointer', minWidth: 0 }, onClick: function () { if (p.openTxns) p.openTxns(w.id) }, title: 'Lihat transaksi dompet ini' },
                         h('div', { style: { width: 10, height: 10, borderRadius: '50%', background: w.color || 'var(--acc)', flexShrink: 0 } }),
                         h('span', { style: { fontSize: '.9rem', fontWeight: 600, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, w.name),
                         h('span', { style: { fontFamily: 'Outfit,sans-serif', fontWeight: 700, fontSize: '.92rem', color: bal >= 0 ? 'var(--acc)' : 'var(--red)', flexShrink: 0 } }, fmt(bal))),
@@ -3335,7 +3337,8 @@
         var _defF = { type: 'expense', wallet_id: '', category_id: '', sub_category_id: '', amount: '', description: '', date: td(), is_installment: false, installment_count: 6 };
         var _f = useState(function() { try { var _r = sessionStorage.getItem('wf_txn_draft'); return _r ? JSON.parse(_r) : _defF } catch(e) { return _defF } }), f = _f[0], sF = _f[1];
         var _dr = useState(function() { try { return !!sessionStorage.getItem('wf_txn_draft') } catch(e) { return false } }), draftRestored = _dr[0], sDr = _dr[1];
-        var _ft = useState('all'), fTy = _ft[0], sFT = _ft[1]; var _fw = useState('all'), fWl = _fw[0], sFW = _fw[1]; var _q = useState(''), q = _q[0], sQ = _q[1];
+        var _ft = useState('all'), fTy = _ft[0], sFT = _ft[1]; var _fw = useState(function () { var w = p.txnWalletRef && p.txnWalletRef.current; return w || 'all' }), fWl = _fw[0], sFW = _fw[1]; var _q = useState(''), q = _q[0], sQ = _q[1];
+        useEffect(function () { if (p.txnWalletRef) p.txnWalletRef.current = null }, []);
         var now2 = new Date(); var _yr = useState(now2.getFullYear()), vYr = _yr[0], sVYr = _yr[1]; var _mn = useState(now2.getMonth()), vMn = _mn[0], sVMn = _mn[1];
         var MOS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
         function prevMo() { if (vMn === 0) { sVMn(11); sVYr(vYr - 1) } else sVMn(vMn - 1) }
@@ -3822,7 +3825,7 @@
                   (d.total_with_interest && d.total_with_interest > d.total_amount) ? h('span', { style: { color: 'var(--org)' } },
                     'Bunga: ', fmt(Math.round(d.total_with_interest - d.total_amount))) : null,
                   d.due_date ? h('span', { style: { color: 'var(--t3)' } }, '🗓 ', (Number(d.monthly_payment) > 0 && d.status === 'active' ? 'Cicilan: ' : 'Tempo: '), new Date(d.due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })) : null,
-                  (d.status === 'active' && Number(d.monthly_payment) > 0 && Number(d.remaining_amount) > 0 && d.due_date) ? (function () { var ml = Math.ceil((Number(d.remaining_amount) || 0) / Number(d.monthly_payment)); var po = addMonths(d.due_date, Math.max(0, ml - 1)); return h('span', { style: { color: 'var(--acc)' } }, '🏁 Lunas ~', new Date(po).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }), ' (', ml, 'x lagi)'); })() : null,
+                  (d.status === 'active' && Number(d.monthly_payment) > 0 && Number(d.remaining_amount) > 0 && d.due_date) ? (function () { var ml = Math.ceil((Number(d.remaining_amount) || 0) / Number(d.monthly_payment)); var po = addMonths(d.due_date, Math.max(0, ml - 1)); return h('span', { style: { color: 'var(--t1)', fontWeight: 600 } }, '🏁 Lunas ~', new Date(po).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }), ' (', ml, 'x lagi)'); })() : null,
                   d.wallet_id ? h('span', null, '💳 ', wn(W, d.wallet_id)) : null),
                 // Recent payments
                 payments.length > 0 ? h('div', { style: { borderTop: '1px solid var(--brd)', paddingTop: 10 } },
