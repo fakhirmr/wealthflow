@@ -1,0 +1,159 @@
+// WealthFlow — Telegram Bot Webhook (Vercel Edge Function)
+// Catat keuangan lewat chat: teks natural atau foto struk.
+//
+// Environment variables (Vercel → Settings → Environment Variables):
+//   TELEGRAM_BOT_TOKEN        → token bot dari @BotFather (RAHASIA)
+//   TELEGRAM_WEBHOOK_SECRET   → string acak buatan sendiri (RAHASIA) — dipakai saat set webhook
+//   GEMINI_API_KEY            → (sudah ada) untuk parse teks/struk
+//   SUPABASE_URL              → (sudah ada)
+//   SUPABASE_SERVICE_ROLE_KEY → (sudah ada, RAHASIA)
+
+export const config = { runtime: 'edge' };
+
+var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+
+function b64FromBuffer(buf) {
+  var bytes = new Uint8Array(buf), bin = '';
+  for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+function fmtRp(n) {
+  try { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0); }
+  catch (e) { return 'Rp ' + (n || 0); }
+}
+function today() { return new Date().toISOString().slice(0, 10); }
+
+async function tgCall(token, method, body) {
+  return fetch('https://api.telegram.org/bot' + token + '/' + method, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+}
+function reply(token, chatId, text) { return tgCall(token, 'sendMessage', { chat_id: chatId, text: text, parse_mode: 'HTML' }); }
+
+function sb(url, opts, SB_URL, KEY) {
+  opts = opts || {};
+  opts.headers = Object.assign({ apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' }, opts.headers || {});
+  return fetch(SB_URL + url, opts);
+}
+
+// Panggil Gemini, ekstrak array transaksi dari teks atau gambar
+async function geminiExtract(GKEY, content) {
+  var body = { model: 'gemini-flash-latest', max_tokens: 1500, reasoning_effort: 'low', messages: [{ role: 'user', content: content }] };
+  var r = await fetch(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) });
+  var d = await r.json();
+  var txt = '';
+  try { txt = d.choices[0].message.content || ''; } catch (e) { txt = ''; }
+  txt = txt.replace(/```json/gi, '').replace(/```/g, '').replace(/^[^\[]*/, '').replace(/[^\]]*$/, '').trim();
+  var arr = [];
+  try { arr = JSON.parse(txt); } catch (e) { arr = []; }
+  return Array.isArray(arr) ? arr : [];
+}
+
+function wList(wallets) { return wallets.map(function (w) { return w.id + '=' + w.name; }).join(', '); }
+function cList(cats) { return cats.filter(function (c) { return !c.parent_id; }).map(function (c) { return c.id + '=' + c.name + '(' + c.type + ')'; }).join(', '); }
+
+export default async function handler(req) {
+  if (req.method !== 'POST') return new Response('ok');
+  var TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+  var SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
+  var GKEY = process.env.GEMINI_API_KEY;
+  var SB_URL = process.env.SUPABASE_URL;
+  var KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!TOKEN || !GKEY || !SB_URL || !KEY) return new Response('misconfig', { status: 500 });
+
+  if (SECRET && req.headers.get('x-telegram-bot-api-secret-token') !== SECRET) return new Response('forbidden', { status: 403 });
+
+  var update;
+  try { update = await req.json(); } catch (e) { return new Response('ok'); }
+  var msg = update.message || update.edited_message;
+  if (!msg || !msg.chat) return new Response('ok');
+  var chatId = msg.chat.id;
+  var text = (msg.text || msg.caption || '').trim();
+
+  try {
+    // 1) Linking: /start CODE atau /link CODE
+    var codeMatch = text.match(/^\/(?:start|link)\s+(\S+)/i);
+    if (codeMatch) {
+      var code = codeMatch[1];
+      var r = await sb('/rest/v1/telegram_links?link_code=eq.' + encodeURIComponent(code) + '&select=user_id', {}, SB_URL, KEY);
+      var rows = await r.json();
+      if (Array.isArray(rows) && rows[0]) {
+        await sb('/rest/v1/telegram_links?user_id=eq.' + rows[0].user_id, { method: 'PATCH', body: JSON.stringify({ chat_id: chatId, linked: true, link_code: null }) }, SB_URL, KEY);
+        await reply(TOKEN, chatId, '✅ <b>Akun WealthFlow terhubung!</b>\n\nSekarang catat transaksi langsung dari sini. Contoh:\n• <i>beli kopi 25rb pakai gopay</i>\n• <i>terima gaji 5jt</i>\n• <i>bayar listrik 150000</i>\n\nAtau kirim <b>foto struk</b> 📷');
+      } else {
+        await reply(TOKEN, chatId, '❌ Kode tidak valid atau kedaluwarsa.\n\nBuat kode baru di app WealthFlow → <b>Pengaturan → Hubungkan Telegram</b>.');
+      }
+      return new Response('ok');
+    }
+    if (/^\/(start|help)\b/i.test(text)) {
+      await reply(TOKEN, chatId, '👋 <b>WealthFlow Bot</b>\n\nHubungkan akunmu dulu: buka app WealthFlow → <b>Pengaturan → Hubungkan Telegram</b>, lalu buka tautannya.\n\nSetelah terhubung, cukup ketik transaksimu atau kirim foto struk.');
+      return new Response('ok');
+    }
+
+    // 2) Cari user terhubung
+    var lr = await sb('/rest/v1/telegram_links?chat_id=eq.' + chatId + '&linked=eq.true&select=user_id', {}, SB_URL, KEY);
+    var lrows = await lr.json();
+    if (!Array.isArray(lrows) || !lrows[0]) {
+      await reply(TOKEN, chatId, 'Akunmu belum terhubung. Buka app WealthFlow → <b>Pengaturan → Hubungkan Telegram</b>.');
+      return new Response('ok');
+    }
+    var uid = lrows[0].user_id;
+
+    // 3) Ambil dompet + kategori untuk konteks parsing
+    var wr = await sb('/rest/v1/wallets?user_id=eq.' + uid + '&select=id,name,balance', {}, SB_URL, KEY);
+    var wallets = await wr.json(); if (!Array.isArray(wallets)) wallets = [];
+    var cr = await sb('/rest/v1/categories?user_id=eq.' + uid + '&select=id,name,type,parent_id', {}, SB_URL, KEY);
+    var cats = await cr.json(); if (!Array.isArray(cats)) cats = [];
+
+    // 4) Ekstrak transaksi (foto struk atau teks)
+    var txList = [];
+    if (msg.photo && msg.photo.length) {
+      await reply(TOKEN, chatId, '📷 Membaca struk...');
+      var fileId = msg.photo[msg.photo.length - 1].file_id;
+      var gf = await tgCall(TOKEN, 'getFile', { file_id: fileId });
+      var gfj = await gf.json();
+      var filePath = gfj.result && gfj.result.file_path;
+      if (filePath) {
+        var img = await fetch('https://api.telegram.org/file/bot' + TOKEN + '/' + filePath);
+        var b64 = b64FromBuffer(await img.arrayBuffer());
+        var vprompt = 'Ini foto struk belanja. Ekstrak jadi JSON array transaksi pengeluaran. Balas HANYA JSON: [{"type":"expense","amount":number,"description":"nama toko/item","date":"YYYY-MM-DD","category_id":"id atau null","wallet_id":"id atau null"}]. Gunakan TOTAL akhir sebagai 1 transaksi. Tanggal dari struk; jika tak ada pakai ' + today() + '. Cocokkan kategori (pengeluaran) & dompet dari daftar jika relevan.\nDompet: ' + wList(wallets) + '\nKategori: ' + cList(cats);
+        txList = await geminiExtract(GKEY, [{ type: 'text', text: vprompt }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }]);
+      }
+    } else if (text) {
+      var tprompt = 'Kamu parser transaksi keuangan Bahasa Indonesia. Ekstrak dari pesan user jadi JSON array. Balas HANYA JSON valid: [{"type":"expense"|"income","amount":number,"description":"singkat","date":"YYYY-MM-DD","category_id":"id atau null","wallet_id":"id atau null"}]. Aturan: uang keluar/beli/bayar = expense; uang masuk/terima/gaji = income. Cocokkan dompet & kategori berdasarkan nama yang disebut user; jika tak jelas pakai null. Tanggal default ' + today() + '. Jika bukan transaksi, balas [].\nDompet: ' + wList(wallets) + '\nKategori: ' + cList(cats) + '\n\nPesan: "' + text + '"';
+      txList = await geminiExtract(GKEY, [{ type: 'text', text: tprompt }]);
+    } else {
+      await reply(TOKEN, chatId, 'Kirim teks transaksi atau foto struk ya 🙂\nContoh: <i>bayar parkir 5rb cash</i>');
+      return new Response('ok');
+    }
+
+    // 5) Bersihkan & simpan
+    var rows = txList.map(function (tx) {
+      return { user_id: uid, type: tx.type === 'income' ? 'income' : 'expense', amount: Number(tx.amount) || 0, description: (tx.description || '').toString().slice(0, 120), date: tx.date || today(), wallet_id: tx.wallet_id || null, category_id: tx.category_id || null };
+    }).filter(function (r) { return r.amount > 0; });
+
+    if (!rows.length) {
+      await reply(TOKEN, chatId, '⚠️ Tidak terdeteksi transaksi. Coba lebih jelas, mis: <i>beli makan 30rb pakai cash</i>');
+      return new Response('ok');
+    }
+
+    await sb('/rest/v1/transactions', { method: 'POST', body: JSON.stringify(rows) }, SB_URL, KEY);
+
+    // Update saldo dompet
+    var deltas = {};
+    rows.forEach(function (r) { if (r.wallet_id) deltas[r.wallet_id] = (deltas[r.wallet_id] || 0) + (r.type === 'income' ? r.amount : -r.amount); });
+    for (var wid in deltas) {
+      var w = wallets.find(function (x) { return x.id === wid; });
+      if (w) await sb('/rest/v1/wallets?id=eq.' + wid, { method: 'PATCH', body: JSON.stringify({ balance: (Number(w.balance) || 0) + deltas[wid] }) }, SB_URL, KEY);
+    }
+
+    // 6) Balas ringkasan
+    var summary = rows.map(function (r) {
+      var c = cats.find(function (x) { return x.id === r.category_id; });
+      var w = wallets.find(function (x) { return x.id === r.wallet_id; });
+      return (r.type === 'income' ? '📥' : '📤') + ' <b>' + fmtRp(r.amount) + '</b> — ' + (r.description || '-') + (c ? ' · ' + c.name : '') + (w ? ' · ' + w.name : '');
+    }).join('\n');
+    await reply(TOKEN, chatId, '✅ <b>Tercatat!</b>\n' + summary);
+  } catch (e) {
+    try { await reply(TOKEN, chatId, '❌ Ada kesalahan memproses. Coba lagi sebentar.'); } catch (e2) { }
+  }
+  return new Response('ok');
+}

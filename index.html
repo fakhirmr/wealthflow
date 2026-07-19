@@ -1392,6 +1392,7 @@
       var sb = window.supabase.createClient('https://wkhjxgrjkrakfhwckriu.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraGp4Z3Jqa3Jha2Zod2Nrcml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjQyOTUsImV4cCI6MjA5NDMwMDI5NX0.Prtzf84zL-MvJuWF6Qk9HrJLzb2wmxxRD_OA094ulck');
       var COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#6366f1'];
       var WGROUPS = [{ id: 'cash', lb: 'Cash', ico: '💵' }, { id: 'accounts', lb: 'Rekening', ico: '🏦' }, { id: 'card', lb: 'Kartu Kredit', ico: '💳' }, { id: 'debit', lb: 'Kartu Debit', ico: '💳' }, { id: 'savings', lb: 'Tabungan', ico: '🐖' }, { id: 'ewallet', lb: 'E-Wallet', ico: '📱' }, { id: 'investments', lb: 'Investasi', ico: '📈' }, { id: 'others', lb: 'Lainnya', ico: '📦' }];
+      var TG_BOT = 'GANTI_USERNAME_BOT'; // ← ganti dengan username bot Telegram Anda (tanpa @), mis. 'wealthflow_kamu_bot'
       function fmt(n) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n || 0) }
       function fdt(d) { return d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-' }
       function td() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
@@ -2789,6 +2790,28 @@
         var _tref2 = useRef(null);
         var _pressing2 = useState(null), pressing2 = _pressing2[0], sPressing2 = _pressing2[1];
         var _ptimer2 = useRef(null);
+        var _tg = useState(null), tgLink = _tg[0], sTgLink = _tg[1];
+        var _tgBusy = useState(false), tgBusy = _tgBusy[0], sTgBusy = _tgBusy[1];
+        useEffect(function () {
+          if (!UID) return;
+          sb.from('telegram_links').select('*').eq('user_id', UID).maybeSingle().then(function (r) { if (r.data) sTgLink(r.data) });
+        }, []);
+        function tgGenerate() {
+          if (!UID) return; sTgBusy(true);
+          var code = 'WF' + Math.random().toString(36).slice(2, 8).toUpperCase();
+          sb.from('telegram_links').upsert({ user_id: UID, link_code: code, linked: false, chat_id: null }, { onConflict: 'user_id' }).select().maybeSingle().then(function (r) {
+            sTgBusy(false);
+            if (r.error) { t(r.error.message, 'err'); return }
+            sTgLink(r.data || { user_id: UID, link_code: code, linked: false });
+          });
+        }
+        function tgRefresh() {
+          sb.from('telegram_links').select('*').eq('user_id', UID).maybeSingle().then(function (r) { sTgLink(r.data || null); if (r.data && r.data.linked) t('✅ Telegram terhubung!') });
+        }
+        function tgUnlink() {
+          if (!window.confirm('Putuskan koneksi Telegram?')) return;
+          sb.from('telegram_links').delete().eq('user_id', UID).then(function () { sTgLink(null); t('Telegram diputus') });
+        }
 
         function changePassword() {
           if (!newPw || newPw.length < 8) { sPwMsg({ t: 'err', m: 'Password baru minimal 8 karakter' }); return }
@@ -2929,6 +2952,24 @@
                 h('div', { style: { fontWeight: 700, fontSize: '1rem' } }, user && user.email || 'User'),
                 h('div', { style: { fontSize: '.75rem', color: 'var(--acc)', marginTop: 2 } }, '● Akun aktif'))),
             h('button', { style: { width: '100%', padding: '11px', borderRadius: 8, fontSize: '.88rem', fontWeight: 600, background: 'var(--redbg)', color: 'var(--red)', border: '1px solid var(--red)', cursor: 'pointer' }, onClick: function () { if (window.confirm('Yakin ingin keluar?')) sb.auth.signOut() } }, 'Sign Out')),
+          // Telegram integration
+          h('div', { className: 'cd', style: { marginBottom: 16, padding: '18px 20px' } },
+            h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 } },
+              h('div', { style: { width: 40, height: 40, borderRadius: 10, background: 'var(--blubg)', color: 'var(--blu)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 } }, h(Ic, { n: 'transfer' })),
+              h('div', null,
+                h('div', { style: { fontWeight: 700, fontSize: '.95rem' } }, 'Catat via Telegram'),
+                h('div', { style: { fontSize: '.75rem', color: 'var(--t3)' } }, 'Kirim transaksi atau foto struk ke bot → langsung tercatat'))),
+            (tgLink && tgLink.linked)
+              ? h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 } },
+                h('span', { style: { fontSize: '.85rem', color: 'var(--acc)', fontWeight: 600 } }, '✓ Terhubung'),
+                h('button', { className: 'btn bs', style: { color: 'var(--red)', fontSize: '.78rem' }, onClick: tgUnlink }, 'Putuskan'))
+              : (tgLink && tgLink.link_code)
+                ? h('div', null,
+                  h('div', { style: { fontSize: '.8rem', color: 'var(--t2)', marginBottom: 12, lineHeight: 1.5 } }, 'Tekan tombol di bawah, lalu ketuk ', h('b', null, 'START'), ' di Telegram — akunmu otomatis terhubung.'),
+                  h('a', { href: 'https://t.me/' + TG_BOT + '?start=' + tgLink.link_code, target: '_blank', rel: 'noopener', className: 'btn bp', style: { textDecoration: 'none', display: 'inline-flex', marginBottom: 12 } }, 'Buka Bot & Hubungkan →'),
+                  h('div', { style: { fontSize: '.72rem', color: 'var(--t3)', marginBottom: 10 } }, 'Kalau tombol tak jalan, kirim ini ke bot: ', h('code', { style: { background: 'var(--bgi)', padding: '1px 6px', borderRadius: 4 } }, '/start ' + tgLink.link_code)),
+                  h('button', { className: 'btn bs', style: { fontSize: '.78rem' }, onClick: tgRefresh }, '↻ Cek status'))
+                : h('button', { className: 'btn bp', onClick: tgGenerate, disabled: tgBusy }, tgBusy ? 'Membuat...' : 'Hubungkan Telegram')),
           // Tabs
           h('div', { className: 'tabs', style: { marginBottom: 16 } },
             h('button', { className: 'tab' + (tab === 'data' ? ' act' : ''), onClick: function () { sTab('data') } }, 'Data'),
