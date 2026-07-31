@@ -7,6 +7,8 @@
 //   GEMINI_API_KEY            → (sudah ada) untuk parse teks/struk
 //   SUPABASE_URL              → (sudah ada)
 //   SUPABASE_SERVICE_ROLE_KEY → (sudah ada, RAHASIA)
+//   AI_FREE_LIMIT             → (opsional) jatah pesan/bulan free, default 30 — SAMA dengan kuota di app
+//   AI_PREMIUM_LIMIT          → (opsional) jatah pesan/bulan premium (fair-use), default 500
 
 export const config = { runtime: 'edge' };
 
@@ -97,6 +99,23 @@ export default async function handler(req) {
     }
     var uid = lrows[0].user_id;
 
+    // 2b) Cek kuota — kuota GABUNGAN dengan app (sama-sama pakai tabel ai_usage), jadi anti-bocor
+    var FREE_LIMIT = parseInt(process.env.AI_FREE_LIMIT || '30', 10);
+    var PREMIUM_LIMIT = parseInt(process.env.AI_PREMIUM_LIMIT || '500', 10);
+    var period = new Date().toISOString().slice(0, 7);
+    var us = await sb('/rest/v1/user_settings?user_id=eq.' + uid + '&select=premium_until', {}, SB_URL, KEY);
+    var usRows = await us.json();
+    var premiumUntil = (Array.isArray(usRows) && usRows[0]) ? usRows[0].premium_until : null;
+    var isPremium = !!(premiumUntil && new Date(premiumUntil) > new Date());
+    var QLIMIT = isPremium ? PREMIUM_LIMIT : FREE_LIMIT;
+    var uc = await sb('/rest/v1/ai_usage?user_id=eq.' + uid + '&period=eq.' + period + '&select=count', {}, SB_URL, KEY);
+    var ucRows = await uc.json();
+    var used = (Array.isArray(ucRows) && ucRows[0]) ? (ucRows[0].count || 0) : 0;
+    if (used >= QLIMIT) {
+      await reply(TOKEN, chatId, '🚫 Jatah AI bulan ini habis (' + used + '/' + QLIMIT + ').' + (isPremium ? '' : '\n\nUpgrade ke <b>Premium</b> di app untuk jatah lebih besar.') + '\nReset otomatis awal bulan depan.');
+      return new Response('ok');
+    }
+
     // 3) Ambil dompet + kategori untuk konteks parsing
     var wr = await sb('/rest/v1/wallets?user_id=eq.' + uid + '&select=id,name,balance', {}, SB_URL, KEY);
     var wallets = await wr.json(); if (!Array.isArray(wallets)) wallets = [];
@@ -136,6 +155,7 @@ export default async function handler(req) {
     }
 
     await sb('/rest/v1/transactions', { method: 'POST', body: JSON.stringify(rows) }, SB_URL, KEY);
+    await sb('/rest/v1/rpc/increment_ai_usage', { method: 'POST', body: JSON.stringify({ p_user: uid, p_period: period }) }, SB_URL, KEY);
 
     // Update saldo dompet
     var deltas = {};

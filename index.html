@@ -2813,6 +2813,39 @@
           sb.from('telegram_links').delete().eq('user_id', UID).then(function () { sTgLink(null); t('Telegram diputus') });
         }
 
+        // Premium / payment
+        var _prem = useState(null), premiumUntil = _prem[0], sPrem = _prem[1];
+        var _payBusy = useState(''), payBusy = _payBusy[0], sPayBusy = _payBusy[1]; // '' | 'monthly' | 'yearly'
+        useEffect(function () {
+          if (!UID) return;
+          sb.from('user_settings').select('premium_until').eq('user_id', UID).maybeSingle().then(function (r) { if (r.data) sPrem(r.data.premium_until) });
+          try {
+            var qs = new URLSearchParams(window.location.search);
+            if (qs.get('payment') === 'finish') {
+              t('Memeriksa status pembayaran...');
+              window.history.replaceState({}, '', window.location.pathname);
+              setTimeout(function () {
+                sb.from('user_settings').select('premium_until').eq('user_id', UID).maybeSingle().then(function (r) {
+                  if (r.data && r.data.premium_until && new Date(r.data.premium_until) > new Date()) { sPrem(r.data.premium_until); t('✅ Premium aktif!') }
+                  else t('Pembayaran diproses. Jika sudah bayar, status akan update dalam beberapa saat — refresh halaman ini.');
+                });
+              }, 2500);
+            }
+          } catch (e) { }
+        }, []);
+        var isPremiumActive = !!(premiumUntil && new Date(premiumUntil) > new Date());
+        function upgrade(plan) {
+          if (payBusy) return; sPayBusy(plan);
+          sb.auth.getSession().then(function (s) {
+            var tok = (s && s.data && s.data.session) ? s.data.session.access_token : '';
+            return fetch('/api/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok }, body: JSON.stringify({ plan: plan }) });
+          }).then(function (r) { return r.json() }).then(function (d) {
+            sPayBusy('');
+            if (d.error) { t('Gagal memulai pembayaran: ' + (d.detail || d.error), 'err'); return }
+            if (d.redirect_url) window.location.href = d.redirect_url;
+          }).catch(function (e) { sPayBusy(''); t('Gagal memulai pembayaran', 'err') });
+        }
+
         function changePassword() {
           if (!newPw || newPw.length < 8) { sPwMsg({ t: 'err', m: 'Password baru minimal 8 karakter' }); return }
           if (!/[a-zA-Z]/.test(newPw) || !/[0-9]/.test(newPw)) { sPwMsg({ t: 'err', m: 'Password harus mengandung huruf dan angka' }); return }
@@ -2952,6 +2985,29 @@
                 h('div', { style: { fontWeight: 700, fontSize: '1rem' } }, user && user.email || 'User'),
                 h('div', { style: { fontSize: '.75rem', color: 'var(--acc)', marginTop: 2 } }, '● Akun aktif'))),
             h('button', { style: { width: '100%', padding: '11px', borderRadius: 8, fontSize: '.88rem', fontWeight: 600, background: 'var(--redbg)', color: 'var(--red)', border: '1px solid var(--red)', cursor: 'pointer' }, onClick: function () { if (window.confirm('Yakin ingin keluar?')) sb.auth.signOut() } }, 'Sign Out')),
+          // Premium / Upgrade
+          isPremiumActive
+            ? h('div', { className: 'cd', style: { marginBottom: 16, padding: '18px 20px', background: 'linear-gradient(145deg,#10b981 0%,#059669 100%)', border: 'none' } },
+              h('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
+                h('div', { style: { width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 } }, '👑'),
+                h('div', null,
+                  h('div', { style: { fontWeight: 700, fontSize: '.95rem', color: '#fff' } }, 'WealthFlow Premium Aktif'),
+                  h('div', { style: { fontSize: '.75rem', color: 'rgba(255,255,255,.85)' } }, 'Berlaku sampai ', new Date(premiumUntil).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })))))
+            : h('div', { className: 'cd', style: { marginBottom: 16, padding: '18px 20px' } },
+              h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 } },
+                h('div', { style: { width: 40, height: 40, borderRadius: 10, background: 'var(--accbg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18 } }, '👑'),
+                h('div', null,
+                  h('div', { style: { fontWeight: 700, fontSize: '.95rem' } }, 'Upgrade ke Premium'),
+                  h('div', { style: { fontSize: '.75rem', color: 'var(--t3)' } }, 'Jatah AI lebih besar untuk chat, baca struk & mutasi'))),
+              h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 } },
+                h('button', { className: 'btn bs', style: { flexDirection: 'column', padding: '12px 8px', height: 'auto' }, disabled: !!payBusy, onClick: function () { upgrade('monthly') } },
+                  h('div', { style: { fontWeight: 700, fontSize: '.9rem' } }, payBusy === 'monthly' ? 'Memuat...' : 'Rp 15.000'),
+                  h('div', { style: { fontSize: '.68rem', color: 'var(--t3)' } }, '/bulan')),
+                h('button', { className: 'btn bp', style: { flexDirection: 'column', padding: '12px 8px', height: 'auto', position: 'relative' }, disabled: !!payBusy, onClick: function () { upgrade('yearly') } },
+                  h('span', { style: { position: 'absolute', top: -8, right: 6, fontSize: '.6rem', background: 'var(--org)', color: '#fff', padding: '1px 6px', borderRadius: 6, fontWeight: 700 } }, 'HEMAT'),
+                  h('div', { style: { fontWeight: 700, fontSize: '.9rem' } }, payBusy === 'yearly' ? 'Memuat...' : 'Rp 100.000'),
+                  h('div', { style: { fontSize: '.68rem', opacity: .85 } }, '/tahun'))),
+              h('div', { style: { fontSize: '.7rem', color: 'var(--t3)', marginTop: 10, textAlign: 'center' } }, 'Pembayaran aman via Midtrans · QRIS, e-wallet, transfer bank')),
           // Telegram integration
           h('div', { className: 'cd', style: { marginBottom: 16, padding: '18px 20px' } },
             h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 } },
@@ -4171,6 +4227,7 @@
       function AiP(p) {
         var T = p.T, C = p.C, W = p.W, B = p.B, D = p.D || [], I = p.I || [], rT = p.rT, rW = p.rW;
         var AI_FREE_LIMIT = 30; // harus sama dengan env AI_FREE_LIMIT di Vercel
+        var AI_PREMIUM_LIMIT = 500; // harus sama dengan env AI_PREMIUM_LIMIT di Vercel
         var keySet = true; // AI terpusat — tersedia untuk semua user yang login
         var _quota = useState(null), quota = _quota[0], sQuota = _quota[1]; // {limit, used, plan}
         useEffect(function () {
@@ -4178,8 +4235,10 @@
           var period = new Date().toISOString().slice(0, 7);
           sb.from('ai_usage').select('count').eq('user_id', UID).eq('period', period).maybeSingle().then(function (r) {
             var used = (r.data && r.data.count) || 0;
-            sb.from('user_settings').select('ai_plan').eq('user_id', UID).maybeSingle().then(function (pr) {
-              sQuota({ limit: AI_FREE_LIMIT, used: used, plan: (pr.data && pr.data.ai_plan) || 'free' });
+            sb.from('user_settings').select('premium_until').eq('user_id', UID).maybeSingle().then(function (pr) {
+              var pu = pr.data && pr.data.premium_until;
+              var isPrem = !!(pu && new Date(pu) > new Date());
+              sQuota({ limit: isPrem ? AI_PREMIUM_LIMIT : AI_FREE_LIMIT, used: used, plan: isPrem ? 'premium' : 'free' });
             });
           });
         }, []);
@@ -4645,8 +4704,8 @@
           h('div', { className: 'pg-hd' },
             h('div', null, h('h2', null, 'AI Asisten'), h('p', null, 'Keuangan pintar berbasis data')),
             quota ? h('div', { style: { textAlign: 'right', flexShrink: 0 } },
-              h('div', { style: { fontSize: '.68rem', color: 'var(--t3)' } }, (quota.plan === 'premium' || quota.plan === 'unlimited') ? 'Paket' : 'Sisa bulan ini'),
-              h('div', { style: { fontWeight: 700, fontSize: '.92rem', color: (quota.plan === 'premium' || quota.plan === 'unlimited') ? 'var(--acc)' : (quota.used >= quota.limit ? 'var(--red)' : 'var(--acc)') } }, (quota.plan === 'premium' || quota.plan === 'unlimited') ? '∞ Unlimited' : Math.max(0, quota.limit - quota.used) + '/' + quota.limit)) : null),
+              h('div', { style: { fontSize: '.68rem', color: 'var(--t3)' } }, quota.plan === 'premium' ? '👑 Premium · Sisa bulan ini' : 'Sisa bulan ini'),
+              h('div', { style: { fontWeight: 700, fontSize: '.92rem', color: quota.used >= quota.limit ? 'var(--red)' : 'var(--acc)' } }, Math.max(0, quota.limit - quota.used) + '/' + quota.limit)) : null),
           // Action bar
           h('div', { style: { display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' } },
             [{ id: 'chat', lb: 'Chat' }, { id: 'anomaly', lb: 'Anomali' }, { id: 'forecast', lb: 'Forecast' }, { id: 'goals', lb: 'Goals' }].map(function (tb) {

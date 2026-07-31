@@ -8,6 +8,7 @@
 //   SUPABASE_ANON_KEY           → anon key (boleh publik)
 //   SUPABASE_SERVICE_ROLE_KEY   → service_role key (SANGAT RAHASIA — jangan pernah taruh di frontend)
 //   AI_FREE_LIMIT               → (opsional) jatah pesan/bulan tier gratis, default 30
+//   AI_PREMIUM_LIMIT             → (opsional) jatah pesan/bulan tier premium (fair-use, bukan unlimited penuh), default 500
 
 export const config = { runtime: 'edge' };
 
@@ -45,7 +46,8 @@ export default async function handler(req) {
   var SB_URL = process.env.SUPABASE_URL;
   var SB_ANON = process.env.SUPABASE_ANON_KEY;
   var SB_SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  var LIMIT = parseInt(process.env.AI_FREE_LIMIT || '30', 10);
+  var FREE_LIMIT = parseInt(process.env.AI_FREE_LIMIT || '30', 10);
+  var PREMIUM_LIMIT = parseInt(process.env.AI_PREMIUM_LIMIT || '500', 10);
 
   if (!GKEY || !SB_URL || !SB_SERVICE || !SB_ANON) {
     return json({ error: 'server_misconfig', detail: 'Environment variables belum lengkap' }, 500);
@@ -71,27 +73,29 @@ export default async function handler(req) {
 
   var period = new Date().toISOString().slice(0, 7); // YYYY-MM
 
-  // 2) Cek plan & kuota (service role — bypass RLS)
+  // 2) Cek status premium (berdasarkan premium_until, bukan sekadar label) & kuota
+  //    Premium BUKAN unlimited penuh — tetap ada fair-use cap (PREMIUM_LIMIT) untuk melindungi biaya.
   var sbHeaders = { apikey: SB_SERVICE, Authorization: 'Bearer ' + SB_SERVICE, 'Content-Type': 'application/json' };
-  var plan = 'free';
-  var used = 0;
+  var premiumUntil = null;
   try {
-    var pRes = await fetch(SB_URL + '/rest/v1/user_settings?user_id=eq.' + uid + '&select=ai_plan', { headers: sbHeaders });
+    var pRes = await fetch(SB_URL + '/rest/v1/user_settings?user_id=eq.' + uid + '&select=premium_until', { headers: sbHeaders });
     var pRows = await pRes.json();
-    if (Array.isArray(pRows) && pRows[0] && pRows[0].ai_plan) plan = pRows[0].ai_plan;
+    if (Array.isArray(pRows) && pRows[0]) premiumUntil = pRows[0].premium_until;
   } catch (e) { /* default free */ }
 
-  var unlimited = (plan === 'premium' || plan === 'unlimited');
-  if (!unlimited) {
-    try {
-      var cRes = await fetch(SB_URL + '/rest/v1/ai_usage?user_id=eq.' + uid + '&period=eq.' + period + '&select=count', { headers: sbHeaders });
-      var cRows = await cRes.json();
-      if (Array.isArray(cRows) && cRows[0]) used = cRows[0].count || 0;
-    } catch (e) { /* treat as 0 */ }
+  var isPremium = !!(premiumUntil && new Date(premiumUntil) > new Date());
+  var LIMIT = isPremium ? PREMIUM_LIMIT : FREE_LIMIT;
+  var planLabel = isPremium ? 'premium' : 'free';
 
-    if (used >= LIMIT) {
-      return json({ error: 'quota_exceeded', limit: LIMIT, used: used, plan: plan }, 429);
-    }
+  var used = 0;
+  try {
+    var cRes = await fetch(SB_URL + '/rest/v1/ai_usage?user_id=eq.' + uid + '&period=eq.' + period + '&select=count', { headers: sbHeaders });
+    var cRows = await cRes.json();
+    if (Array.isArray(cRows) && cRows[0]) used = cRows[0].count || 0;
+  } catch (e) { /* treat as 0 */ }
+
+  if (used >= LIMIT) {
+    return json({ error: 'quota_exceeded', limit: LIMIT, used: used, plan: planLabel }, 429);
   }
 
   // 3) Teruskan ke Gemini — bedakan chat/vision (JSON) vs audio (multipart)
@@ -143,8 +147,8 @@ export default async function handler(req) {
     return json({ error: 'upstream_failed', detail: String(e && e.message || e) }, 502);
   }
 
-  // 4) Hitung pemakaian hanya bila provider sukses
-  if (providerOk && !unlimited) {
+  // 4) Hitung pemakaian hanya bila provider sukses (tetap dihitung meski premium — demi fair-use cap)
+  if (providerOk) {
     try {
       await fetch(SB_URL + '/rest/v1/rpc/increment_ai_usage', {
         method: 'POST', headers: sbHeaders,
@@ -160,7 +164,7 @@ export default async function handler(req) {
       'Content-Type': 'application/json',
       'X-AI-Quota-Limit': String(LIMIT),
       'X-AI-Quota-Used': String(used),
-      'X-AI-Plan': plan
+      'X-AI-Plan': planLabel
     }
   });
 }
