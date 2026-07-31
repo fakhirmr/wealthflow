@@ -4348,7 +4348,22 @@
         var _q = useState(''), q = _q[0], sQ = _q[1];
         var _ld = useState(false), ld = _ld[0], sLd = _ld[1];
         var _busy = useState(false), busy = _busy[0], sBusy = _busy[1];
-        var _pendingTx = useState([]), pendingTx = _pendingTx[0], sPendingTx = _pendingTx[1];
+        // Hasil scan disimpan agar tak hilang saat pindah app (mis. cek mutasi di app bank).
+        // Pakai localStorage + kedaluwarsa 24 jam — scan memakan kuota AI, jangan sampai terbuang.
+        var PTX_KEY = 'wf_pending_tx';
+        var _pendingTx = useState(function () {
+          try {
+            var raw = JSON.parse(localStorage.getItem(PTX_KEY) || 'null');
+            if (raw && Array.isArray(raw.items) && raw.items.length && (Date.now() - (raw.ts || 0)) < 864e5) return raw.items;
+          } catch (e) { }
+          return [];
+        }), pendingTx = _pendingTx[0], sPendingTx = _pendingTx[1];
+        useEffect(function () {
+          try {
+            if (pendingTx && pendingTx.length) localStorage.setItem(PTX_KEY, JSON.stringify({ ts: Date.now(), items: pendingTx }));
+            else localStorage.removeItem(PTX_KEY);
+          } catch (e) { }
+        }, [pendingTx]);
         var _tab = useState('chat'), tab = _tab[0], sTab = _tab[1];
         var _goals = useState(function () { try { return JSON.parse(localStorage.getItem('wf_goals') || '[]') } catch (e) { return [] } }), goals = _goals[0], sGoals = _goals[1];
         var _anomalies = useState(null), anomalies = _anomalies[0], sAnomalies = _anomalies[1];
@@ -4796,7 +4811,8 @@
               }),
               ld || busy ? h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', color: 'var(--blu)', fontSize: '.8rem' } }, '🤔 ', busy ? 'Menganalisis transaksi...' : 'Menganalisis...') : null),
             h(Mod, { open: pendingTx.length > 0, onClose: function () { sPendingTx([]); sEditIdx(null) }, title: pendingTx.length + ' transaksi terbaca', footer: h(F, null, h('button', { className: 'btn bs', onClick: function () { sPendingTx([]); sEditIdx(null) } }, 'Batal'), h('button', { className: 'btn bp', onClick: confirmTx }, 'Simpan Semua')) },
-              h('div', { style: { fontSize: '.78rem', color: 'var(--t3)', marginBottom: 10, lineHeight: 1.4 } }, 'Periksa & pilih kategori tiap transaksi sebelum disimpan. Total: ', h('b', { style: { color: 'var(--t1)' } }, fmt(pendingTx.reduce(function (s, t) { return s + (t.type === 'income' ? Number(t.amount) : -Number(t.amount)) }, 0)))),
+              h('div', { style: { fontSize: '.78rem', color: 'var(--t3)', marginBottom: 6, lineHeight: 1.4 } }, 'Periksa & pilih kategori tiap transaksi sebelum disimpan. Total: ', h('b', { style: { color: 'var(--t1)' } }, fmt(pendingTx.reduce(function (s, t) { return s + (t.type === 'income' ? Number(t.amount) : -Number(t.amount)) }, 0)))),
+              h('div', { style: { fontSize: '.72rem', color: 'var(--acc)', background: 'var(--accbg)', padding: '6px 10px', borderRadius: 6, marginBottom: 12 } }, '🔒 Tersimpan otomatis — aman kalau kamu pindah ke app bank dulu untuk cek detail.'),
               pendingTx.map(function (tx, i) {
                 return h('div', { key: i, style: { border: '1px solid var(--brd)', borderRadius: 10, padding: '10px 12px', marginBottom: 8 } },
                   h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 7 } },
