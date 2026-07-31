@@ -3446,6 +3446,19 @@
         var _defF = { type: 'expense', wallet_id: '', category_id: '', sub_category_id: '', amount: '', description: '', date: td(), is_installment: false, installment_count: 6 };
         var _f = useState(function() { try { var _r = sessionStorage.getItem('wf_txn_draft'); return _r ? JSON.parse(_r) : _defF } catch(e) { return _defF } }), f = _f[0], sF = _f[1];
         var _dr = useState(function() { try { return !!sessionStorage.getItem('wf_txn_draft') } catch(e) { return false } }), draftRestored = _dr[0], sDr = _dr[1];
+        // Split transaksi: null = tidak aktif; array = daftar pecahan {amount, category_id, sub_category_id}
+        var _sp = useState(null), splits = _sp[0], sSplits = _sp[1];
+        function splitTotal() { return (splits || []).reduce(function (s, r) { return s + (Number(r.amount) || 0) }, 0) }
+        function startSplit() {
+          var total = Number(f.amount) || 0;
+          if (total <= 0) { t('Isi jumlah transaksi dulu', 'err'); return }
+          var half = Math.floor(total / 2);
+          sSplits([{ amount: String(half), category_id: f.category_id || '', sub_category_id: f.sub_category_id || '' }, { amount: String(total - half), category_id: '', sub_category_id: '' }]);
+          if (f.is_installment) { var n = {}; for (var x in f) n[x] = f[x]; n.is_installment = false; sF(n) }
+        }
+        function updSplit(i, k, v) { sSplits(function (arr) { return arr.map(function (r, j) { if (j !== i) return r; var u = Object.assign({}, r); u[k] = v; if (k === 'category_id') u.sub_category_id = ''; return u }) }) }
+        function addSplitRow() { sSplits(function (arr) { return arr.concat([{ amount: '', category_id: '', sub_category_id: '' }]) }) }
+        function delSplitRow(i) { sSplits(function (arr) { var n = arr.filter(function (r, j) { return j !== i }); return n.length < 2 ? null : n }) }
         var _ft = useState('all'), fTy = _ft[0], sFT = _ft[1]; var _fw = useState(function () { var w = p.txnWalletRef && p.txnWalletRef.current; return w || 'all' }), fWl = _fw[0], sFW = _fw[1]; var _q = useState(''), q = _q[0], sQ = _q[1];
         useEffect(function () { if (p.txnWalletRef) p.txnWalletRef.current = null }, []);
         var now2 = new Date(); var _yr = useState(now2.getFullYear()), vYr = _yr[0], sVYr = _yr[1]; var _mn = useState(now2.getMonth()), vMn = _mn[0], sVMn = _mn[1];
@@ -3466,11 +3479,12 @@
           if (mo && mo.m === 'add') { try { sessionStorage.setItem('wf_txn_draft', JSON.stringify(f)) } catch(e) {} }
           else if (!mo) { try { sessionStorage.removeItem('wf_txn_draft') } catch(e) {} }
         }, [f, mo]);
-        function oA() { sF({ type: 'expense', wallet_id: W.length ? W[0].id : '', wallet_id_to: '', category_id: '', sub_category_id: '', amount: '', description: '', date: td(), is_installment: false, installment_count: 6 }); sM({ m: 'add' }); sDr(false) }
+        function oA() { sSplits(null); sF({ type: 'expense', wallet_id: W.length ? W[0].id : '', wallet_id_to: '', category_id: '', sub_category_id: '', amount: '', description: '', date: td(), is_installment: false, installment_count: 6 }); sM({ m: 'add' }); sDr(false) }
         function oE(tx) {
           if (tx.type === 'transfer_out' || tx.type === 'transfer_in') {
             t('Transfer tidak bisa diedit. Hapus lalu buat ulang.', 'err'); return;
           }
+          sSplits(null);
           sF({ type: tx.type, wallet_id: tx.wallet_id || '', wallet_id_to: '', category_id: tx.category_id || '', sub_category_id: tx.sub_category_id || '', amount: String(tx.amount || 0), description: tx.description || '', date: tx.date || td(), is_installment: !!tx.installment_count, installment_count: tx.installment_count || 6 }); sM({ m: 'edit', d: { id: tx.id, wallet_id: tx.wallet_id, type: tx.type, amount: tx.amount } })
         }
         function save() {
@@ -3501,6 +3515,29 @@
                       })
                   })
               })
+            return
+          }
+          // Split kategori: simpan jadi beberapa transaksi terpisah, masing-masing punya kategori sendiri
+          if (splits && mo.m === 'add') {
+            var sTot = splitTotal();
+            if (splits.some(function (r) { return !(Number(r.amount) > 0) })) { t('Nominal tiap pecahan harus > 0', 'err'); return }
+            if (sTot !== amt) { t('Total pecahan ' + fmt(sTot) + ' ≠ jumlah ' + fmt(amt), 'err'); return }
+            var srows = splits.map(function (r) {
+              return { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: r.category_id || null, sub_category_id: r.sub_category_id || null, amount: Number(r.amount), description: f.description.trim(), date: f.date };
+            });
+            sb.from('transactions').insert(srows).then(function (r) {
+              if (r.error) { t(r.error.message, 'err'); return }
+              function doneSplit() { t(srows.length + ' transaksi tersimpan'); sSplits(null); sM(null); rT() }
+              if (f.wallet_id) {
+                var w = fid(W, f.wallet_id);
+                if (w) {
+                  var nb = f.type === 'income' ? (Number(w.balance) || 0) + amt : (Number(w.balance) || 0) - amt;
+                  sb.from('wallets').update({ balance: nb }).eq('id', f.wallet_id).then(function (wr) { if (wr && wr.error) console.log('Bal err:', wr.error.message); doneSplit(); rW() });
+                  return;
+                }
+              }
+              doneSplit();
+            });
             return
           }
           var pay = { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: f.category_id || null, sub_category_id: f.sub_category_id || null, amount: amt, description: f.description.trim(), date: f.date };
@@ -3578,7 +3615,7 @@
           })
         }
         var relC = C.filter(function (c) { return c.type === f.type && !c.parent_id });
-        var selW = fid(W, f.wallet_id); var canInst = f.type === 'expense' && mo && mo.m === 'add';
+        var selW = fid(W, f.wallet_id); var canInst = f.type === 'expense' && mo && mo.m === 'add' && !splits;
         var mAmt = f.is_installment && Number(f.amount) > 0 ? Math.ceil(Number(f.amount) / f.installment_count) : 0;
         // ⚠ These must be BEFORE any early return (React hooks rule)
         var grouped = useMemo(function () {
@@ -3694,17 +3731,37 @@
               h('span', { style: { flex: 1, color: 'var(--acc)', fontWeight: 600 } }, '📋 Form dilanjutkan dari sebelumnya'),
               h('button', { style: { border: 'none', background: 'none', color: 'var(--t3)', cursor: 'pointer', fontSize: 15, lineHeight: 1, padding: '0 2px', flexShrink: 0 }, onClick: function() { sDr(false) } }, '✕')) : null,
             h('div', { className: 'fg' }, h('label', null, 'Tipe'), h('div', { className: 'tabs' },
-              h('button', { className: 'tab' + (f.type === 'expense' ? ' act' : ''), onClick: function () { var n = {}; for (var x in f) n[x] = f[x]; n.type = 'expense'; sF(n) } }, 'Pengeluaran'),
-              h('button', { className: 'tab' + (f.type === 'income' ? ' act' : ''), onClick: function () { var n = {}; for (var x in f) n[x] = f[x]; n.type = 'income'; sF(n) } }, 'Pemasukan'),
-              h('button', { className: 'tab' + (f.type === 'transfer' ? ' act' : ''), onClick: function () { var n = {}; for (var x in f) n[x] = f[x]; n.type = 'transfer'; sF(n) } }, 'Transfer'))),
+              h('button', { className: 'tab' + (f.type === 'expense' ? ' act' : ''), onClick: function () { var n = {}; for (var x in f) n[x] = f[x]; n.type = 'expense'; n.category_id = ''; n.sub_category_id = ''; sF(n); sSplits(null) } }, 'Pengeluaran'),
+              h('button', { className: 'tab' + (f.type === 'income' ? ' act' : ''), onClick: function () { var n = {}; for (var x in f) n[x] = f[x]; n.type = 'income'; n.category_id = ''; n.sub_category_id = ''; sF(n); sSplits(null) } }, 'Pemasukan'),
+              h('button', { className: 'tab' + (f.type === 'transfer' ? ' act' : ''), onClick: function () { var n = {}; for (var x in f) n[x] = f[x]; n.type = 'transfer'; sF(n); sSplits(null) } }, 'Transfer'))),
             h('div', { className: 'fr' }, h('div', { className: 'fg' }, h('label', null, 'Jumlah'), h(NumInput, { value: f.amount, onChange: function (v) { var n = {}; for (var x in f) n[x] = f[x]; n.amount = v; sF(n) } })), h('div', { className: 'fg' }, h('label', null, 'Tanggal'), h('input', { className: 'fi', type: 'date', value: f.date, onChange: function (e) { var n = {}; for (var x in f) n[x] = f[x]; n.date = e.target.value; sF(n) } }))),
             f.type === 'transfer' ? h(F, null,
               h('div', { className: 'fg' }, h('label', null, 'Dari Dompet'), h('select', { className: 'fi', value: f.wallet_id, onChange: function (e) { var n = {}; for (var x in f) n[x] = f[x]; n.wallet_id = e.target.value; sF(n) } }, h('option', { value: '' }, '-- Pilih --'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name + ' (' + fmt(Number(w.balance) || 0) + ')') }))),
               h('div', { className: 'fg' }, h('label', null, 'Ke Dompet'), h('select', { className: 'fi', value: f.wallet_id_to, onChange: function (e) { var n = {}; for (var x in f) n[x] = f[x]; n.wallet_id_to = e.target.value; sF(n) } }, h('option', { value: '' }, '-- Pilih --'), W.filter(function (w) { return w.id !== f.wallet_id }).map(function (w) { return h('option', { key: w.id, value: w.id }, w.name + ' (' + fmt(Number(w.balance) || 0) + ')') })))) :
               h(F, null,
                 h('div', { className: 'fg' }, h('label', null, 'Dompet'), h('select', { className: 'fi', value: f.wallet_id, onChange: function (e) { var n = {}; for (var x in f) n[x] = f[x]; n.wallet_id = e.target.value; sF(n) } }, h('option', { value: '' }, '-- Pilih --'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name + ' (' + fmt(Number(w.balance) || 0) + ')') }))),
-                h('div', { className: 'fg' }, h('label', null, 'Kategori'), h('select', { className: 'fi', value: f.category_id, onChange: function (e) { var n = {}; for (var x in f) n[x] = f[x]; n.category_id = e.target.value; n.sub_category_id = ''; sF(n) } }, h('option', { value: '' }, '-- Pilih --'), relC.map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))),
-                f.category_id ? h('div', { className: 'fg' }, h('label', null, 'Sub-Kategori'), h('select', { className: 'fi', value: f.sub_category_id, onChange: function (e) { var n = {}; for (var x in f) n[x] = f[x]; n.sub_category_id = e.target.value; sF(n) } }, h('option', { value: '' }, '-- Tidak ada --'), C.filter(function (c) { return c.parent_id === f.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))) : null),
+                splits ? null : h('div', { className: 'fg' }, h('label', null, 'Kategori'), h('select', { className: 'fi', value: f.category_id, onChange: function (e) { var n = {}; for (var x in f) n[x] = f[x]; n.category_id = e.target.value; n.sub_category_id = ''; sF(n) } }, h('option', { value: '' }, '-- Pilih --'), relC.map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))),
+                (!splits && f.category_id) ? h('div', { className: 'fg' }, h('label', null, 'Sub-Kategori'), h('select', { className: 'fi', value: f.sub_category_id, onChange: function (e) { var n = {}; for (var x in f) n[x] = f[x]; n.sub_category_id = e.target.value; sF(n) } }, h('option', { value: '' }, '-- Tidak ada --'), C.filter(function (c) { return c.parent_id === f.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))) : null,
+                // Split kategori (hanya saat tambah baru)
+                (mo && mo.m === 'add') ? (splits
+                  ? h('div', { style: { border: '1px solid var(--acc)', background: 'var(--accbg)', borderRadius: 10, padding: '12px', marginBottom: 12 } },
+                    h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 } },
+                      h('span', { style: { fontWeight: 700, fontSize: '.85rem' } }, '✂ Split Kategori'),
+                      h('button', { className: 'btn bs', style: { fontSize: '.72rem', padding: '3px 8px', color: 'var(--red)' }, onClick: function () { sSplits(null) } }, 'Batal split')),
+                    splits.map(function (r, i) {
+                      return h('div', { key: i, style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 } },
+                        h(NumInput, { value: String(r.amount || ''), onChange: function (v) { updSplit(i, 'amount', v) }, style: { width: 110, fontSize: '.8rem' } }),
+                        h('select', { className: 'fi', value: r.category_id || '', onChange: function (e) { updSplit(i, 'category_id', e.target.value) }, style: { flex: 1, minWidth: 110, fontSize: '.8rem' } }, h('option', { value: '' }, '— Kategori —'), relC.map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })),
+                        r.category_id ? h('select', { className: 'fi', value: r.sub_category_id || '', onChange: function (e) { updSplit(i, 'sub_category_id', e.target.value) }, style: { flex: 1, minWidth: 100, fontSize: '.8rem' } }, h('option', { value: '' }, '— Sub —'), C.filter(function (c) { return c.parent_id === r.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })) : null,
+                        splits.length > 2 ? h('button', { className: 'bi', style: { color: 'var(--red)', flexShrink: 0 }, onClick: function () { delSplitRow(i) }, title: 'Hapus baris' }, h(Ic, { n: 'trash' })) : null);
+                    }),
+                    h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2 } },
+                      h('button', { className: 'btn bs', style: { fontSize: '.75rem', padding: '4px 10px' }, onClick: addSplitRow }, '+ Baris'),
+                      (function () {
+                        var diff = (Number(f.amount) || 0) - splitTotal();
+                        return h('span', { style: { fontSize: '.75rem', fontWeight: 600, color: diff === 0 ? 'var(--acc)' : 'var(--org)' } }, diff === 0 ? '✓ Total cocok' : (diff > 0 ? 'Sisa ' + fmt(diff) : 'Lebih ' + fmt(-diff)));
+                      })()))
+                  : h('button', { className: 'btn bs', style: { width: '100%', justifyContent: 'center', fontSize: '.8rem', marginBottom: 12 }, onClick: startSplit }, '✂ Split Transaksi (beda kategori)')) : null),
             h('div', { className: 'fg' }, h('label', null, 'Keterangan'), h('input', { className: 'fi', placeholder: 'cth: Makan siang, Gaji...', value: f.description, onChange: function (e) { var n = {}; for (var x in f) n[x] = f[x]; n.description = e.target.value; sF(n) } })),
             canInst ? h(F, null, h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '10px 12px', background: 'var(--bgi)', borderRadius: 8 }, onClick: function () { var n = {}; for (var x in f) n[x] = f[x]; n.is_installment = !f.is_installment; sF(n) } }, h('div', { style: { width: 44, height: 24, borderRadius: 12, background: f.is_installment ? 'var(--acc)' : 'var(--brd)', position: 'relative', transition: 'background .2s', flexShrink: 0 } }, h('div', { style: { width: 18, height: 18, borderRadius: 9, background: '#fff', position: 'absolute', top: 3, left: f.is_installment ? 23 : 3, transition: 'left .2s' } })), h('span', { style: { fontWeight: 600, fontSize: '.85rem' } }, 'Bagi ke Beberapa Bulan')),
               f.is_installment ? h('div', { className: 'fg' }, h('label', null, 'Jumlah Bulan'), h('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } }, [2, 3, 4, 6, 12].map(function (m) { return h('button', { key: m, className: 'btn ' + (f.installment_count === m ? 'bp' : 'bs'), style: { padding: '4px 12px', fontSize: '.78rem' }, onClick: function () { var n = {}; for (var x in f) n[x] = f[x]; n.installment_count = m; sF(n) } }, m + 'x') })), mAmt > 0 ? h('div', { style: { marginTop: 6, fontSize: '.8rem', color: 'var(--blu)', background: 'var(--blubg)', padding: '8px 12px', borderRadius: 8 } }, '📅 ', fmt(mAmt), '/bln × ', f.installment_count, ' bln = ', fmt(Number(f.amount))) : null) : null) : null),
@@ -4457,6 +4514,23 @@
             })
           });
         }
+        // Pecah 1 transaksi jadi 2 baris (nominal dibagi rata, kategori baris kedua dikosongkan)
+        function splitPendingTx(idx) {
+          sPendingTx(function (arr) {
+            var out = [];
+            arr.forEach(function (tx, i) {
+              if (i !== idx) { out.push(tx); return }
+              var total = Number(tx.amount) || 0;
+              var half = Math.floor(total / 2);
+              out.push(Object.assign({}, tx, { amount: half }));
+              out.push(Object.assign({}, tx, { amount: total - half, category_id: null, sub_category_id: null }));
+            });
+            return out;
+          });
+        }
+        function removePendingTx(idx) {
+          sPendingTx(function (arr) { return arr.filter(function (tx, i) { return i !== idx }) });
+        }
 
         // Feature 2: Parse natural language transaction
         function parseTransaction() {
@@ -4733,7 +4807,10 @@
                     h('select', { className: 'fi', value: tx.category_id || '', onChange: function (e) { updatePendingTx(i, 'category_id', e.target.value || null) }, style: { flex: 1, minWidth: 0, fontSize: '.82rem' } }, h('option', { value: '' }, '— Kategori —'), C.filter(function (c) { return !c.parent_id && c.type === tx.type }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))),
                   h('div', { style: { display: 'flex', gap: 6 } },
                     tx.category_id ? h('select', { className: 'fi', value: tx.sub_category_id || '', onChange: function (e) { updatePendingTx(i, 'sub_category_id', e.target.value || null) }, style: { flex: 1, minWidth: 0, fontSize: '.82rem' } }, h('option', { value: '' }, '— Sub-kategori —'), C.filter(function (c) { return c.parent_id === tx.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })) : null,
-                    h('select', { className: 'fi', value: tx.wallet_id || '', onChange: function (e) { updatePendingTx(i, 'wallet_id', e.target.value || null) }, style: { flex: 1, minWidth: 0, fontSize: '.82rem' } }, h('option', { value: '' }, '— Dompet —'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name) }))));
+                    h('select', { className: 'fi', value: tx.wallet_id || '', onChange: function (e) { updatePendingTx(i, 'wallet_id', e.target.value || null) }, style: { flex: 1, minWidth: 0, fontSize: '.82rem' } }, h('option', { value: '' }, '— Dompet —'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name) }))),
+                  h('div', { style: { display: 'flex', gap: 6, marginTop: 8, justifyContent: 'flex-end' } },
+                    h('button', { className: 'btn bs', style: { fontSize: '.72rem', padding: '3px 10px' }, onClick: function () { splitPendingTx(i) }, title: 'Pecah jadi 2 kategori' }, '✂ Pecah'),
+                    h('button', { className: 'btn bs', style: { fontSize: '.72rem', padding: '3px 10px', color: 'var(--red)' }, onClick: function () { removePendingTx(i) } }, 'Hapus')));
               })),
             h('div', { className: 'chat-input', style: { alignItems: 'center', gap: 8, position: 'relative' } },
               h('input', { ref: receiptRef, type: 'file', accept: 'image/*', style: { display: 'none' }, onChange: function (e) { var f = e.target.files && e.target.files[0]; if (f) { (scanModeRef.current === 'mutation' ? scanMutation : scanReceipt)(f) } e.target.value = '' } }),
