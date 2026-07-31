@@ -1392,7 +1392,7 @@
       var sb = window.supabase.createClient('https://wkhjxgrjkrakfhwckriu.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraGp4Z3Jqa3Jha2Zod2Nrcml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjQyOTUsImV4cCI6MjA5NDMwMDI5NX0.Prtzf84zL-MvJuWF6Qk9HrJLzb2wmxxRD_OA094ulck');
       var COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#6366f1'];
       var WGROUPS = [{ id: 'cash', lb: 'Cash', ico: '💵' }, { id: 'accounts', lb: 'Rekening', ico: '🏦' }, { id: 'card', lb: 'Kartu Kredit', ico: '💳' }, { id: 'debit', lb: 'Kartu Debit', ico: '💳' }, { id: 'savings', lb: 'Tabungan', ico: '🐖' }, { id: 'ewallet', lb: 'E-Wallet', ico: '📱' }, { id: 'investments', lb: 'Investasi', ico: '📈' }, { id: 'others', lb: 'Lainnya', ico: '📦' }];
-      var TG_BOT = 'GANTI_USERNAME_BOT'; // ← ganti dengan username bot Telegram Anda (tanpa @), mis. 'wealthflow_kamu_bot'
+      var TG_BOT = 'wealthflowmeBot'; // username bot Telegram (tanpa @)
       function fmt(n) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n || 0) }
       function fdt(d) { return d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-' }
       function td() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
