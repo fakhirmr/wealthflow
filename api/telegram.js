@@ -51,6 +51,29 @@ async function geminiExtract(GKEY, content) {
 
 function wList(wallets) { return wallets.map(function (w) { return w.id + '=' + w.name; }).join(', '); }
 function cList(cats) { return cats.filter(function (c) { return !c.parent_id; }).map(function (c) { return c.id + '=' + c.name + '(' + c.type + ')'; }).join(', '); }
+// Sub-kategori beserta induknya — tanpa ini AI tak mungkin mengisi sub_category_id
+function sList(cats) {
+  var subs = cats.filter(function (c) { return !!c.parent_id; });
+  if (!subs.length) return '(tidak ada)';
+  return subs.map(function (c) { return c.id + '=' + c.name + '[induk:' + c.parent_id + ']'; }).join(', ');
+}
+// Rapikan hasil AI: pastikan sub benar-benar anak dari kategori terpilih.
+// Kalau sub valid tapi kategori kosong/salah, turunkan kategori dari induk sub tsb.
+function fixCat(tx, cats) {
+  var catId = tx.category_id || null, subId = tx.sub_category_id || null;
+  if (subId) {
+    var sub = cats.find(function (c) { return c.id === subId && !!c.parent_id; });
+    if (sub) { if (!catId || catId !== sub.parent_id) catId = sub.parent_id; }
+    else {
+      // AI kadang menaruh kategori induk di kolom sub — selamatkan jadi kategori, jangan dibuang
+      var asParent = cats.find(function (c) { return c.id === subId && !c.parent_id; });
+      if (asParent && !catId) catId = asParent.id;
+      subId = null;
+    }
+  }
+  if (catId && !cats.some(function (c) { return c.id === catId; })) { catId = null; subId = null; }
+  return { category_id: catId, sub_category_id: subId };
+}
 
 export default async function handler(req) {
   if (req.method !== 'POST') return new Response('ok');
@@ -133,11 +156,11 @@ export default async function handler(req) {
       if (filePath) {
         var img = await fetch('https://api.telegram.org/file/bot' + TOKEN + '/' + filePath);
         var b64 = b64FromBuffer(await img.arrayBuffer());
-        var vprompt = 'Ini foto struk belanja. Ekstrak jadi JSON array transaksi pengeluaran. Balas HANYA JSON: [{"type":"expense","amount":number,"description":"nama toko/item","date":"YYYY-MM-DD","category_id":"id atau null","wallet_id":"id atau null"}]. Gunakan TOTAL akhir sebagai 1 transaksi. Tanggal dari struk; jika tak ada pakai ' + today() + '. Cocokkan kategori (pengeluaran) & dompet dari daftar jika relevan.\nDompet: ' + wList(wallets) + '\nKategori: ' + cList(cats);
+        var vprompt = 'Ini foto struk belanja. Ekstrak jadi JSON array transaksi pengeluaran. Balas HANYA JSON: [{"type":"expense","amount":number,"description":"nama toko/item","date":"YYYY-MM-DD","category_id":"id atau null","sub_category_id":"id atau null","wallet_id":"id atau null"}]. Gunakan TOTAL akhir sebagai 1 transaksi. Tanggal dari struk; jika tak ada pakai ' + today() + '. Cocokkan dompet bila disebut. PENTING: pilih kategori sespesifik mungkin — kalau isi struk cocok dengan salah satu SUB-KATEGORI, isi sub_category_id dengan sub itu dan category_id dengan induknya (lihat penanda [induk:...]). sub_category_id harus anak dari category_id.\nDompet: ' + wList(wallets) + '\nKategori: ' + cList(cats) + '\nSub-Kategori: ' + sList(cats);
         txList = await geminiExtract(GKEY, [{ type: 'text', text: vprompt }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }]);
       }
     } else if (text) {
-      var tprompt = 'Kamu parser transaksi keuangan Bahasa Indonesia. Ekstrak dari pesan user jadi JSON array. Balas HANYA JSON valid: [{"type":"expense"|"income","amount":number,"description":"singkat","date":"YYYY-MM-DD","category_id":"id atau null","wallet_id":"id atau null"}]. Aturan: uang keluar/beli/bayar = expense; uang masuk/terima/gaji = income. Cocokkan dompet & kategori berdasarkan nama yang disebut user; jika tak jelas pakai null. Tanggal default ' + today() + '. Jika bukan transaksi, balas [].\nDompet: ' + wList(wallets) + '\nKategori: ' + cList(cats) + '\n\nPesan: "' + text + '"';
+      var tprompt = 'Kamu parser transaksi keuangan Bahasa Indonesia. Ekstrak dari pesan user jadi JSON array. Balas HANYA JSON valid: [{"type":"expense"|"income","amount":number,"description":"singkat","date":"YYYY-MM-DD","category_id":"id atau null","sub_category_id":"id atau null","wallet_id":"id atau null"}].\nATURAN:\n1) uang keluar/beli/bayar = expense; uang masuk/terima/gaji = income.\n2) Cocokkan dompet dari nama yang disebut user.\n3) PENTING — pilih kategori SESPESIFIK mungkin: kalau barang/jasa yang disebut user cocok dengan salah satu SUB-KATEGORI, WAJIB isi sub_category_id dengan sub itu, dan category_id dengan induknya. Contoh: user tulis "kopi" dan ada sub-kategori "Kopi" -> sub_category_id = id sub "Kopi", category_id = id induknya. Jangan biarkan sub_category_id null kalau ada sub yang cocok.\n4) sub_category_id HARUS anak dari category_id yang dipilih (lihat penanda [induk:...]).\n5) description = keterangan tambahan/detail (mis. nama tempat atau merek). Kalau tidak ada detail lain, boleh diisi nama barangnya.\n6) Tanggal default ' + today() + '. Jika bukan transaksi, balas [].\nDompet: ' + wList(wallets) + '\nKategori: ' + cList(cats) + '\nSub-Kategori: ' + sList(cats) + '\n\nPesan: "' + text + '"';
       txList = await geminiExtract(GKEY, [{ type: 'text', text: tprompt }]);
     } else {
       await reply(TOKEN, chatId, 'Kirim teks transaksi atau foto struk ya 🙂\nContoh: <i>bayar parkir 5rb cash</i>');
@@ -146,7 +169,8 @@ export default async function handler(req) {
 
     // 5) Bersihkan & simpan
     var rows = txList.map(function (tx) {
-      return { user_id: uid, type: tx.type === 'income' ? 'income' : 'expense', amount: Number(tx.amount) || 0, description: (tx.description || '').toString().slice(0, 120), date: tx.date || today(), wallet_id: tx.wallet_id || null, category_id: tx.category_id || null };
+      var cc = fixCat(tx, cats);
+      return { user_id: uid, type: tx.type === 'income' ? 'income' : 'expense', amount: Number(tx.amount) || 0, description: (tx.description || '').toString().slice(0, 120), date: tx.date || today(), wallet_id: tx.wallet_id || null, category_id: cc.category_id, sub_category_id: cc.sub_category_id };
     }).filter(function (r) { return r.amount > 0; });
 
     if (!rows.length) {
@@ -168,8 +192,10 @@ export default async function handler(req) {
     // 6) Balas ringkasan
     var summary = rows.map(function (r) {
       var c = cats.find(function (x) { return x.id === r.category_id; });
+      var s = cats.find(function (x) { return x.id === r.sub_category_id; });
       var w = wallets.find(function (x) { return x.id === r.wallet_id; });
-      return (r.type === 'income' ? '📥' : '📤') + ' <b>' + fmtRp(r.amount) + '</b> — ' + (r.description || '-') + (c ? ' · ' + c.name : '') + (w ? ' · ' + w.name : '');
+      var catTxt = c ? (' · ' + c.name + (s ? ' › ' + s.name : '')) : '';
+      return (r.type === 'income' ? '📥' : '📤') + ' <b>' + fmtRp(r.amount) + '</b> — ' + (r.description || '-') + catTxt + (w ? ' · ' + w.name : '');
     }).join('\n');
     await reply(TOKEN, chatId, '✅ <b>Tercatat!</b>\n' + summary);
   } catch (e) {
