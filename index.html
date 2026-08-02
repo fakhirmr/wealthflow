@@ -2281,7 +2281,19 @@
         var initF = function () { try { var d = JSON.parse(sessionStorage.getItem(DRAFT) || 'null'); if (d && d.date && d.date === td()) return d } catch (e) { } return { type: 'expense', wallet_id: W.length ? W[0].id : '', wallet_id_to: '', category_id: '', sub_category_id: '', amount: '', description: '', date: td() } };
         var _f = useState(initF), f = _f[0], sF = _f[1];
         var relC = C.filter(function (c) { return c.type === f.type && !c.parent_id });
-        function ufx(k, v) { var n = {}; for (var x in f) n[x] = f[x]; n[k] = v; if (k === 'type') n.category_id = ''; if (k === 'category_id') n.sub_category_id = ''; sF(n); try { sessionStorage.setItem(DRAFT, JSON.stringify(n)) } catch (e) { } }
+        // Split kategori (satu pembayaran dipecah ke beberapa kategori)
+        var _sp = useState(null), splits = _sp[0], sSplits = _sp[1];
+        function splitTotal() { return (splits || []).reduce(function (s, r) { return s + (Number(r.amount) || 0) }, 0) }
+        function startSplit() {
+          var total = Number(f.amount) || 0;
+          if (total <= 0) { t('Isi jumlah transaksi dulu', 'err'); return }
+          var half = Math.floor(total / 2);
+          sSplits([{ amount: String(half), category_id: f.category_id || '', sub_category_id: f.sub_category_id || '' }, { amount: String(total - half), category_id: '', sub_category_id: '' }]);
+        }
+        function updSplit(i, k, v) { sSplits(function (arr) { return arr.map(function (r, j) { if (j !== i) return r; var u = Object.assign({}, r); u[k] = v; if (k === 'category_id') u.sub_category_id = ''; return u }) }) }
+        function addSplitRow() { sSplits(function (arr) { return arr.concat([{ amount: '', category_id: '', sub_category_id: '' }]) }) }
+        function delSplitRow(i) { sSplits(function (arr) { var n = arr.filter(function (r, j) { return j !== i }); return n.length < 2 ? null : n }) }
+        function ufx(k, v) { var n = {}; for (var x in f) n[x] = f[x]; n[k] = v; if (k === 'type') { n.category_id = ''; n.sub_category_id = ''; sSplits(null) } if (k === 'category_id') n.sub_category_id = ''; sF(n); try { sessionStorage.setItem(DRAFT, JSON.stringify(n)) } catch (e) { } }
         function save() {
           if (!f.amount || Number(f.amount) <= 0) { t('Jumlah > 0', 'err'); return }
           if (!UID) { t('Sesi habis', 'err'); return }
@@ -2313,6 +2325,22 @@
               })
             return
           }
+          // Split kategori: simpan jadi beberapa transaksi terpisah
+          if (splits) {
+            var sTot = splitTotal();
+            if (splits.some(function (r) { return !(Number(r.amount) > 0) })) { t('Nominal tiap pecahan harus > 0', 'err'); return }
+            if (sTot !== amt) { t('Total pecahan ' + fmt(sTot) + ' ≠ jumlah ' + fmt(amt), 'err'); return }
+            var srows = splits.map(function (r) {
+              return { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: r.category_id || null, sub_category_id: r.sub_category_id || null, amount: Number(r.amount), description: f.description.trim(), date: f.date };
+            });
+            sb.from('transactions').insert(srows).then(function (r) {
+              if (r.error) { t(r.error.message, 'err'); return }
+              if (f.wallet_id) { var w2 = fid(W, f.wallet_id); if (w2) { var nb2 = f.type === 'income' ? (Number(w2.balance) || 0) + amt : (Number(w2.balance) || 0) - amt; sb.from('wallets').update({ balance: nb2 }).eq('id', f.wallet_id).then(function (wr) { if (wr && wr.error) console.log('Bal err:', wr.error.message); rW() }) } }
+              try { sessionStorage.removeItem(DRAFT) } catch (e) { }
+              t(srows.length + ' transaksi tersimpan'); rT(); p.onClose()
+            });
+            return
+          }
           var pay = { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: f.category_id || null, sub_category_id: f.sub_category_id || null, amount: amt, description: f.description.trim(), date: f.date };
           sb.from('transactions').insert(pay).then(function (r) {
             if (r.error) { t(r.error.message, 'err'); return }
@@ -2331,8 +2359,28 @@
             h('div', { className: 'fg' }, h('label', null, 'Dari Dompet'), h('select', { className: 'fi', value: f.wallet_id, onChange: function (e) { ufx('wallet_id', e.target.value) } }, h('option', { value: '' }, '-- Pilih --'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name + ' (' + fmt(Number(w.balance) || 0) + ')') }))),
             h('div', { className: 'fg' }, h('label', null, 'Ke Dompet'), h('select', { className: 'fi', value: f.wallet_id_to, onChange: function (e) { ufx('wallet_id_to', e.target.value) } }, h('option', { value: '' }, '-- Pilih --'), W.filter(function (w) { return w.id !== f.wallet_id }).map(function (w) { return h('option', { key: w.id, value: w.id }, w.name + ' (' + fmt(Number(w.balance) || 0) + ')') })))) :
             h('div', { className: 'fg' }, h('label', null, 'Dompet'), h('select', { className: 'fi', value: f.wallet_id, onChange: function (e) { ufx('wallet_id', e.target.value) } }, h('option', { value: '' }, '-- Pilih --'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name + ' (' + fmt(Number(w.balance) || 0) + ')') }))),
-          f.type !== 'transfer' ? h('div', { className: 'fg' }, h('label', null, 'Kategori'), h('select', { className: 'fi', value: f.category_id, onChange: function (e) { ufx('category_id', e.target.value) } }, h('option', { value: '' }, 'Pilih'), relC.map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))) : null,
-          f.type !== 'transfer' && f.category_id ? h('div', { className: 'fg' }, h('label', null, 'Sub-Kategori'), h('select', { className: 'fi', value: f.sub_category_id, onChange: function (e) { ufx('sub_category_id', e.target.value) } }, h('option', { value: '' }, 'Tanpa'), C.filter(function (c) { return c.parent_id === f.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))) : null,
+          (f.type !== 'transfer' && !splits) ? h('div', { className: 'fg' }, h('label', null, 'Kategori'), h('select', { className: 'fi', value: f.category_id, onChange: function (e) { ufx('category_id', e.target.value) } }, h('option', { value: '' }, 'Pilih'), relC.map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))) : null,
+          (f.type !== 'transfer' && !splits && f.category_id) ? h('div', { className: 'fg' }, h('label', null, 'Sub-Kategori'), h('select', { className: 'fi', value: f.sub_category_id, onChange: function (e) { ufx('sub_category_id', e.target.value) } }, h('option', { value: '' }, 'Tanpa'), C.filter(function (c) { return c.parent_id === f.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))) : null,
+          // Split kategori
+          f.type !== 'transfer' ? (splits
+            ? h('div', { style: { border: '1px solid var(--acc)', background: 'var(--accbg)', borderRadius: 10, padding: '12px', marginBottom: 12 } },
+              h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 } },
+                h('span', { style: { fontWeight: 700, fontSize: '.85rem' } }, '✂ Split Kategori'),
+                h('button', { className: 'btn bs', style: { fontSize: '.72rem', padding: '3px 8px', color: 'var(--red)' }, onClick: function () { sSplits(null) } }, 'Batal split')),
+              splits.map(function (r, i) {
+                return h('div', { key: i, style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 } },
+                  h(NumInput, { value: String(r.amount || ''), onChange: function (v) { updSplit(i, 'amount', v) }, style: { width: 110, fontSize: '.8rem' } }),
+                  h('select', { className: 'fi', value: r.category_id || '', onChange: function (e) { updSplit(i, 'category_id', e.target.value) }, style: { flex: 1, minWidth: 110, fontSize: '.8rem' } }, h('option', { value: '' }, '— Kategori —'), relC.map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })),
+                  r.category_id ? h('select', { className: 'fi', value: r.sub_category_id || '', onChange: function (e) { updSplit(i, 'sub_category_id', e.target.value) }, style: { flex: 1, minWidth: 100, fontSize: '.8rem' } }, h('option', { value: '' }, '— Sub —'), C.filter(function (c) { return c.parent_id === r.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })) : null,
+                  splits.length > 2 ? h('button', { className: 'bi', style: { color: 'var(--red)', flexShrink: 0 }, onClick: function () { delSplitRow(i) }, title: 'Hapus baris' }, h(Ic, { n: 'trash' })) : null);
+              }),
+              h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2 } },
+                h('button', { className: 'btn bs', style: { fontSize: '.75rem', padding: '4px 10px' }, onClick: addSplitRow }, '+ Baris'),
+                (function () {
+                  var diff = (Number(f.amount) || 0) - splitTotal();
+                  return h('span', { style: { fontSize: '.75rem', fontWeight: 600, color: diff === 0 ? 'var(--acc)' : 'var(--org)' } }, diff === 0 ? '✓ Total cocok' : (diff > 0 ? 'Sisa ' + fmt(diff) : 'Lebih ' + fmt(-diff)));
+                })()))
+            : h('button', { className: 'btn bs', style: { width: '100%', justifyContent: 'center', fontSize: '.8rem', marginBottom: 12 }, onClick: startSplit }, '✂ Split Transaksi (beda kategori)')) : null,
           h('div', { className: 'fg' }, h('label', null, 'Keterangan'), h('input', { className: 'fi', placeholder: 'Deskripsi...', value: f.description, onChange: function (e) { ufx('description', e.target.value) } })))
       }
 
