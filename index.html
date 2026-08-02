@@ -1396,6 +1396,24 @@
       function fmt(n) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n || 0) }
       function fdt(d) { return d ? new Date(d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-' }
       function td() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0') }
+      // Normalkan tanggal hasil AI ke YYYY-MM-DD. Struk lazim DD/MM/YYYY — format asing
+      // ditolak Postgres ("invalid input syntax for type date") & membatalkan seluruh insert.
+      function safeDate(d) {
+        if (!d) return td();
+        var s = String(d).trim();
+        var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) {
+          var alt = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/); // 15/03/2026, 15-03-2026
+          if (alt) m = [null, alt[3], String(alt[2]).padStart(2, '0'), String(alt[1]).padStart(2, '0')];
+        }
+        if (!m) return td();
+        var y = +m[1], mo = +m[2], da = +m[3];
+        if (mo < 1 || mo > 12 || da < 1 || da > 31 || y < 2000 || y > 2100) return td();
+        var iso = m[1] + '-' + String(mo).padStart(2, '0') + '-' + String(da).padStart(2, '0');
+        var chk = new Date(iso + 'T00:00:00Z');
+        if (isNaN(chk.getTime()) || chk.toISOString().slice(0, 10) !== iso) return td(); // tolak 31 Feb dsb
+        return iso;
+      }
       function fid(a, id) { if (!a || !id) return null; for (var i = 0; i < a.length; i++)if (a[i].id === id) return a[i]; return null }
       function cn(cs, id) { var c = fid(cs, id); return c ? c.name : '-' }
       function wn(ws, id) { var w = fid(ws, id); return w ? w.name : '-' }
@@ -4649,7 +4667,7 @@
                 var arr = [];
                 try { arr = JSON.parse(content.replace(/```json|```/g, '').replace(/^[^\[]*/, '').replace(/[^\]]*$/, '').trim()); } catch (e) { }
                 if (!Array.isArray(arr) || arr.length === 0) { var em2 = nm.concat({ role: 'sys', text: '⚠️ Tidak ada transaksi terbaca dari struk. Coba foto yang lebih jelas & tegak.' }); sMs(em2); saveMem(em2); return }
-                arr = arr.filter(function (t) { return t && Number(t.amount) > 0 }).map(function (t) { return { type: t.type || 'expense', amount: Number(t.amount) || 0, description: t.description || 'Struk', date: t.date || td(), wallet_id: null, category_id: t.category_id || null, sub_category_id: null } });
+                arr = arr.filter(function (t) { return t && Number(t.amount) > 0 }).map(function (t) { return { type: t.type || 'expense', amount: Number(t.amount) || 0, description: t.description || 'Struk', date: safeDate(t.date), wallet_id: null, category_id: t.category_id || null, sub_category_id: null } });
                 sPendingTx(function (prev) { return prev.concat(arr) });
                 var fm = nm.concat({ role: 'ai', text: '📷 ' + arr.length + ' transaksi terbaca dari struk. Periksa & simpan di bawah 👇' }); sMs(fm); saveMem(fm);
               }).catch(function (e) { sScanBusy(false); var em = nm.concat({ role: 'sys', text: '❌ ' + e.message }); sMs(em); saveMem(em) });
@@ -4690,7 +4708,7 @@
                 var arr = [];
                 try { arr = JSON.parse(content.replace(/```json|```/g, '').replace(/^[^\[]*/, '').replace(/[^\]]*$/, '').trim()); } catch (e) { }
                 if (!Array.isArray(arr) || arr.length === 0) { var em2 = nm.concat({ role: 'sys', text: '⚠️ Tidak ada transaksi terbaca dari mutasi. Pastikan screenshot jelas & memuat kolom nominal.' }); sMs(em2); saveMem(em2); return }
-                arr = arr.filter(function (t) { return t && Number(t.amount) > 0 }).map(function (t) { return { type: (t.type === 'income' ? 'income' : 'expense'), amount: Number(t.amount) || 0, description: t.description || 'Mutasi', date: t.date || td(), wallet_id: null, category_id: null, sub_category_id: null } });
+                arr = arr.filter(function (t) { return t && Number(t.amount) > 0 }).map(function (t) { return { type: (t.type === 'income' ? 'income' : 'expense'), amount: Number(t.amount) || 0, description: t.description || 'Mutasi', date: safeDate(t.date), wallet_id: null, category_id: null, sub_category_id: null } });
                 sPendingTx(function (prev) { return prev.concat(arr) });
                 var fm = nm.concat({ role: 'ai', text: '📄 ' + arr.length + ' transaksi terbaca dari mutasi. Tinggal pilih kategori (& dompet) tiap baris lalu simpan 👇' }); sMs(fm); saveMem(fm);
               }).catch(function (e) { sScanBusy(false); var em = nm.concat({ role: 'sys', text: '❌ ' + e.message }); sMs(em); saveMem(em) });
@@ -4704,7 +4722,13 @@
         function confirmTx() {
           if (!pendingTx.length || !UID) return;
           var txs = pendingTx;
-          var rows = txs.map(function (tx) { return { user_id: UID, type: tx.type, amount: Number(tx.amount) || 0, description: tx.description || '', date: tx.date || td(), wallet_id: tx.wallet_id || null, category_id: tx.category_id || null, sub_category_id: tx.sub_category_id || null } });
+          // Bersihkan hasil AI: tanggal/ID ngawur bikin SELURUH insert ditolak Postgres
+          var rows = txs.map(function (tx) {
+            var wid = (tx.wallet_id && W.some(function (w) { return w.id === tx.wallet_id })) ? tx.wallet_id : null;
+            var cid = (tx.category_id && C.some(function (c) { return c.id === tx.category_id })) ? tx.category_id : null;
+            var sid = (tx.sub_category_id && C.some(function (c) { return c.id === tx.sub_category_id && c.parent_id === cid })) ? tx.sub_category_id : null;
+            return { user_id: UID, type: tx.type === 'income' ? 'income' : 'expense', amount: Number(tx.amount) || 0, description: tx.description || '', date: safeDate(tx.date), wallet_id: wid, category_id: cid, sub_category_id: sid };
+          });
           sb.from('transactions').insert(rows).then(function (r) {
             if (r.error) { sMs(function (prev) { var em = prev.concat({ role: 'sys', text: '❌ ' + r.error.message }); saveMem(em); return em }); return }
             sPendingTx([]); sEditIdx(null);
