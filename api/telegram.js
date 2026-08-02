@@ -208,12 +208,16 @@ export default async function handler(req) {
     }
     await sb('/rest/v1/rpc/increment_ai_usage', { method: 'POST', body: JSON.stringify({ p_user: uid, p_period: period }) }, SB_URL, KEY);
 
-    // Update saldo dompet
-    var deltas = {};
+    // Update saldo dompet — HANYA dijalankan setelah insert dipastikan berhasil,
+    // supaya saldo tak pernah berubah untuk transaksi yang gagal tersimpan.
+    var deltas = {}; var balFailed = false;
     rows.forEach(function (r) { if (r.wallet_id) deltas[r.wallet_id] = (deltas[r.wallet_id] || 0) + (r.type === 'income' ? r.amount : -r.amount); });
     for (var wid in deltas) {
       var w = wallets.find(function (x) { return x.id === wid; });
-      if (w) await sb('/rest/v1/wallets?id=eq.' + wid, { method: 'PATCH', body: JSON.stringify({ balance: (Number(w.balance) || 0) + deltas[wid] }) }, SB_URL, KEY);
+      if (w) {
+        var balRes = await sb('/rest/v1/wallets?id=eq.' + wid, { method: 'PATCH', body: JSON.stringify({ balance: (Number(w.balance) || 0) + deltas[wid] }) }, SB_URL, KEY);
+        if (!balRes.ok) balFailed = true;
+      }
     }
 
     // 6) Balas ringkasan
@@ -227,7 +231,7 @@ export default async function handler(req) {
       var dateTxt = r.date !== today() ? ('\n   🗓 ' + r.date) : '';
       return (r.type === 'income' ? '📥' : '📤') + ' <b>' + fmtRp(r.amount) + '</b> — ' + (r.description || '-') + catTxt + (w ? ' · ' + w.name : '') + dateTxt;
     }).join('\n');
-    await reply(TOKEN, chatId, '✅ <b>Tercatat!</b>\n' + summary);
+    await reply(TOKEN, chatId, '✅ <b>Tercatat!</b>\n' + summary + (balFailed ? '\n\n⚠️ Transaksi tersimpan, tapi saldo dompet gagal diperbarui — cek & sesuaikan manual di app.' : ''));
   } catch (e) {
     try { await reply(TOKEN, chatId, '❌ Ada kesalahan memproses. Coba lagi sebentar.'); } catch (e2) { }
   }
