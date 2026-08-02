@@ -24,6 +24,24 @@ function fmtRp(n) {
   catch (e) { return 'Rp ' + (n || 0); }
 }
 function today() { return new Date().toISOString().slice(0, 10); }
+// Normalkan tanggal dari AI ke YYYY-MM-DD. Struk sering DD/MM/YYYY — format asing ditolak
+// Postgres dan membatalkan SELURUH insert, jadi apa pun yang meragukan jatuh ke hari ini.
+function safeDate(d) {
+  if (!d) return today();
+  var s = String(d).trim();
+  var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) {
+    var alt = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/); // 15/03/2026 atau 15-03-2026
+    if (alt) m = [null, alt[3], String(alt[2]).padStart(2, '0'), String(alt[1]).padStart(2, '0')];
+  }
+  if (!m) return today();
+  var y = +m[1], mo = +m[2], da = +m[3];
+  if (mo < 1 || mo > 12 || da < 1 || da > 31 || y < 2000 || y > 2100) return today();
+  var iso = m[1] + '-' + String(mo).padStart(2, '0') + '-' + String(da).padStart(2, '0');
+  var chk = new Date(iso + 'T00:00:00Z');
+  if (isNaN(chk.getTime()) || chk.toISOString().slice(0, 10) !== iso) return today(); // tolak 31 Feb dsb
+  return iso;
+}
 
 async function tgCall(token, method, body) {
   return fetch('https://api.telegram.org/bot' + token + '/' + method, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -170,7 +188,9 @@ export default async function handler(req) {
     // 5) Bersihkan & simpan
     var rows = txList.map(function (tx) {
       var cc = fixCat(tx, cats);
-      return { user_id: uid, type: tx.type === 'income' ? 'income' : 'expense', amount: Number(tx.amount) || 0, description: (tx.description || '').toString().slice(0, 120), date: tx.date || today(), wallet_id: tx.wallet_id || null, category_id: cc.category_id, sub_category_id: cc.sub_category_id };
+      // Dompet & tanggal WAJIB divalidasi: id/format ngawur dari AI bikin seluruh insert ditolak Postgres
+      var wid = tx.wallet_id && wallets.some(function (w) { return w.id === tx.wallet_id; }) ? tx.wallet_id : null;
+      return { user_id: uid, type: tx.type === 'income' ? 'income' : 'expense', amount: Number(tx.amount) || 0, description: (tx.description || '').toString().slice(0, 120), date: safeDate(tx.date), wallet_id: wid, category_id: cc.category_id, sub_category_id: cc.sub_category_id };
     }).filter(function (r) { return r.amount > 0; });
 
     if (!rows.length) {
@@ -178,7 +198,14 @@ export default async function handler(req) {
       return new Response('ok');
     }
 
-    await sb('/rest/v1/transactions', { method: 'POST', body: JSON.stringify(rows) }, SB_URL, KEY);
+    // Jangan pernah bilang "tercatat" tanpa memastikan benar-benar tersimpan
+    var insRes = await sb('/rest/v1/transactions', { method: 'POST', body: JSON.stringify(rows) }, SB_URL, KEY);
+    if (!insRes.ok) {
+      var errTxt = '';
+      try { errTxt = (await insRes.text() || '').slice(0, 300); } catch (e) { }
+      await reply(TOKEN, chatId, '❌ <b>Gagal menyimpan.</b> Transaksi TIDAK tercatat.\n\n<code>' + errTxt.replace(/[<>&]/g, '') + '</code>\n\nCoba lagi, atau catat manual di app.');
+      return new Response('ok');
+    }
     await sb('/rest/v1/rpc/increment_ai_usage', { method: 'POST', body: JSON.stringify({ p_user: uid, p_period: period }) }, SB_URL, KEY);
 
     // Update saldo dompet
@@ -195,7 +222,10 @@ export default async function handler(req) {
       var s = cats.find(function (x) { return x.id === r.sub_category_id; });
       var w = wallets.find(function (x) { return x.id === r.wallet_id; });
       var catTxt = c ? (' · ' + c.name + (s ? ' › ' + s.name : '')) : '';
-      return (r.type === 'income' ? '📥' : '📤') + ' <b>' + fmtRp(r.amount) + '</b> — ' + (r.description || '-') + catTxt + (w ? ' · ' + w.name : '');
+      // Tanggal ditampilkan: kalau struk bertanggal bulan lalu, transaksi tak muncul di
+      // tampilan bulan berjalan — user perlu tahu supaya tak mengira gagal tersimpan
+      var dateTxt = r.date !== today() ? ('\n   🗓 ' + r.date) : '';
+      return (r.type === 'income' ? '📥' : '📤') + ' <b>' + fmtRp(r.amount) + '</b> — ' + (r.description || '-') + catTxt + (w ? ' · ' + w.name : '') + dateTxt;
     }).join('\n');
     await reply(TOKEN, chatId, '✅ <b>Tercatat!</b>\n' + summary);
   } catch (e) {
