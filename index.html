@@ -1419,7 +1419,122 @@
       function wn(ws, id) { var w = fid(ws, id); return w ? w.name : '-' }
       function gi(g) { for (var i = 0; i < WGROUPS.length; i++)if (WGROUPS[i].id === g) return WGROUPS[i]; return WGROUPS[7] }
       function uf(f, k, v, s) { var n = {}; for (var x in f) n[x] = f[x]; n[k] = v; if (k === 'type') n.category_id = ''; s(n) }
-      function lt(name, ord, asc) { return sb.from(name).select('*').order(ord, { ascending: asc !== false }).then(function (r) { return { d: r.data || [], e: r.error ? r.error.message : null } }).catch(function (e) { return { d: [], e: e.message } }) }
+      /* ═══ OFFLINE: snapshot data ═══
+         Setiap pemuatan yang sukses disimpan lokal, lalu dipakai kembali saat jaringan mati.
+         Karena SEMUA tabel memakai lt(), satu perubahan di sini memberi dukungan offline menyeluruh. */
+      var SNAP_PREFIX = 'wf_snap_';
+      var SNAP_LIMIT = { transactions: 800, debt_payments: 500 }; // batasi tabel besar agar muat di localStorage
+      function snapSave(name, rows) {
+        try {
+          var lim = SNAP_LIMIT[name];
+          var data = (lim && rows.length > lim) ? rows.slice(0, lim) : rows;
+          localStorage.setItem(SNAP_PREFIX + name, JSON.stringify({ ts: Date.now(), d: data }));
+        } catch (e) { /* kuota penuh — lewati snapshot tabel ini, jangan ganggu alur normal */ }
+      }
+      function snapLoad(name) {
+        try { var r = JSON.parse(localStorage.getItem(SNAP_PREFIX + name) || 'null'); if (r && Array.isArray(r.d)) return r } catch (e) { }
+        return null;
+      }
+      // Hanya error JARINGAN yang boleh jatuh ke snapshot — error database asli harus tetap terlihat
+      function isNetErr(msg) {
+        if (!navigator.onLine) return true;
+        var m = String(msg || '').toLowerCase();
+        return m.indexOf('failed to fetch') >= 0 || m.indexOf('load failed') >= 0 || m.indexOf('networkerror') >= 0 || m.indexOf('network request failed') >= 0;
+      }
+      /* ═══ OFFLINE: outbox (antrean transaksi) ═══
+         Transaksi yang dibuat saat jaringan mati diantre di sini, lalu dikirim saat online.
+         Idempoten: id transaksi dibuat di klien, jadi pengiriman ulang tak menghasilkan duplikat. */
+      var OUTBOX_KEY = 'wf_outbox';
+      function uuid() {
+        try { if (crypto && crypto.randomUUID) return crypto.randomUUID() } catch (e) { }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+          var r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+      }
+      function obLoad() { try { var a = JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]'); return Array.isArray(a) ? a : [] } catch (e) { return [] } }
+      function obSave(a) { try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(a)) } catch (e) { } }
+      function obAdd(row, wdelta) { var a = obLoad(); a.push({ row: row, wdelta: wdelta || null, inserted: false, at: Date.now() }); obSave(a); }
+      function obCount() { return obLoad().length }
+      // Kirim antrean satu per satu. Entri hanya dibuang setelah transaksi DAN saldo beres,
+      // sehingga kegagalan di tengah aman diulang.
+      function syncOutbox(done) {
+        var a = obLoad();
+        if (!a.length || !navigator.onLine || !UID) { if (done) done(0, a.length); return }
+        var synced = 0, chain = Promise.resolve();
+        a.forEach(function (en) {
+          chain = chain.then(function () {
+            // Jalur utama: satu operasi atomik di server (transaksi + saldo sekaligus).
+            // Aman dikirim berulang — saldo hanya berubah saat transaksi benar-benar baru.
+            return sb.rpc('apply_offline_txn', {
+              p_row: en.row,
+              p_wallet: (en.wdelta && en.wdelta.wallet_id) || null,
+              p_delta: (en.wdelta && en.wdelta.amount) || 0
+            }).then(function (r) {
+              if (!r.error) { en.done = true; obSave(a); synced++; return }
+              // Cadangan bila fungsi SQL belum dipasang: dua langkah terpisah.
+              if (!/function|does not exist|schema cache|404/i.test(String(r.error.message || ''))) return;
+              var step = en.inserted ? Promise.resolve({ error: null }) : sb.from('transactions').insert(en.row);
+              return step.then(function (r2) {
+                var dup = r2.error && (String(r2.error.code) === '23505' || /duplicate/i.test(r2.error.message || ''));
+                if (r2.error && !dup) return;
+                if (!en.inserted) { en.inserted = true; obSave(a) }
+                if (!en.wdelta || !en.wdelta.wallet_id || en.balanceDone) { en.done = true; obSave(a); synced++; return }
+                return sb.from('wallets').select('balance').eq('id', en.wdelta.wallet_id).single().then(function (wr) {
+                  if (wr.error || !wr.data) return;
+                  return sb.from('wallets').update({ balance: (Number(wr.data.balance) || 0) + en.wdelta.amount }).eq('id', en.wdelta.wallet_id).then(function (ur) {
+                    if (ur && ur.error) return;
+                    en.balanceDone = true; en.done = true; obSave(a); synced++;
+                  });
+                });
+              });
+            }).catch(function () { });
+          });
+        });
+        chain.then(function () {
+          var left = a.filter(function (e) { return !e.done });
+          obSave(left);
+          if (done) done(synced, left.length);
+        });
+      }
+
+      // Simpan transaksi dengan dukungan offline. Jaringan mati -> diantre, bukan gagal.
+      // onDone('saved' | 'queued'), onError(pesan) hanya untuk error database asli.
+      function saveTxns(rows, onDone, onError) {
+        rows.forEach(function (r) { if (!r.id) r.id = uuid() }); // id dari klien -> aman diulang
+        function queue() {
+          rows.forEach(function (r) {
+            var d = r.wallet_id ? { wallet_id: r.wallet_id, amount: (r.type === 'income' ? Number(r.amount) : -Number(r.amount)) } : null;
+            obAdd(r, d);
+          });
+          onDone('queued');
+        }
+        if (!navigator.onLine) { queue(); return }
+        sb.from('transactions').insert(rows).then(function (r) {
+          if (r.error) {
+            if (isNetErr(r.error.message)) { queue(); return }
+            if (onError) onError(r.error.message);
+            return;
+          }
+          onDone('saved');
+        }).catch(function (e) { queue() });
+      }
+
+      function lt(name, ord, asc) {
+        return sb.from(name).select('*').order(ord, { ascending: asc !== false })
+          .then(function (r) {
+            if (r.error) {
+              if (isNetErr(r.error.message)) { var s = snapLoad(name); if (s) return { d: s.d, e: null, offline: true, ts: s.ts } }
+              return { d: [], e: r.error.message };
+            }
+            snapSave(name, r.data || []);
+            return { d: r.data || [], e: null };
+          })
+          .catch(function (e) {
+            var s = snapLoad(name);
+            if (s) return { d: s.d, e: null, offline: true, ts: s.ts };
+            return { d: [], e: e.message };
+          })
+      }
       function fmtNum(v) { if (!v && v !== 0) return ''; var s = String(v).replace(/[^0-9]/g, ''); if (!s) return ''; return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',') }
       function parseNum(v) { return Number(String(v).replace(/,/g, '')) || 0 }
       function calcExpr(s) {
@@ -2017,6 +2132,7 @@
 
       /* ═══ APP ═══ */
       function App() {
+        var t = useContext(TCtx); // untuk notifikasi sinkronisasi offline
         var _au = useState(null), user = _au[0], sUser = _au[1];
         var _ac = useState(true), authChecking = _ac[0], sAC = _ac[1];
         var _rm = useState(false), resetMode = _rm[0], sResetMode = _rm[1];
@@ -2035,6 +2151,9 @@
         var _mb = useState(false), mob = _mb[0], sMb = _mb[1];
         var _W = useState([]), W = _W[0], sW = _W[1]; var _T = useState([]), T = _T[0], sT = _T[1]; var _C = useState([]), C = _C[0], sC = _C[1]; var _B = useState([]), B = _B[0], sB = _B[1]; var _I = useState([]), I = _I[0], sI = _I[1]; var _D = useState([]), D = _D[0], sD = _D[1]; var _DP = useState([]), DP = _DP[0], sDP = _DP[1]; var _G = useState([]), G = _G[0], sG = _G[1]; var _R = useState([]), R = _R[0], sR = _R[1];
         var _notifOpen = useState(false), notifOpen = _notifOpen[0], sNotifOpen = _notifOpen[1];
+        // Status jaringan + antrean offline
+        var _onl = useState(function () { try { return navigator.onLine !== false } catch (e) { return true } }), online = _onl[0], sOnline = _onl[1];
+        var _pend = useState(function () { try { return obCount() } catch (e) { return 0 } }), pendCount = _pend[0], sPendCount = _pend[1];
         var _l = useState(false), ld = _l[0], sL = _l[1]; var _e = useState(''), dbE = _e[0], sE = _e[1]; var _sl = useState(false), slow = _sl[0], sSl = _sl[1];
         var initTheme = 'dark'; try { initTheme = localStorage.getItem('wf_theme') || 'dark' } catch (e) { }
         var _th = useState(initTheme), theme = _th[0], sTh = _th[1];
@@ -2135,6 +2254,24 @@
         function rG() { lt('goals', 'created_at', false).then(function (r) { sG(r.d) }) }
         function rR() { lt('reminders', 'due_date', true).then(function (r) { sR(r.d) }) }
 
+        // Pantau jaringan; begitu online kembali, kirim antrean lalu segarkan data.
+        useEffect(function () {
+          function flush() {
+            if (!navigator.onLine || !UID) return;
+            syncOutbox(function (synced, left) {
+              sPendCount(left);
+              if (synced > 0) { t('✅ ' + synced + ' transaksi offline berhasil dikirim'); rT(); rW() }
+            });
+          }
+          function goOn() { sOnline(true); flush() }
+          function goOff() { sOnline(false); sPendCount(obCount()) }
+          window.addEventListener('online', goOn);
+          window.addEventListener('offline', goOff);
+          var iv = setInterval(function () { sPendCount(obCount()); flush() }, 30000); // jaring pengaman
+          flush();
+          return function () { window.removeEventListener('online', goOn); window.removeEventListener('offline', goOff); clearInterval(iv) };
+        }, [user]);
+
         var sideNav = ALL_PAGES;
         function go(p) { sPg(p); sMb(false) }
         function openWalletTxns(wid) { txnWalletRef.current = wid; go('transactions') }
@@ -2219,6 +2356,14 @@
             })),
           h('main', { className: 'main' }, h('div', { className: 'pg' + (_navKey.current > 0 ? ' pg-page' : ''), key: _navKey.current },
             dbE ? h('div', { style: { background: 'var(--redbg)', border: '1px solid var(--red)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: '.8rem', color: 'var(--red)' } }, dbE) : null,
+            // Status offline / antrean menunggu kirim
+            (!online || pendCount > 0) ? h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, background: online ? 'var(--blubg)' : 'rgba(217,119,6,.12)', border: '1px solid ' + (online ? 'var(--blu)' : 'var(--org)'), borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: '.78rem', color: online ? 'var(--blu)' : 'var(--org)' } },
+              h('span', null, online ? '🔄' : '📴'),
+              h('span', { style: { flex: 1, fontWeight: 600 } },
+                !online
+                  ? ('Mode offline' + (pendCount > 0 ? ' · ' + pendCount + ' transaksi menunggu dikirim' : ' — data yang tampil dari simpanan terakhir'))
+                  : (pendCount + ' transaksi menunggu dikirim...')),
+              (online && pendCount > 0) ? h('button', { className: 'btn bs', style: { fontSize: '.7rem', padding: '2px 8px' }, onClick: function () { syncOutbox(function (s, left) { sPendCount(left); if (s > 0) { t('✅ ' + s + ' transaksi terkirim'); rT(); rW() } }) } }, 'Kirim') : null) : null,
             pg === 'dashboard' ? h(Dash, Object.assign({}, cx, { dashCards: dashCards, sDash: sDash })) : null, pg === 'transactions' ? h(TxnsP, Object.assign({}, cx, { txnWalletRef: txnWalletRef })) : null, pg === 'budgets' ? h(BudgP, cx) : null, pg === 'wallets' ? h(WalletsP, Object.assign({}, cx, { openTxns: openWalletTxns })) : null, pg === 'goals' ? h(GoalsP, cx) : null, pg === 'debts' ? h(DebtP, cx) : null, pg === 'reminders' ? h(ReminderP, Object.assign({}, cx, { go: go })) : null, pg === 'ai' ? h(AiP, cx) : null, pg === 'investments' ? h(InvP, cx) : null, pg === 'categories' ? h(CatsP, cx) : null, pg === 'settings' ? h(SettingsP, Object.assign({}, cx, { theme: theme, sTh: sTh, user: user, bnav: bnav, sBnav: sBnav, dashCards: dashCards, sDash: sDash })) : null)),
           tfOpen ? h(TransferMod, { W: W, rW: rW, rT: rT, onClose: function () { sTf(false) } }) : null,
           fabOpen ? h(QuickTxn, { W: W, C: C, rT: rT, rW: rW, onClose: function () { sFab(false) } }) : null,
@@ -2351,21 +2496,21 @@
             var srows = splits.map(function (r) {
               return { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: r.category_id || null, sub_category_id: r.sub_category_id || null, amount: Number(r.amount), description: f.description.trim(), date: f.date };
             });
-            sb.from('transactions').insert(srows).then(function (r) {
-              if (r.error) { t(r.error.message, 'err'); return }
-              if (f.wallet_id) { var w2 = fid(W, f.wallet_id); if (w2) { var nb2 = f.type === 'income' ? (Number(w2.balance) || 0) + amt : (Number(w2.balance) || 0) - amt; sb.from('wallets').update({ balance: nb2 }).eq('id', f.wallet_id).then(function (wr) { if (wr && wr.error) console.log('Bal err:', wr.error.message); rW() }) } }
+            saveTxns(srows, function (status) {
+              if (status === 'saved' && f.wallet_id) { var w2 = fid(W, f.wallet_id); if (w2) { var nb2 = f.type === 'income' ? (Number(w2.balance) || 0) + amt : (Number(w2.balance) || 0) - amt; sb.from('wallets').update({ balance: nb2 }).eq('id', f.wallet_id).then(function (wr) { if (wr && wr.error) console.log('Bal err:', wr.error.message); rW() }) } }
               try { sessionStorage.removeItem(DRAFT) } catch (e) { }
-              t(srows.length + ' transaksi tersimpan'); rT(); p.onClose()
-            });
+              t(status === 'queued' ? '📴 ' + srows.length + ' transaksi tersimpan offline' : srows.length + ' transaksi tersimpan');
+              rT(); p.onClose()
+            }, function (msg) { t(msg, 'err') });
             return
           }
           var pay = { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: f.category_id || null, sub_category_id: f.sub_category_id || null, amount: amt, description: f.description.trim(), date: f.date };
-          sb.from('transactions').insert(pay).then(function (r) {
-            if (r.error) { t(r.error.message, 'err'); return }
-            if (f.wallet_id) { var w = fid(W, f.wallet_id); if (w) { var nb = f.type === 'income' ? (Number(w.balance) || 0) + amt : (Number(w.balance) || 0) - amt; sb.from('wallets').update({ balance: nb }).eq('id', f.wallet_id).then(function (wr) { if (wr && wr.error) console.log('Bal err:', wr.error.message); rW() }) } }
+          saveTxns([pay], function (status) {
+            if (status === 'saved' && f.wallet_id) { var w = fid(W, f.wallet_id); if (w) { var nb = f.type === 'income' ? (Number(w.balance) || 0) + amt : (Number(w.balance) || 0) - amt; sb.from('wallets').update({ balance: nb }).eq('id', f.wallet_id).then(function (wr) { if (wr && wr.error) console.log('Bal err:', wr.error.message); rW() }) } }
             try { sessionStorage.removeItem(DRAFT) } catch (e) { }
-            t('Transaksi ditambahkan'); rT(); p.onClose()
-          })
+            t(status === 'queued' ? '📴 Tersimpan offline — akan dikirim saat online' : 'Transaksi ditambahkan');
+            rT(); p.onClose()
+          }, function (msg) { t(msg, 'err') });
         }
         return h(Mod, { open: true, onClose: p.onClose, title: '➕ Transaksi Cepat', footer: h(F, null, h('button', { className: 'btn bs', onClick: p.onClose }, 'Batal'), h('button', { className: 'btn bp', onClick: save }, 'Simpan')) },
           h('div', { className: 'fg' }, h('label', null, 'Tipe'), h('div', { className: 'tabs' },
