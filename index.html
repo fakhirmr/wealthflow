@@ -1457,9 +1457,14 @@
       function obCount() { return obLoad().length }
       // Kirim antrean satu per satu. Entri hanya dibuang setelah transaksi DAN saldo beres,
       // sehingga kegagalan di tengah aman diulang.
+      var _syncing = false; // kunci: sinkronisasi tak boleh berjalan dua kali bersamaan
       function syncOutbox(done) {
         var a = obLoad();
+        if (_syncing) { if (done) done(0, a.length); return }
         if (!a.length || !navigator.onLine || !UID) { if (done) done(0, a.length); return }
+        // Tanpa kunci ini, pemicu bersamaan (event online + pemeriksaan berkala + tombol
+        // Kirim) bisa memproses entri yang sama dua kali dan menggandakan saldo.
+        _syncing = true;
         var synced = 0, chain = Promise.resolve();
         a.forEach(function (en) {
           chain = chain.then(function () {
@@ -1477,6 +1482,9 @@
               return step.then(function (r2) {
                 var dup = r2.error && (String(r2.error.code) === '23505' || /duplicate/i.test(r2.error.message || ''));
                 if (r2.error && !dup) return;
+                // Duplikat = transaksi ini SUDAH pernah diproses sebelumnya. Menyesuaikan
+                // saldo lagi akan menggandakannya, jadi cukup tandai selesai.
+                if (dup && !en.inserted) { en.done = true; obSave(a); return }
                 if (!en.inserted) { en.inserted = true; obSave(a) }
                 if (!en.wdelta || !en.wdelta.wallet_id || en.balanceDone) { en.done = true; obSave(a); synced++; return }
                 return sb.from('wallets').select('balance').eq('id', en.wdelta.wallet_id).single().then(function (wr) {
@@ -1491,10 +1499,11 @@
           });
         });
         chain.then(function () {
+          _syncing = false;
           var left = a.filter(function (e) { return !e.done });
           obSave(left);
           if (done) done(synced, left.length);
-        });
+        }).catch(function () { _syncing = false; if (done) done(synced, obCount()) });
       }
 
       // Simpan transaksi dengan dukungan offline. Jaringan mati -> diantre, bukan gagal.
@@ -4951,9 +4960,16 @@
           sb.from('transactions').insert(rows).then(function (r) {
             if (r.error) { sMs(function (prev) { var em = prev.concat({ role: 'sys', text: '❌ ' + r.error.message }); saveMem(em); return em }); return }
             sPendingTx([]); sEditIdx(null);
+            // Selisih dihitung dari baris yang BENAR-BENAR tersimpan (rows), bukan hasil AI mentah,
+            // dan saldo diambil TERBARU dari server — memakai state lokal bisa basi & salah hitung.
             var walletDeltas = {};
-            txs.forEach(function (tx) { if (tx.wallet_id) walletDeltas[tx.wallet_id] = (walletDeltas[tx.wallet_id] || 0) + (tx.type === 'income' ? 1 : -1) * Number(tx.amount) });
-            Object.keys(walletDeltas).forEach(function (wid) { var w = fid(W, wid); if (w) { var nb = (Number(w.balance) || 0) + walletDeltas[wid]; sb.from('wallets').update({ balance: nb }).eq('id', wid).then(function (wr) { if (wr && wr.error) console.log(wr.error.message); rW() }) } });
+            rows.forEach(function (tx) { if (tx.wallet_id) walletDeltas[tx.wallet_id] = (walletDeltas[tx.wallet_id] || 0) + (tx.type === 'income' ? 1 : -1) * Number(tx.amount) });
+            Object.keys(walletDeltas).forEach(function (wid) {
+              sb.from('wallets').select('balance').eq('id', wid).single().then(function (wr) {
+                if (wr.error || !wr.data) return;
+                sb.from('wallets').update({ balance: (Number(wr.data.balance) || 0) + walletDeltas[wid] }).eq('id', wid).then(function (ur) { if (ur && ur.error) console.log(ur.error.message); rW() });
+              });
+            });
             sMs(function (prev) { var fm = prev.concat({ role: 'sys', text: '✅ ' + txs.length + ' transaksi tersimpan!' }); saveMem(fm); return fm }); rT();
           })
         }
