@@ -1547,7 +1547,20 @@
           })
       }
       // Pemisah ribuan pakai TITIK, mengikuti konvensi Indonesia & tampilan uang lain (Rp 200.000)
-      function fmtNum(v) { if (!v && v !== 0) return ''; var s = String(v).replace(/[^0-9]/g, ''); if (!s) return ''; return s.replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
+      function fmtNum(v) {
+        if (!v && v !== 0) return '';
+        var s = String(v).trim();
+        // Nilai dari database bisa berdesimal ("7009233.43"). Tanpa penanganan ini titik
+        // desimalnya ikut terhapus dan digitnya menyatu -> 7.009.233 tampil jadi 700.923.343.
+        // String(angka) di JavaScript tak pernah memakai pemisah ribuan, jadi satu titik
+        // dengan angka di kedua sisi SELALU berarti desimal.
+        if (typeof v === 'number' || /^-?\d+[.,]\d+$/.test(s)) s = String(Math.round(Number(String(s).replace(',', '.')) || 0));
+        s = s.replace(/[^0-9]/g, '');
+        if (!s) return '';
+        return s.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      }
+      // Nilai DB -> teks form: selalu bulat, supaya desimal tak menular ke penyimpanan berikutnya
+      function numStr(v) { return String(Math.round(Number(v) || 0)) }
       function parseNum(v) { return Number(String(v).replace(/[.,]/g, '')) || 0 }
       function calcExpr(s) {
         if (!s || !/[+\-*/]/.test(s)) return null;
@@ -1648,7 +1661,7 @@
         var COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6', '#f97316'];
 
         function oA() { sF(defF); sMo({ m: 'add' }) }
-        function oE(g) { sF({ name: g.name || '', icon: g.icon || '🎯', target_amount: String(g.target_amount || 0), saved_amount: String(g.saved_amount || 0), deadline: g.deadline || '', wallet_id: g.wallet_id || '', priority: g.priority || 'medium', notes: g.notes || '', color: g.color || '#10b981', status: g.status || 'active' }); sMo({ m: 'edit', d: g }) }
+        function oE(g) { sF({ name: g.name || '', icon: g.icon || '🎯', target_amount: numStr(g.target_amount), saved_amount: numStr(g.saved_amount), deadline: g.deadline || '', wallet_id: g.wallet_id || '', priority: g.priority || 'medium', notes: g.notes || '', color: g.color || '#10b981', status: g.status || 'active' }); sMo({ m: 'edit', d: g }) }
 
         function save() {
           if (!UID) { t('Sesi habis', 'err'); return }
@@ -3600,7 +3613,7 @@
         var _tf = useState(false), tfOpen = _tf[0], sTf = _tf[1];
         var _sw = useState(null), selW = _sw[0], sSelW = _sw[1];
         function oA() { sF({ name: '', balance: '', color: COLORS[Math.floor(Math.random() * COLORS.length)], group_type: 'cash' }); sM({ m: 'add' }) }
-        function oE(w) { sF({ name: w.name, balance: String(w.balance || 0), color: w.color || COLORS[0], group_type: w.group_type || 'others' }); sM({ m: 'edit', d: w }) }
+        function oE(w) { sF({ name: w.name, balance: numStr(w.balance), color: w.color || COLORS[0], group_type: w.group_type || 'others' }); sM({ m: 'edit', d: w }) }
         function save() { if (!UID) { t('Sesi habis, login ulang', 'err'); return } if (!f.name.trim()) { t('Nama wajib', 'err'); return } var upd = { name: f.name.trim(), balance: Number(f.balance) || 0, color: f.color, group_type: f.group_type }; if (mo.m === 'add') { upd.user_id = UID; sb.from('wallets').insert(upd).then(function (r) { if (r.error) { t(r.error.message, 'err'); return } t('Ditambahkan'); sM(null); rW() }) } else { var oldBal = Number(mo.d.balance) || 0; var newBal = Number(f.balance) || 0; var diff = newBal - oldBal; sb.from('wallets').update(upd).eq('id', mo.d.id).then(function (r) { if (r.error) { t(r.error.message, 'err'); return } if (diff !== 0) { var adjTx = { user_id: UID, type: diff > 0 ? 'income' : 'expense', wallet_id: mo.d.id, amount: Math.abs(diff), description: '⚙️ Penyesuaian saldo', date: td() }; sb.from('transactions').insert(adjTx).then(function (tr) { if (tr.error) console.log('Adj err:', tr.error.message); t('Diperbarui'); sM(null); rW(); rT() }) } else { t('Diperbarui'); sM(null); rW() } }) } }
         function del(w) {
           cf('Hapus "' + w.name + '"?\n\nTransaksi terkait akan tetap ada (wallet-nya dikosongkan).').then(function (ok) {
@@ -3757,7 +3770,7 @@
             t('Transfer tidak bisa diedit. Hapus lalu buat ulang.', 'err'); return;
           }
           sSplits(null);
-          sF({ type: tx.type, wallet_id: tx.wallet_id || '', wallet_id_to: '', category_id: tx.category_id || '', sub_category_id: tx.sub_category_id || '', amount: String(tx.amount || 0), description: tx.description || '', date: tx.date || td(), is_installment: !!tx.installment_count, installment_count: tx.installment_count || 6 }); sM({ m: 'edit', d: { id: tx.id, wallet_id: tx.wallet_id, type: tx.type, amount: tx.amount } })
+          sF({ type: tx.type, wallet_id: tx.wallet_id || '', wallet_id_to: '', category_id: tx.category_id || '', sub_category_id: tx.sub_category_id || '', amount: numStr(tx.amount), description: tx.description || '', date: tx.date || td(), is_installment: !!tx.installment_count, installment_count: tx.installment_count || 6 }); sM({ m: 'edit', d: { id: tx.id, wallet_id: tx.wallet_id, type: tx.type, amount: tx.amount } })
         }
         function save() {
           if (!UID) { t('Sesi habis, login ulang', 'err'); return }
@@ -4116,8 +4129,8 @@
         function ufp(k, v) { var n = {}; for (var x in pf) n[x] = f[x]; n[k] = v; sPf(n) }
 
         function openAdd() { sF({ type: tab, name: '', description: '', category: 'personal', total_amount: '', remaining_amount: '', monthly_payment: '', interest_rate: '', interest_model: 'flat', tenor: '', start_date: td(), due_date: '', wallet_id: '', record_txn: true, txn_wallet_id: W.length ? W[0].id : '' }); sMo({ m: 'add' }) }
-        function openEdit(d) { sF({ type: d.type, name: d.name || '', description: d.description || '', category: d.category || 'personal', total_amount: String(d.total_amount || 0), remaining_amount: String(d.remaining_amount || 0), monthly_payment: String(d.monthly_payment || 0), interest_rate: String(d.interest_rate || 0), interest_model: d.interest_model || 'flat', tenor: String(d.tenor || 0), start_date: d.start_date || td(), due_date: d.due_date || '', wallet_id: d.wallet_id || '', record_txn: false, txn_wallet_id: '' }); sMo({ m: 'edit', d: d }) }
-        function openPay(d) { sPf({ amount: String(d.monthly_payment || 0), paid_date: td(), wallet_id: W.length ? W[0].id : '', notes: '', record_txn: true, category_id: '', sub_category_id: '' }); sPMo(d) }
+        function openEdit(d) { sF({ type: d.type, name: d.name || '', description: d.description || '', category: d.category || 'personal', total_amount: numStr(d.total_amount), remaining_amount: numStr(d.remaining_amount), monthly_payment: numStr(d.monthly_payment), interest_rate: String(d.interest_rate || 0), interest_model: d.interest_model || 'flat', tenor: String(d.tenor || 0), start_date: d.start_date || td(), due_date: d.due_date || '', wallet_id: d.wallet_id || '', record_txn: false, txn_wallet_id: '' }); sMo({ m: 'edit', d: d }) }
+        function openPay(d) { sPf({ amount: numStr(d.monthly_payment), paid_date: td(), wallet_id: W.length ? W[0].id : '', notes: '', record_txn: true, category_id: '', sub_category_id: '' }); sPMo(d) }
 
         function saveDebt() {
           if (!UID) { t('Sesi habis', 'err'); return }
@@ -5133,7 +5146,7 @@
                 return h('div', { key: i, style: { border: '1px solid var(--brd)', borderRadius: 10, padding: '10px 12px', marginBottom: 8 } },
                   h('div', { style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 7 } },
                     h('input', { className: 'fi', type: 'text', value: tx.description || '', onChange: function (e) { updatePendingTx(i, 'description', e.target.value) }, placeholder: 'Keterangan', style: { flex: 1, minWidth: 0, fontWeight: 600, fontSize: '.82rem' } }),
-                    h(NumInput, { value: String(tx.amount || ''), onChange: function (v) { updatePendingTx(i, 'amount', Number(v) || 0) }, style: { width: 110, fontSize: '.82rem' } })),
+                    h(NumInput, { value: numStr(tx.amount), onChange: function (v) { updatePendingTx(i, 'amount', Number(v) || 0) }, style: { width: 110, fontSize: '.82rem' } })),
                   h('div', { style: { display: 'flex', gap: 6, marginBottom: 6 } },
                     h('select', { className: 'fi', value: tx.type, onChange: function (e) { updatePendingTx(i, 'type', e.target.value) }, style: { width: 92, flexShrink: 0, fontSize: '.82rem' } }, h('option', { value: 'expense' }, 'Keluar'), h('option', { value: 'income' }, 'Masuk')),
                     h('select', { className: 'fi', value: tx.category_id || '', onChange: function (e) { updatePendingTx(i, 'category_id', e.target.value || null) }, style: { flex: 1, minWidth: 0, fontSize: '.82rem' } }, h('option', { value: '' }, '— Kategori —'), C.filter(function (c) { return !c.parent_id && c.type === tx.type }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))),
@@ -5312,7 +5325,7 @@
           var cat = fid(C, b.category_id);
           var parId = cat ? (cat.parent_id || cat.id) : null;
           sSelPar(parId);
-          sF({ category_id: b.category_id || '', amount: String(b.amount || 0), period: b.period || 'monthly', is_recurring: b.is_recurring !== false, target_month: b.month || mo2 + 1, target_year: b.year || yr });
+          sF({ category_id: b.category_id || '', amount: numStr(b.amount), period: b.period || 'monthly', is_recurring: b.is_recurring !== false, target_month: b.month || mo2 + 1, target_year: b.year || yr });
           sMo({ m: 'edit', d: b })
         }
         function save() {
@@ -5615,7 +5628,7 @@
         var I = p.I, rI = p.rI; var t = useContext(TCtx); var _m = useState(null), mo = _m[0], sM = _m[1]; var _cf = useCf(), cf = _cf[0], cfE = _cf[1];
         var _f = useState({ name: '', type: 'stock', amount: '', current_value: '', purchase_date: td() }), f = _f[0], sF = _f[1];
         function oA() { sF({ name: '', type: 'stock', amount: '', current_value: '', purchase_date: td() }); sM({ m: 'add' }) }
-        function oE(i) { sF({ name: i.name || '', type: i.type || 'stock', amount: String(i.amount || 0), current_value: String(i.current_value || 0), purchase_date: i.purchase_date || td() }); sM({ m: 'edit', d: i }) }
+        function oE(i) { sF({ name: i.name || '', type: i.type || 'stock', amount: numStr(i.amount), current_value: numStr(i.current_value), purchase_date: i.purchase_date || td() }); sM({ m: 'edit', d: i }) }
         function save() { if (!UID) { t('Sesi habis', 'err'); return } if (!f.name.trim()) { t('Nama wajib', 'err'); return } var pay = { user_id: UID, name: f.name.trim(), type: f.type, amount: Number(f.amount) || 0, current_value: Number(f.current_value) || 0, purchase_date: f.purchase_date }; (function () { if (mo.m === 'add') { pay.user_id = UID; return sb.from('investments').insert(pay) } else { delete pay.user_id; return sb.from('investments').update(pay).eq('id', mo.d.id) } })().then(function (r) { if (r.error) { t(r.error.message, 'err'); return } t('OK'); sM(null); rI() }) }
         function del(i) { cf('Hapus?').then(function (ok) { if (!ok) return; sb.from('investments').delete().eq('id', i.id).then(function (r) { if (r.error) { t(r.error.message, 'err'); return } t('Dihapus'); rI() }) }) }
         var tI = I.reduce(function (s, i) { return s + (Number(i.amount) || 0) }, 0), tC = I.reduce(function (s, i) { return s + (Number(i.current_value) || Number(i.amount) || 0) }, 0), gl = tC - tI;
