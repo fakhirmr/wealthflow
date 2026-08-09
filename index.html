@@ -1537,11 +1537,15 @@
             return { d: [], e: e.message };
           })
       }
-      function fmtNum(v) { if (!v && v !== 0) return ''; var s = String(v).replace(/[^0-9]/g, ''); if (!s) return ''; return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',') }
-      function parseNum(v) { return Number(String(v).replace(/,/g, '')) || 0 }
+      // Pemisah ribuan pakai TITIK, mengikuti konvensi Indonesia & tampilan uang lain (Rp 200.000)
+      function fmtNum(v) { if (!v && v !== 0) return ''; var s = String(v).replace(/[^0-9]/g, ''); if (!s) return ''; return s.replace(/\B(?=(\d{3})+(?!\d))/g, '.') }
+      function parseNum(v) { return Number(String(v).replace(/[.,]/g, '')) || 0 }
       function calcExpr(s) {
         if (!s || !/[+\-*/]/.test(s)) return null;
-        try { var r = Function('"use strict";return(' + s.replace(/[^0-9+\-*/.()]/g, '') + ')')(); return (typeof r === 'number' && isFinite(r) && r >= 0) ? Math.round(r) : null } catch (e) { return null }
+        // Titik/koma di sini SELALU pemisah ribuan — Rupiah praktis tak memakai desimal.
+        // Kalau dibiarkan, "200.000/2" dihitung sebagai 200/2 = 100, bukan 100.000.
+        var clean = String(s).replace(/[.,]/g, '').replace(/[^0-9+\-*/()]/g, '');
+        try { var r = Function('"use strict";return(' + clean + ')')(); return (typeof r === 'number' && isFinite(r) && r >= 0) ? Math.round(r) : null } catch (e) { return null }
       }
       function NumInput(p) {
         var _ex = useState(null), ex = _ex[0], sEx = _ex[1];
@@ -1558,7 +1562,9 @@
         if (ps.fontSize !== undefined) iS.fontSize = ps.fontSize;
         if (ps.padding !== undefined) iS.padding = ps.padding;
         function chg(e) {
-          var v = e.target.value.replace(/,/g, '');
+          // Buang pemisah ribuan (titik & koma) sebelum diperiksa, supaya "200.000/2"
+          // tersimpan sebagai "200000/2" dan dihitung benar.
+          var v = e.target.value.replace(/[.,]/g, '');
           if (/[+*\/]/.test(v) || v.indexOf('-') > 0) { sEx(v) }
           else { sEx(null); if (p.onChange) p.onChange(v.replace(/[^0-9]/g, '')) }
         }
