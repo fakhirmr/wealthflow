@@ -3761,11 +3761,14 @@
         function nextMo() { if (vMn === 11) { sVMn(0); sVYr(vYr + 1) } else sVMn(vMn + 1) }
         var list = useMemo(function () {
           var l = T.slice();
-          l = l.filter(function (t) { return t.type !== 'transfer_in' });
+          // Sisi PENERIMA transfer ikut ditampilkan. Kalau disembunyikan, dompet tujuan
+          // terlihat "tidak bertambah" padahal saldonya naik, dan saldo berjalan jadi melompat.
           // Filter by selected month
           if (!q.trim()) { l = l.filter(function (t) { if (!t.date) return false; var d = new Date(t.date); return d.getMonth() === vMn && d.getFullYear() === vYr }) }
           if (fTy !== 'all') l = l.filter(function (t) { return t.type === fTy });
-          if (fWl !== 'all') l = l.filter(function (t) { return t.wallet_id === fWl || t.type === 'transfer_out' && T.some(function (tx) { return tx.type === 'transfer_in' && tx.description === t.description && tx.wallet_id === fWl }) });
+          // Cukup cocokkan dompetnya: sisi masuk & keluar transfer kini sama-sama tampil,
+          // jadi tak perlu lagi menebak pasangan lewat deskripsi.
+          if (fWl !== 'all') l = l.filter(function (t) { return t.wallet_id === fWl });
           if (q.trim()) { var s = q.toLowerCase(); l = l.filter(function (t) { return (t.description || '').toLowerCase().indexOf(s) >= 0 || cn(C, t.category_id).toLowerCase().indexOf(s) >= 0 }) }
           return l
         }, [T, fTy, fWl, q, C, vMn, vYr]);
@@ -4063,19 +4066,29 @@
                       dInc > 0 ? h('span', { style: { color: 'var(--acc)', fontWeight: 600 } }, '+', fmt(dInc)) : null,
                       dExp > 0 ? h('span', { style: { color: 'var(--red)', fontWeight: 600 } }, '-', fmt(dExp)) : null)),
                   grp.txns.map(function (tx) {
-                    var isInc = tx.type === 'income'; var isTr = tx.type === 'transfer_in' || tx.type === 'transfer_out';
-                    var col = isInc ? 'var(--acc)' : isTr ? 'var(--blu)' : 'var(--red)'; var sign = isInc ? '+' : isTr ? '' : '-';
-                    var trDest = ''; if (tx.type === 'transfer_out') { var pr = T.find(function (tt) { return tt.type === 'transfer_in' && tt.description === tx.description && tt.amount === tx.amount }); if (pr) trDest = wn(W, pr.wallet_id) }
+                    var isTrIn = tx.type === 'transfer_in', isTrOut = tx.type === 'transfer_out';
+                    var isInc = tx.type === 'income'; var isTr = isTrIn || isTrOut;
+                    // Transfer masuk menambah saldo, transfer keluar mengurangi — tandanya harus ikut
+                    var masuk = isInc || isTrIn;
+                    var col = isTr ? 'var(--blu)' : (isInc ? 'var(--acc)' : 'var(--red)');
+                    var sign = masuk ? '+' : '-';
+                    // Pasangan transfer: cari sisi lawannya untuk menampilkan arah
+                    var trDest = '';
+                    if (isTr) {
+                      var pairType = isTrOut ? 'transfer_in' : 'transfer_out';
+                      var pr = T.find(function (tt) { return tt.type === pairType && tt.description === tx.description && Number(tt.amount) === Number(tx.amount) && tt.date === tx.date && tt.wallet_id !== tx.wallet_id });
+                      if (pr) trDest = wn(W, pr.wallet_id);
+                    }
                     var subCatName = tx.sub_category_id ? cn(C, tx.sub_category_id) : ''; var catName = tx.category_id ? cn(C, tx.category_id) : ''; var walletName = tx.wallet_id ? wn(W, tx.wallet_id) : '';
                     return h('div', { key: tx.id, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid var(--brd)' } },
-                      h('div', { style: { width: 36, height: 36, borderRadius: 9, background: isInc ? 'var(--accbg)' : isTr ? 'var(--blubg)' : 'var(--redbg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14, fontWeight: 600, color: col } }, isInc ? '↗' : isTr ? '↔' : '↘'),
+                      h('div', { style: { width: 36, height: 36, borderRadius: 9, background: isInc ? 'var(--accbg)' : isTr ? 'var(--blubg)' : 'var(--redbg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14, fontWeight: 600, color: col } }, isTrIn ? '↙' : isTrOut ? '↗' : isInc ? '↗' : '↘'),
                       h('div', { style: { flex: 1, minWidth: 0 } },
                         h('div', { style: { fontSize: '.88rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 } },
-                          tx.description || (isTr ? 'Transfer' : catName) || '-',
+                          isTr ? ((isTrIn ? 'Transfer masuk' : 'Transfer keluar') + (trDest ? (isTrIn ? ' dari ' + trDest : ' ke ' + trDest) : '')) : (tx.description || catName || '-'),
                           tx.installment_count ? h('span', { style: { fontSize: '.68rem', background: 'var(--blubg)', color: 'var(--blu)', padding: '1px 5px', borderRadius: 4, marginLeft: 5 } }, tx.installment_count + 'x') : null),
                         h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 4 } },
                           walletName ? h('span', { style: { fontSize: '.7rem', background: 'var(--bgi)', color: 'var(--t2)', padding: '1px 6px', borderRadius: 4 } }, '💳 ', walletName) : null,
-                          isTr && trDest ? h('span', { style: { fontSize: '.7rem', background: 'var(--blubg)', color: 'var(--blu)', padding: '1px 6px', borderRadius: 4 } }, '→ ', trDest) : null,
+                          isTr && trDest ? h('span', { style: { fontSize: '.7rem', background: 'var(--blubg)', color: 'var(--blu)', padding: '1px 6px', borderRadius: 4 } }, isTrIn ? '← ' : '→ ', trDest) : null,
                           !isTr && catName ? h('span', { style: { fontSize: '.7rem', background: 'var(--bgi)', color: 'var(--t2)', padding: '1px 6px', borderRadius: 4 } }, '🏷 ', catName) : null,
                           !isTr && subCatName ? h('span', { style: { fontSize: '.7rem', background: 'var(--accbg)', color: 'var(--acc)', padding: '1px 6px', borderRadius: 4 } }, '↳ ', subCatName) : null)),
                       h('div', { style: { textAlign: 'right', flexShrink: 0, marginRight: 4 } },
