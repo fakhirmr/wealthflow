@@ -1561,6 +1561,16 @@
       }
       // Nilai DB -> teks form: selalu bulat, supaya desimal tak menular ke penyimpanan berikutnya
       function numStr(v) { return String(Math.round(Number(v) || 0)) }
+      // Nominal ringkas untuk ruang sempit (mis. tengah donat): 6.200.000 -> "6,2jt"
+      function fmtShort(n) {
+        n = Number(n) || 0;
+        var a = Math.abs(n), sign = n < 0 ? '-' : '';
+        function cut(x) { return (Math.round(x * 10) / 10).toString().replace('.', ',') }
+        if (a >= 1e9) return sign + cut(a / 1e9) + 'M';
+        if (a >= 1e6) return sign + cut(a / 1e6) + 'jt';
+        if (a >= 1e3) return sign + Math.round(a / 1e3) + 'rb';
+        return sign + String(Math.round(a));
+      }
       function parseNum(v) { return Number(String(v).replace(/[.,]/g, '')) || 0 }
       function calcExpr(s) {
         if (!s || !/[+\-*/]/.test(s)) return null;
@@ -3952,6 +3962,27 @@
         }, [W, T]);
         var moInc = list.filter(function (t) { return t.type === 'income' }).reduce(function (s, t) { return s + (Number(t.amount) || 0) }, 0);
         var moExp = list.filter(function (t) { return t.type === 'expense' }).reduce(function (s, t) { return s + (Number(t.amount) || 0) }, 0);
+        // Komposisi pengeluaran per kategori. Dibatasi 5 teratas + "Lainnya" (maks 6 irisan):
+        // di atas itu irisan yang berdekatan jadi sulit dibedakan.
+        var spendMix = useMemo(function () {
+          var by = {};
+          list.forEach(function (t) {
+            if (t.type !== 'expense') return;
+            var k = t.category_id || '_none';
+            by[k] = (by[k] || 0) + (Number(t.amount) || 0);
+          });
+          var arr = Object.keys(by).map(function (k) {
+            var c = k === '_none' ? null : fid(C, k);
+            return { id: k, name: c ? c.name : 'Tanpa kategori', color: (c && c.color) || 'var(--t3)', value: by[k] };
+          }).sort(function (a, b) { return b.value - a.value });
+          if (arr.length > 6) {
+            var head = arr.slice(0, 5);
+            var rest = arr.slice(5).reduce(function (s, x) { return s + x.value }, 0);
+            head.push({ id: '_other', name: 'Lainnya', color: 'var(--t3)', value: rest });
+            arr = head;
+          }
+          return arr;
+        }, [list, C]);
         function oAList() { sTxPg('list'); setTimeout(oA, 50) }
         if (txPg === 'stats') return h(F, null,
           h('div', { className: 'pg-hd' }, h('div', null, h('h2', null, 'Transaksi')), h('button', { className: 'btn bp', onClick: oAList }, h(Ic, { n: 'plus' }), ' Tambah')),
@@ -3976,16 +4007,44 @@
                   h('div', { style: { fontSize: '.65rem', color: 'var(--t3)', marginBottom: 2 } }, list.length + ' transaksi bulan ini'),
                   h('div', { style: { fontSize: '.78rem', fontWeight: 600, color: (moInc - moExp) >= 0 ? 'var(--acc)' : 'var(--red)' } }, ((moInc - moExp) >= 0 ? '+' : '') + fmt(moInc - moExp)))) : null
             }() :
-              h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 } },
-                h('div', { style: { background: 'var(--accbg)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' } },
-                  h('div', { style: { fontSize: '.65rem', color: 'var(--t3)', marginBottom: 2 } }, 'Pemasukan'),
-                  h('div', { style: { fontWeight: 700, color: 'var(--acc)', fontSize: '.82rem' } }, fmt(moInc))),
-                h('div', { style: { background: 'var(--redbg)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' } },
-                  h('div', { style: { fontSize: '.65rem', color: 'var(--t3)', marginBottom: 2 } }, 'Pengeluaran'),
-                  h('div', { style: { fontWeight: 700, color: 'var(--red)', fontSize: '.82rem' } }, fmt(moExp))),
-                h('div', { style: { background: (moInc - moExp) >= 0 ? 'var(--accbg)' : 'var(--redbg)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' } },
-                  h('div', { style: { fontSize: '.65rem', color: 'var(--t3)', marginBottom: 2 } }, 'Selisih'),
-                  h('div', { style: { fontWeight: 700, color: (moInc - moExp) >= 0 ? 'var(--acc)' : 'var(--red)', fontSize: '.82rem' } }, fmt(moInc - moExp))))),
+              h('div', { style: { background: 'var(--bgc)', border: '1px solid var(--brd)', borderRadius: 12, padding: '14px 16px' } },
+                moExp <= 0
+                  ? h('div', { style: { fontSize: '.82rem', color: 'var(--t3)', textAlign: 'center', padding: '6px 0' } }, 'Belum ada pengeluaran bulan ini')
+                  : h('div', { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
+                    // Donat: proporsi sekilas. Nilai persisnya dibaca dari legenda, bukan dari sudut irisan.
+                    (function () {
+                      var R = 42, SW = 15, CIRC = 2 * Math.PI * R, acc = 0;
+                      return h('div', { style: { position: 'relative', width: 120, height: 120, flexShrink: 0 } },
+                        h('svg', { width: 120, height: 120, viewBox: '0 0 120 120', style: { transform: 'rotate(-90deg)' }, role: 'img', 'aria-label': 'Komposisi pengeluaran per kategori' },
+                          h('circle', { cx: 60, cy: 60, r: R, fill: 'none', stroke: 'var(--bgi)', strokeWidth: SW }),
+                          spendMix.map(function (s) {
+                            var len = (s.value / moExp) * CIRC;
+                            var dash = Math.max(len - 2, 0.6); // celah 2px antar irisan
+                            var el = h('circle', {
+                              key: s.id, cx: 60, cy: 60, r: R, fill: 'none', stroke: s.color, strokeWidth: SW,
+                              strokeDasharray: dash + ' ' + (CIRC - dash), strokeDashoffset: -acc, strokeLinecap: 'butt'
+                            }, h('title', null, s.name + ' — ' + fmt(s.value)));
+                            acc += len; return el;
+                          })),
+                        h('div', { style: { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' } },
+                          h('div', { style: { fontSize: '.6rem', color: 'var(--t3)', letterSpacing: '.04em' } }, 'KELUAR'),
+                          h('div', { style: { fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.1, whiteSpace: 'nowrap' }, title: fmt(moExp) }, fmtShort(moExp))));
+                    })(),
+                    // Legenda berlabel: nama + persen + nominal, supaya identitas tak bergantung warna saja
+                    h('div', { style: { flex: 1, minWidth: 170, display: 'flex', flexDirection: 'column', gap: 5 } },
+                      spendMix.map(function (s) {
+                        var pct = Math.round((s.value / moExp) * 100);
+                        return h('div', { key: s.id, style: { display: 'flex', alignItems: 'center', gap: 8, fontSize: '.76rem' } },
+                          h('span', { style: { width: 9, height: 9, borderRadius: 3, background: s.color, flexShrink: 0 } }),
+                          h('span', { style: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--t2)' } }, s.name),
+                          h('span', { style: { fontWeight: 700, color: 'var(--t1)', fontVariantNumeric: 'tabular-nums' } }, pct + '%'),
+                          h('span', { style: { color: 'var(--t3)', fontSize: '.7rem', minWidth: 62, textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }, fmt(s.value)));
+                      }))),
+                // Ringkasan arus kas tetap dipertahankan
+                h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--brd)', fontSize: '.72rem', flexWrap: 'wrap' } },
+                  h('span', { style: { color: 'var(--t3)' } }, 'Masuk ', h('b', { style: { color: 'var(--acc)' } }, fmt(moInc))),
+                  h('span', { style: { color: 'var(--t3)' } }, 'Keluar ', h('b', { style: { color: 'var(--red)' } }, fmt(moExp))),
+                  h('span', { style: { color: 'var(--t3)' } }, 'Sisa ', h('b', { style: { color: (moInc - moExp) >= 0 ? 'var(--acc)' : 'var(--red)' } }, fmt(moInc - moExp)))))),
           h('div', { className: 'fbar' },
             h('input', { className: 'fi', placeholder: 'Cari semua...', value: q, onChange: function (e) { sQ(e.target.value) }, style: { maxWidth: 180 } }),
             h('select', { className: 'fi', value: fTy, onChange: function (e) { sFT(e.target.value) }, style: { maxWidth: 130 } }, h('option', { value: 'all' }, 'Semua'), h('option', { value: 'income' }, 'Masuk'), h('option', { value: 'expense' }, 'Keluar'), h('option', { value: 'transfer_out' }, 'Transfer')),
