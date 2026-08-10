@@ -1646,6 +1646,64 @@
       }
       function Ic(p) { return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', dangerouslySetInnerHTML: { __html: ({ dashboard: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>', wallet: '<rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="16" cy="14" r="1"/>', txn: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>', cat: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/>', budget: '<path d="M21 12a9 9 0 11-6.22-8.56M21 3v6h-6"/>', invest: '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>', plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>', edit: '<path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4z"/>', trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>', x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', menu: '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>', transfer: '<path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/>', sun: '<circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>', moon: '<path d="M21 12.79A9 9 0 1111.21 3a7 7 0 009.79 9.79z"/>', ai: '<path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M12 16v-4M12 8h.01"/>', target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>', bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>', camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>', doc: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/>', mic: '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>' })[p.n] || '' } }) }
 
+      /* PEMILIH KATEGORI — grid kotak berikon, bukan daftar baris.
+         Ikon jadi penanda utama sehingga kategori lebih cepat dikenali daripada teks sebaris. */
+      function CatPicker(p) {
+        var C = p.C || [], type = p.type;
+        var _o = useState(false), open = _o[0], sOpen = _o[1];
+        var _st = useState('cat'), stage = _st[0], sStage = _st[1];
+        var _pc = useState(null), pendCat = _pc[0], sPendCat = _pc[1];
+        var parents = C.filter(function (c) { return !c.parent_id && c.type === type });
+        var cur = p.value ? C.find(function (c) { return c.id === p.value }) : null;
+        var curSub = p.subValue ? C.find(function (c) { return c.id === p.subValue }) : null;
+        function subsOf(id) { return C.filter(function (c) { return c.parent_id === id }) }
+        function openPicker() { sStage('cat'); sPendCat(null); sOpen(true) }
+        function pickCat(c) {
+          var subs = subsOf(c.id);
+          if (subs.length) { sPendCat(c); sStage('sub'); return } // lanjut pilih sub
+          p.onChange(c.id, ''); sOpen(false);
+        }
+        function pickSub(sid) { p.onChange(pendCat.id, sid); sOpen(false) }
+        function box(icon, name, active, onClick, key) {
+          return h('button', {
+            key: key, type: 'button', onClick: onClick,
+            style: {
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+              padding: '13px 6px', borderRadius: 12, cursor: 'pointer', minHeight: 84,
+              background: active ? 'var(--accbg)' : 'var(--bgc)',
+              border: '1.5px solid ' + (active ? 'var(--acc)' : 'var(--brd)')
+            }
+          },
+            h('span', { style: { fontSize: 24, lineHeight: 1 } }, icon),
+            h('span', { style: { fontSize: '.72rem', fontWeight: 600, lineHeight: 1.25, textAlign: 'center', wordBreak: 'break-word', color: active ? 'var(--acc)' : 'var(--t2)' } }, name));
+        }
+        var gridStyle = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: 8 };
+        return h(F, null,
+          h('button', {
+            type: 'button', onClick: openPicker,
+            style: { width: '100%', padding: '9px 12px', background: 'var(--bgi)', border: '1px solid var(--brd)', borderRadius: 8, color: 'var(--t1)', fontSize: 16, display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left', cursor: 'pointer' }
+          },
+            cur
+              ? h(F, null,
+                h('span', { style: { fontSize: 17, lineHeight: 1 } }, cur.icon || '📋'),
+                h('span', { style: { flex: 1, minWidth: 0, fontWeight: 600, fontSize: '.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+                  cur.name, curSub ? h('span', { style: { color: 'var(--t3)', fontWeight: 400 } }, ' › ' + curSub.name) : null))
+              : h('span', { style: { flex: 1, color: 'var(--t3)', fontSize: '.9rem' } }, 'Pilih kategori'),
+            h('span', { style: { color: 'var(--t3)', fontSize: '.65rem', flexShrink: 0 } }, '▼')),
+          h(Mod, { open: open, onClose: function () { sOpen(false) }, title: stage === 'sub' ? ('Sub-kategori · ' + (pendCat ? pendCat.name : '')) : 'Pilih Kategori' },
+            stage === 'cat'
+              ? (parents.length === 0
+                ? h('div', { style: { textAlign: 'center', color: 'var(--t3)', padding: '24px 0', fontSize: '.85rem' } }, 'Belum ada kategori ' + (type === 'income' ? 'pemasukan' : 'pengeluaran'))
+                : h(F, null,
+                  h('div', gridStyle, parents.map(function (c) { return box(c.icon || '📋', c.name, p.value === c.id, function () { pickCat(c) }, c.id) })),
+                  p.value ? h('button', { className: 'btn bs', style: { width: '100%', justifyContent: 'center', marginTop: 12, color: 'var(--red)' }, onClick: function () { p.onChange('', ''); sOpen(false) } }, 'Hapus pilihan') : null))
+              : h(F, null,
+                h('div', gridStyle, subsOf(pendCat.id).map(function (s) { return box(s.icon || '📋', s.name, p.subValue === s.id, function () { pickSub(s.id) }, s.id) })),
+                h('div', { style: { display: 'flex', gap: 8, marginTop: 12 } },
+                  h('button', { className: 'btn bs', style: { flex: 1, justifyContent: 'center' }, onClick: function () { sStage('cat') } }, '← Kembali'),
+                  h('button', { className: 'btn bp', style: { flex: 1, justifyContent: 'center' }, onClick: function () { pickSub('') } }, 'Tanpa sub')))));
+      }
+
       /* TOAST */
       var TCtx = createContext(function () { });
       function TP(p) { var s = useState([]), ts = s[0], sTs = s[1]; var add = useCallback(function (m, t) { var id = Date.now(); sTs(function (v) { return v.concat({ id: id, m: m, t: t || 'ok' }) }); setTimeout(function () { sTs(function (v) { return v.filter(function (x) { return x.id !== id }) }) }, 3e3) }, []); return h(TCtx.Provider, { value: add }, p.children, h('div', { className: 'tc' }, ts.map(function (t) { return h('div', { key: t.id, className: 'toast ' + (t.t === 'ok' ? 'tok' : 'terr') }, t.t === 'ok' ? '✓' : '✗', ' ', t.m) }))) }
@@ -2601,8 +2659,11 @@
             h('div', { className: 'fg' }, h('label', null, 'Dari Dompet'), h('select', { className: 'fi', value: f.wallet_id, onChange: function (e) { ufx('wallet_id', e.target.value) } }, h('option', { value: '' }, '-- Pilih --'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name + ' (' + fmt(Number(w.balance) || 0) + ')') }))),
             h('div', { className: 'fg' }, h('label', null, 'Ke Dompet'), h('select', { className: 'fi', value: f.wallet_id_to, onChange: function (e) { ufx('wallet_id_to', e.target.value) } }, h('option', { value: '' }, '-- Pilih --'), W.filter(function (w) { return w.id !== f.wallet_id }).map(function (w) { return h('option', { key: w.id, value: w.id }, w.name + ' (' + fmt(Number(w.balance) || 0) + ')') })))) :
             h('div', { className: 'fg' }, h('label', null, 'Dompet'), h('select', { className: 'fi', value: f.wallet_id, onChange: function (e) { ufx('wallet_id', e.target.value) } }, h('option', { value: '' }, '-- Pilih --'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name + ' (' + fmt(Number(w.balance) || 0) + ')') }))),
-          (f.type !== 'transfer' && !splits) ? h('div', { className: 'fg' }, h('label', null, 'Kategori'), h('select', { className: 'fi', value: f.category_id, onChange: function (e) { ufx('category_id', e.target.value) } }, h('option', { value: '' }, 'Pilih'), relC.map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))) : null,
-          (f.type !== 'transfer' && !splits && f.category_id) ? h('div', { className: 'fg' }, h('label', null, 'Sub-Kategori'), h('select', { className: 'fi', value: f.sub_category_id, onChange: function (e) { ufx('sub_category_id', e.target.value) } }, h('option', { value: '' }, 'Tanpa'), C.filter(function (c) { return c.parent_id === f.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))) : null,
+          (f.type !== 'transfer' && !splits) ? h('div', { className: 'fg' }, h('label', null, 'Kategori'),
+            h(CatPicker, {
+              C: C, type: f.type, value: f.category_id, subValue: f.sub_category_id,
+              onChange: function (cid, sid) { var n = {}; for (var x in f) n[x] = f[x]; n.category_id = cid; n.sub_category_id = sid; sF(n); try { sessionStorage.setItem(DRAFT, JSON.stringify(n)) } catch (e) { } }
+            })) : null,
           // Split kategori
           f.type !== 'transfer' ? (splits
             ? h('div', { style: { border: '1px solid var(--acc)', background: 'var(--accbg)', borderRadius: 10, padding: '12px', marginBottom: 12 } },
@@ -3967,25 +4028,6 @@
         var moExp = list.filter(function (t) { return t.type === 'expense' }).reduce(function (s, t) { return s + (Number(t.amount) || 0) }, 0);
         // Komposisi pengeluaran per kategori. Dibatasi 5 teratas + "Lainnya" (maks 6 irisan):
         // di atas itu irisan yang berdekatan jadi sulit dibedakan.
-        var spendMix = useMemo(function () {
-          var by = {};
-          list.forEach(function (t) {
-            if (t.type !== 'expense') return;
-            var k = t.category_id || '_none';
-            by[k] = (by[k] || 0) + (Number(t.amount) || 0);
-          });
-          var arr = Object.keys(by).map(function (k) {
-            var c = k === '_none' ? null : fid(C, k);
-            return { id: k, name: c ? c.name : 'Tanpa kategori', color: (c && c.color) || 'var(--t3)', value: by[k] };
-          }).sort(function (a, b) { return b.value - a.value });
-          if (arr.length > 6) {
-            var head = arr.slice(0, 5);
-            var rest = arr.slice(5).reduce(function (s, x) { return s + x.value }, 0);
-            head.push({ id: '_other', name: 'Lainnya', color: 'var(--t3)', value: rest });
-            arr = head;
-          }
-          return arr;
-        }, [list, C]);
         function oAList() { sTxPg('list'); setTimeout(oA, 50) }
         if (txPg === 'stats') return h(F, null,
           h('div', { className: 'pg-hd' }, h('div', null, h('h2', null, 'Transaksi')), h('button', { className: 'btn bp', onClick: oAList }, h(Ic, { n: 'plus' }), ' Tambah')),
@@ -4010,44 +4052,16 @@
                   h('div', { style: { fontSize: '.65rem', color: 'var(--t3)', marginBottom: 2 } }, list.length + ' transaksi bulan ini'),
                   h('div', { style: { fontSize: '.78rem', fontWeight: 600, color: (moInc - moExp) >= 0 ? 'var(--acc)' : 'var(--red)' } }, ((moInc - moExp) >= 0 ? '+' : '') + fmt(moInc - moExp)))) : null
             }() :
-              h('div', { style: { background: 'var(--bgc)', border: '1px solid var(--brd)', borderRadius: 12, padding: '14px 16px' } },
-                moExp <= 0
-                  ? h('div', { style: { fontSize: '.82rem', color: 'var(--t3)', textAlign: 'center', padding: '6px 0' } }, 'Belum ada pengeluaran bulan ini')
-                  : h('div', { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
-                    // Donat: proporsi sekilas. Nilai persisnya dibaca dari legenda, bukan dari sudut irisan.
-                    (function () {
-                      var R = 42, SW = 15, CIRC = 2 * Math.PI * R, acc = 0;
-                      return h('div', { style: { position: 'relative', width: 120, height: 120, flexShrink: 0 } },
-                        h('svg', { width: 120, height: 120, viewBox: '0 0 120 120', style: { transform: 'rotate(-90deg)' }, role: 'img', 'aria-label': 'Komposisi pengeluaran per kategori' },
-                          h('circle', { cx: 60, cy: 60, r: R, fill: 'none', stroke: 'var(--bgi)', strokeWidth: SW }),
-                          spendMix.map(function (s) {
-                            var len = (s.value / moExp) * CIRC;
-                            var dash = Math.max(len - 2, 0.6); // celah 2px antar irisan
-                            var el = h('circle', {
-                              key: s.id, cx: 60, cy: 60, r: R, fill: 'none', stroke: s.color, strokeWidth: SW,
-                              strokeDasharray: dash + ' ' + (CIRC - dash), strokeDashoffset: -acc, strokeLinecap: 'butt'
-                            }, h('title', null, s.name + ' — ' + fmt(s.value)));
-                            acc += len; return el;
-                          })),
-                        h('div', { style: { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' } },
-                          h('div', { style: { fontSize: '.6rem', color: 'var(--t3)', letterSpacing: '.04em' } }, 'KELUAR'),
-                          h('div', { style: { fontWeight: 800, fontSize: '1.05rem', lineHeight: 1.1, whiteSpace: 'nowrap' }, title: fmt(moExp) }, fmtShort(moExp))));
-                    })(),
-                    // Legenda berlabel: nama + persen + nominal, supaya identitas tak bergantung warna saja
-                    h('div', { style: { flex: 1, minWidth: 170, display: 'flex', flexDirection: 'column', gap: 5 } },
-                      spendMix.map(function (s) {
-                        var pct = Math.round((s.value / moExp) * 100);
-                        return h('div', { key: s.id, style: { display: 'flex', alignItems: 'center', gap: 8, fontSize: '.76rem' } },
-                          h('span', { style: { width: 9, height: 9, borderRadius: 3, background: s.color, flexShrink: 0 } }),
-                          h('span', { style: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--t2)' } }, s.name),
-                          h('span', { style: { fontWeight: 700, color: 'var(--t1)', fontVariantNumeric: 'tabular-nums' } }, pct + '%'),
-                          h('span', { style: { color: 'var(--t3)', fontSize: '.7rem', minWidth: 62, textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }, fmt(s.value)));
-                      }))),
-                // Ringkasan arus kas tetap dipertahankan
-                h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--brd)', fontSize: '.72rem', flexWrap: 'wrap' } },
-                  h('span', { style: { color: 'var(--t3)' } }, 'Masuk ', h('b', { style: { color: 'var(--acc)' } }, fmt(moInc))),
-                  h('span', { style: { color: 'var(--t3)' } }, 'Keluar ', h('b', { style: { color: 'var(--red)' } }, fmt(moExp))),
-                  h('span', { style: { color: 'var(--t3)' } }, 'Sisa ', h('b', { style: { color: (moInc - moExp) >= 0 ? 'var(--acc)' : 'var(--red)' } }, fmt(moInc - moExp)))))),
+              h('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 } },
+                h('div', { style: { background: 'var(--accbg)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' } },
+                  h('div', { style: { fontSize: '.65rem', color: 'var(--t3)', marginBottom: 2 } }, 'Pemasukan'),
+                  h('div', { style: { fontWeight: 700, color: 'var(--acc)', fontSize: '.82rem' } }, fmt(moInc))),
+                h('div', { style: { background: 'var(--redbg)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' } },
+                  h('div', { style: { fontSize: '.65rem', color: 'var(--t3)', marginBottom: 2 } }, 'Pengeluaran'),
+                  h('div', { style: { fontWeight: 700, color: 'var(--red)', fontSize: '.82rem' } }, fmt(moExp))),
+                h('div', { style: { background: (moInc - moExp) >= 0 ? 'var(--accbg)' : 'var(--redbg)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' } },
+                  h('div', { style: { fontSize: '.65rem', color: 'var(--t3)', marginBottom: 2 } }, 'Selisih'),
+                  h('div', { style: { fontWeight: 700, color: (moInc - moExp) >= 0 ? 'var(--acc)' : 'var(--red)', fontSize: '.82rem' } }, fmt(moInc - moExp))))),
           h('div', { className: 'fbar' },
             h('input', { className: 'fi', placeholder: 'Cari semua...', value: q, onChange: function (e) { sQ(e.target.value) }, style: { maxWidth: 180 } }),
             h('select', { className: 'fi', value: fTy, onChange: function (e) { sFT(e.target.value) }, style: { maxWidth: 130 } }, h('option', { value: 'all' }, 'Semua'), h('option', { value: 'income' }, 'Masuk'), h('option', { value: 'expense' }, 'Keluar'), h('option', { value: 'transfer_out' }, 'Transfer')),
@@ -4112,8 +4126,11 @@
               h('div', { className: 'fg' }, h('label', null, 'Ke Dompet'), h('select', { className: 'fi', value: f.wallet_id_to, onChange: function (e) { var n = {}; for (var x in f) n[x] = f[x]; n.wallet_id_to = e.target.value; sF(n) } }, h('option', { value: '' }, '-- Pilih --'), W.filter(function (w) { return w.id !== f.wallet_id }).map(function (w) { return h('option', { key: w.id, value: w.id }, w.name + ' (' + fmt(Number(w.balance) || 0) + ')') })))) :
               h(F, null,
                 h('div', { className: 'fg' }, h('label', null, 'Dompet'), h('select', { className: 'fi', value: f.wallet_id, onChange: function (e) { var n = {}; for (var x in f) n[x] = f[x]; n.wallet_id = e.target.value; sF(n) } }, h('option', { value: '' }, '-- Pilih --'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name + ' (' + fmt(Number(w.balance) || 0) + ')') }))),
-                splits ? null : h('div', { className: 'fg' }, h('label', null, 'Kategori'), h('select', { className: 'fi', value: f.category_id, onChange: function (e) { var n = {}; for (var x in f) n[x] = f[x]; n.category_id = e.target.value; n.sub_category_id = ''; sF(n) } }, h('option', { value: '' }, '-- Pilih --'), relC.map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))),
-                (!splits && f.category_id) ? h('div', { className: 'fg' }, h('label', null, 'Sub-Kategori'), h('select', { className: 'fi', value: f.sub_category_id, onChange: function (e) { var n = {}; for (var x in f) n[x] = f[x]; n.sub_category_id = e.target.value; sF(n) } }, h('option', { value: '' }, '-- Tidak ada --'), C.filter(function (c) { return c.parent_id === f.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))) : null,
+                splits ? null : h('div', { className: 'fg' }, h('label', null, 'Kategori'),
+                  h(CatPicker, {
+                    C: C, type: f.type, value: f.category_id, subValue: f.sub_category_id,
+                    onChange: function (cid, sid) { var n = {}; for (var x in f) n[x] = f[x]; n.category_id = cid; n.sub_category_id = sid; sF(n) }
+                  })),
                 // Split kategori (hanya saat tambah baru)
                 (mo && mo.m === 'add') ? (splits
                   ? h('div', { style: { border: '1px solid var(--acc)', background: 'var(--accbg)', borderRadius: 10, padding: '12px', marginBottom: 12 } },
@@ -4619,6 +4636,45 @@
             h('div', { className: 'cd st', style: { cursor: 'pointer', border: tab === 'income' ? '2px solid var(--acc)' : '' }, onClick: function () { sTb('income'); sEx(null); sSd(null) } }, h('div', { className: 'lb' }, 'Pemasukan'), h('div', { className: 'vl', style: { color: 'var(--acc)' } }, fmt(tInc))),
             h('div', { className: 'cd st', style: { cursor: 'pointer', border: tab === 'expense' ? '2px solid var(--red)' : '' }, onClick: function () { sTb('expense'); sEx(null); sSd(null) } }, h('div', { className: 'lb' }, 'Pengeluaran'), h('div', { className: 'vl', style: { color: 'var(--red)' } }, fmt(tExp))),
             h('div', { className: 'cd st' }, h('div', { className: 'lb' }, 'Selisih'), h('div', { className: 'vl', style: { color: tInc - tExp >= 0 ? 'var(--acc)' : 'var(--red)' } }, fmt(tInc - tExp)))),
+          // Komposisi per kategori — mengikuti tab Pemasukan/Pengeluaran yang dipilih di atas
+          actTot > 0 ? h('div', { className: 'cd' },
+            h('h3', { style: { fontSize: '.9rem', fontWeight: 700, marginBottom: 14 } }, 'Komposisi ', tab === 'expense' ? 'Pengeluaran' : 'Pemasukan'),
+            (function () {
+              // Maksimal 6 irisan (5 terbesar + gabungan sisanya) agar tetap terbaca
+              var mix = cs.map(function (c) { return { id: c.id, name: c.name, color: c.color, value: c.total } });
+              if (mix.length > 6) {
+                var head = mix.slice(0, 5);
+                head.push({ id: '_other', name: 'Lainnya', color: 'var(--t3)', value: mix.slice(5).reduce(function (s, x) { return s + x.value }, 0) });
+                mix = head;
+              }
+              var R = 42, SW = 15, CIRC = 2 * Math.PI * R, acc = 0;
+              return h('div', { style: { display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' } },
+                // Donat memberi proporsi sekilas; nilai persisnya dibaca dari legenda di sebelahnya
+                h('div', { style: { position: 'relative', width: 120, height: 120, flexShrink: 0 } },
+                  h('svg', { width: 120, height: 120, viewBox: '0 0 120 120', style: { transform: 'rotate(-90deg)' }, role: 'img', 'aria-label': 'Komposisi per kategori' },
+                    h('circle', { cx: 60, cy: 60, r: R, fill: 'none', stroke: 'var(--bgi)', strokeWidth: SW }),
+                    mix.map(function (s) {
+                      var len = (s.value / actTot) * CIRC;
+                      var dash = Math.max(len - 2, 0.6); // celah tipis antar irisan
+                      var el = h('circle', {
+                        key: s.id, cx: 60, cy: 60, r: R, fill: 'none', stroke: s.color, strokeWidth: SW,
+                        strokeDasharray: dash + ' ' + (CIRC - dash), strokeDashoffset: -acc, strokeLinecap: 'butt'
+                      }, h('title', null, s.name + ' — ' + fmt(s.value)));
+                      acc += len; return el;
+                    })),
+                  h('div', { style: { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' } },
+                    h('div', { style: { fontSize: '.58rem', color: 'var(--t3)', letterSpacing: '.04em' } }, tab === 'expense' ? 'KELUAR' : 'MASUK'),
+                    h('div', { style: { fontWeight: 800, fontSize: '1rem', lineHeight: 1.1, whiteSpace: 'nowrap' }, title: fmt(actTot) }, fmtShort(actTot)))),
+                // Legenda berlabel: identitas tak bergantung pada warna saja
+                h('div', { style: { flex: 1, minWidth: 175, display: 'flex', flexDirection: 'column', gap: 5 } },
+                  mix.map(function (s) {
+                    return h('div', { key: s.id, style: { display: 'flex', alignItems: 'center', gap: 8, fontSize: '.76rem' } },
+                      h('span', { style: { width: 9, height: 9, borderRadius: 3, background: s.color, flexShrink: 0 } }),
+                      h('span', { style: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--t2)' } }, s.name),
+                      h('span', { style: { fontWeight: 700, color: 'var(--t1)', fontVariantNumeric: 'tabular-nums' } }, Math.round((s.value / actTot) * 100) + '%'),
+                      h('span', { style: { color: 'var(--t3)', fontSize: '.7rem', minWidth: 62, textAlign: 'right', fontVariantNumeric: 'tabular-nums' } }, fmt(s.value)));
+                  })));
+            })()) : null,
           h('div', { className: 'cd' }, h('h3', { style: { fontSize: '.9rem', fontWeight: 700, marginBottom: 14 } }, 'Breakdown'),
             cs.length === 0 ? h('div', { className: 'empty' }, h('p', null, 'Tidak ada data')) :
               cs.map(function (c) {
