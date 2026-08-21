@@ -1215,6 +1215,386 @@
     .chat-msgs {
       -webkit-overflow-scrolling: touch
     }
+
+    /* ═══════════ HALAMAN DEPAN (LANDING) ═══════════ */
+    .lp-wrap {
+      min-height: 100vh;
+      overflow-y: auto;
+      background: var(--bg)
+    }
+
+    .lp {
+      max-width: 1060px;
+      margin: 0 auto;
+      padding: 0 22px
+    }
+
+    .lp-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 0
+    }
+
+    .lp-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 1.12rem;
+      letter-spacing: -.01em
+    }
+
+    .lp-hero {
+      padding: 40px 0 8px;
+      text-align: center
+    }
+
+    .lp-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--acc);
+      background: var(--accbg);
+      border: 1px solid var(--acc);
+      padding: 5px 13px;
+      border-radius: 100px;
+      margin-bottom: 22px
+    }
+
+    .lp-h1 {
+      font-size: clamp(2.05rem, 6vw, 3.5rem);
+      font-weight: 800;
+      line-height: 1.07;
+      letter-spacing: -.025em;
+      text-wrap: balance;
+      margin-bottom: 18px
+    }
+
+    .lp-h1 em {
+      font-style: normal;
+      background: linear-gradient(100deg, var(--acc), var(--cyn));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent
+    }
+
+    .lp-sub {
+      font-size: clamp(.95rem, 2.3vw, 1.1rem);
+      color: var(--t2);
+      max-width: 54ch;
+      margin: 0 auto 30px;
+      line-height: 1.62
+    }
+
+    .lp-cta {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap
+    }
+
+    .lp-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 13px 26px;
+      border-radius: 100px;
+      font-size: .92rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: transform .15s, box-shadow .15s, background .15s
+    }
+
+    .lp-btn-primary {
+      background: linear-gradient(135deg, var(--acc), var(--cyn));
+      color: #fff;
+      box-shadow: 0 6px 20px rgba(16, 185, 129, .28)
+    }
+
+    .lp-btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 26px rgba(16, 185, 129, .36)
+    }
+
+    .lp-btn-ghost {
+      background: transparent;
+      color: var(--t1);
+      border-color: var(--brd)
+    }
+
+    .lp-btn-ghost:hover {
+      border-color: var(--acc);
+      color: var(--acc)
+    }
+
+    .lp-note {
+      font-size: .76rem;
+      color: var(--t3);
+      margin-top: 14px
+    }
+
+    /* Peragaan percakapan — bukti konkret pembeda utama */
+    .lp-demo {
+      max-width: 420px;
+      margin: 44px auto 0;
+      background: var(--bgc);
+      border: 1px solid var(--brd);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: var(--csh)
+    }
+
+    .lp-demo-hd {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--brd)
+    }
+
+    .lp-demo-av {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--acc), var(--cyn));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: .72rem;
+      flex-shrink: 0
+    }
+
+    .lp-bub {
+      max-width: 84%;
+      padding: 9px 13px;
+      border-radius: 15px;
+      font-size: .84rem;
+      line-height: 1.45;
+      margin-bottom: 9px
+    }
+
+    .lp-bub-me {
+      margin-left: auto;
+      background: var(--acc);
+      color: #fff;
+      border-bottom-right-radius: 5px
+    }
+
+    .lp-bub-bot {
+      background: var(--bgi);
+      color: var(--t1);
+      border-bottom-left-radius: 5px
+    }
+
+    .lp-sec {
+      padding: 66px 0 6px
+    }
+
+    .lp-sec-hd {
+      text-align: center;
+      margin-bottom: 34px
+    }
+
+    .lp-h2 {
+      font-size: clamp(1.4rem, 3.6vw, 2rem);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      text-wrap: balance;
+      margin-bottom: 10px
+    }
+
+    .lp-sec-sub {
+      color: var(--t2);
+      font-size: .93rem;
+      max-width: 48ch;
+      margin: 0 auto;
+      line-height: 1.55
+    }
+
+    .lp-grid3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px
+    }
+
+    .lp-card {
+      background: var(--bgc);
+      border: 1px solid var(--brd);
+      border-radius: 16px;
+      padding: 24px;
+      transition: border-color .15s, transform .15s
+    }
+
+    .lp-card:hover {
+      border-color: var(--acc);
+      transform: translateY(-2px)
+    }
+
+    .lp-card-ic {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--accbg);
+      color: var(--acc);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px
+    }
+
+    .lp-card-ic svg {
+      width: 21px;
+      height: 21px
+    }
+
+    .lp-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 7px
+    }
+
+    .lp-card p {
+      font-size: .86rem;
+      color: var(--t2);
+      line-height: 1.58
+    }
+
+    .lp-mini {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px
+    }
+
+    .lp-mini-item {
+      display: flex;
+      gap: 11px;
+      align-items: flex-start;
+      padding: 14px 15px;
+      background: var(--bgc);
+      border: 1px solid var(--brd);
+      border-radius: 12px
+    }
+
+    .lp-mini-item b {
+      display: block;
+      font-size: .87rem;
+      font-weight: 650;
+      margin-bottom: 3px
+    }
+
+    .lp-mini-item span {
+      font-size: .78rem;
+      color: var(--t3);
+      line-height: 1.5
+    }
+
+    .lp-tick {
+      color: var(--acc);
+      flex-shrink: 0;
+      font-weight: 800
+    }
+
+    /* Harga */
+    .lp-price {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      gap: 16px;
+      max-width: 720px;
+      margin: 0 auto
+    }
+
+    .lp-plan {
+      background: var(--bgc);
+      border: 1px solid var(--brd);
+      border-radius: 16px;
+      padding: 26px
+    }
+
+    .lp-plan.hot {
+      border: 2px solid var(--acc);
+      position: relative
+    }
+
+    .lp-plan-tag {
+      position: absolute;
+      top: -11px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--acc);
+      color: #fff;
+      font-size: .65rem;
+      font-weight: 800;
+      letter-spacing: .06em;
+      padding: 4px 12px;
+      border-radius: 100px;
+      white-space: nowrap
+    }
+
+    .lp-plan-name {
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--t3);
+      margin-bottom: 8px
+    }
+
+    .lp-plan-amt {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -.02em;
+      line-height: 1
+    }
+
+    .lp-plan-per {
+      font-size: .82rem;
+      color: var(--t3);
+      font-weight: 500
+    }
+
+    .lp-plan ul {
+      list-style: none;
+      margin: 18px 0 0;
+      padding: 0
+    }
+
+    .lp-plan li {
+      display: flex;
+      gap: 9px;
+      font-size: .85rem;
+      color: var(--t2);
+      padding: 6px 0;
+      line-height: 1.5
+    }
+
+    .lp-foot {
+      text-align: center;
+      padding: 46px 0 40px;
+      margin-top: 60px;
+      border-top: 1px solid var(--brd);
+      color: var(--t3);
+      font-size: .8rem
+    }
+
+    @media(max-width:600px) {
+      .lp-sec {
+        padding: 48px 0 4px
+      }
+
+      .lp-btn {
+        width: 100%
+      }
+    }
   </style>
 </head>
 
@@ -1305,8 +1685,105 @@
       var DEFAULT_DASH = ['networth', 'cashflow', 'budget', 'wallets', 'recent'];
 
       /* ═══ AUTH PAGE ═══ */
+      /* HALAMAN DEPAN — yang dilihat pengunjung sebelum masuk.
+         Sorotan utamanya mencatat lewat chat, karena itu yang tak dimiliki aplikasi bank
+         maupun pencatat lain; peragaan percakapan dipakai agar klaimnya terlihat nyata. */
+      function Landing(p) {
+        function go(mode) { return function () { p.onStart(mode) } }
+        var unggulan = [
+          { ic: 'transfer', t: 'Cukup chat, langsung tercatat', d: 'Kirim "beli kopi 25rb pakai gopay" ke bot Telegram. Tak perlu buka aplikasi, tak perlu isi formulir — catatanmu sudah rapi saat kamu sampai rumah.' },
+          { ic: 'camera', t: 'Foto struk & mutasi', d: 'Potret struk belanja atau tangkapan layar mutasi rekening. Nominal, tanggal, dan kategorinya dibaca otomatis — kamu tinggal memeriksa.' },
+          { ic: 'wallet', t: 'Semua dompet jadi satu', d: 'Rekening bank, e-wallet, kartu kredit, sampai uang tunai di dompet. Aplikasi bank hanya menunjukkan satu bank; di sini semuanya berdampingan.' }
+        ];
+        var lain = [
+          ['Anggaran per kategori', 'Pagu bulanan dengan peringatan saat mendekati batas'],
+          ['Hutang & piutang', 'Cicilan, bunga, dan sisa tagihan terhitung otomatis'],
+          ['Pengingat tagihan', 'Diingatkan sebelum jatuh tempo, bukan setelah telat'],
+          ['Tetap jalan tanpa sinyal', 'Catat di parkiran basement, terkirim saat online'],
+          ['Statistik & komposisi', 'Lihat ke mana uangmu benar-benar pergi tiap bulan'],
+          ['Asisten AI', 'Tanya kondisi keuanganmu, dijawab dari datamu sendiri']
+        ];
+        return h('div', { className: 'lp-wrap' },
+          h('div', { className: 'lp' },
+            h('nav', { className: 'lp-nav' },
+              h('div', { className: 'lp-brand' }, h(WFMark, { size: 30 }), h('span', null, 'Wealth', h('span', { style: { color: 'var(--acc)' } }, 'Flow'))),
+              h('button', { className: 'lp-btn lp-btn-ghost', style: { padding: '8px 18px', fontSize: '.85rem' }, onClick: go('login') }, 'Masuk')),
+
+            h('header', { className: 'lp-hero' },
+              h('span', { className: 'lp-eyebrow' }, 'Pencatat keuangan pribadi'),
+              h('h1', { className: 'lp-h1' }, 'Catat keuangan ', h('em', null, 'semudah kirim chat')),
+              h('p', { className: 'lp-sub' }, 'Mencatat pengeluaran itu merepotkan — itu sebabnya kebanyakan orang berhenti di minggu kedua. WealthFlow menerima kabar dari kamu lewat chat, foto struk, atau ketikan singkat, lalu merapikannya sendiri.'),
+              h('div', { className: 'lp-cta' },
+                h('button', { className: 'lp-btn lp-btn-primary', onClick: go('register') }, 'Mulai gratis'),
+                h('button', { className: 'lp-btn lp-btn-ghost', onClick: go('login') }, 'Sudah punya akun')),
+              h('p', { className: 'lp-note' }, 'Gratis selamanya untuk pencatatan. Tanpa kartu kredit.'),
+
+              h('div', { className: 'lp-demo' },
+                h('div', { className: 'lp-demo-hd' },
+                  h('div', { className: 'lp-demo-av' }, 'WF'),
+                  h('div', null,
+                    h('div', { style: { fontWeight: 700, fontSize: '.84rem' } }, 'WealthFlow'),
+                    h('div', { style: { fontSize: '.68rem', color: 'var(--acc)' } }, 'online'))),
+                h('div', { className: 'lp-bub lp-bub-me' }, 'beli kopi 25rb pakai gopay'),
+                h('div', { className: 'lp-bub lp-bub-bot' }, 'Tercatat', h('br'), h('b', null, 'Rp 25.000'), ' — Kopi', h('br'),
+                  h('span', { style: { color: 'var(--t3)', fontSize: '.76rem' } }, 'Makanan & Minuman › Kopi · GoPay')),
+                h('div', { className: 'lp-bub lp-bub-me' }, '📷 (foto struk)'),
+                h('div', { className: 'lp-bub lp-bub-bot', style: { marginBottom: 0 } }, 'Terbaca dari struk', h('br'), h('b', null, 'Rp 187.500'), ' — Indomaret', h('br'),
+                  h('span', { style: { color: 'var(--t3)', fontSize: '.76rem' } }, 'Belanja Bulanan · 21 Agu')))),
+
+            h('section', { className: 'lp-sec' },
+              h('div', { className: 'lp-sec-hd' },
+                h('h2', { className: 'lp-h2' }, 'Dibuat untuk orang yang malas mencatat'),
+                h('p', { className: 'lp-sec-sub' }, 'Bukan karena tidak peduli pada uangnya — tapi karena mencatat manual memang melelahkan.')),
+              h('div', { className: 'lp-grid3' },
+                unggulan.map(function (f, i) {
+                  return h('div', { className: 'lp-card', key: i },
+                    h('div', { className: 'lp-card-ic' }, h(Ic, { n: f.ic })),
+                    h('h3', null, f.t), h('p', null, f.d));
+                }))),
+
+            h('section', { className: 'lp-sec' },
+              h('div', { className: 'lp-sec-hd' }, h('h2', { className: 'lp-h2' }, 'Lengkap untuk keseharian')),
+              h('div', { className: 'lp-mini' },
+                lain.map(function (f, i) {
+                  return h('div', { className: 'lp-mini-item', key: i },
+                    h('span', { className: 'lp-tick' }, '✓'),
+                    h('div', null, h('b', null, f[0]), h('span', null, f[1])));
+                }))),
+
+            h('section', { className: 'lp-sec' },
+              h('div', { className: 'lp-sec-hd' },
+                h('h2', { className: 'lp-h2' }, 'Harga yang jujur'),
+                h('p', { className: 'lp-sec-sub' }, 'Semua fitur pencatatan gratis selamanya. Yang berbayar hanya kecerdasan buatannya, karena itu memang berbiaya.')),
+              h('div', { className: 'lp-price' },
+                h('div', { className: 'lp-plan' },
+                  h('div', { className: 'lp-plan-name' }, 'Gratis'),
+                  h('div', { className: 'lp-plan-amt' }, 'Rp 0'),
+                  h('div', { className: 'lp-plan-per' }, 'selamanya'),
+                  h('ul', null,
+                    ['Semua fitur pencatatan', 'Dompet & kategori tanpa batas', 'Anggaran, hutang, pengingat', '30 permintaan AI per bulan'].map(function (x, i) {
+                      return h('li', { key: i }, h('span', { className: 'lp-tick' }, '✓'), x);
+                    }))),
+                h('div', { className: 'lp-plan hot' },
+                  h('span', { className: 'lp-plan-tag' }, 'PALING HEMAT'),
+                  h('div', { className: 'lp-plan-name' }, 'Premium'),
+                  h('div', { className: 'lp-plan-amt' }, 'Rp 100rb'),
+                  h('div', { className: 'lp-plan-per' }, 'per tahun · setara Rp 8.300/bulan'),
+                  h('ul', null,
+                    ['Semua yang ada di paket gratis', '500 permintaan AI per bulan', 'Baca struk & mutasi sepuasnya', 'Catat lewat Telegram tanpa hambatan'].map(function (x, i) {
+                      return h('li', { key: i }, h('span', { className: 'lp-tick' }, '✓'), x);
+                    })))),
+              h('div', { style: { textAlign: 'center', marginTop: 34 } },
+                h('button', { className: 'lp-btn lp-btn-primary', onClick: go('register') }, 'Buat akun gratis'))),
+
+            h('footer', { className: 'lp-foot' },
+              h('div', { style: { marginBottom: 6 } }, 'WealthFlow — catat keuangan tanpa repot'),
+              h('div', { style: { fontSize: '.74rem' } }, '© ', new Date().getFullYear(), ' WealthFlow'))));
+      }
+
       function AuthPage(p) {
-        var _tab = useState('login'), tab = _tab[0], sTab = _tab[1];
+        // Tombol "Mulai gratis" di halaman depan membuka langsung formulir pendaftaran
+        var _tab = useState(p.initTab === 'register' ? 'register' : 'login'), tab = _tab[0], sTab = _tab[1];
         var _email = useState(''), email = _email[0], sEmail = _email[1];
         var _pass = useState(''), pass = _pass[0], sPass = _pass[1];
         var _newPass = useState(''), newPass = _newPass[0], sNewPass = _newPass[1];
@@ -1360,11 +1837,15 @@
         }
 
         // Logo header - reusable
-        var Logo = h('div', { style: { textAlign: 'center', marginBottom: 32 } },
+        var Logo = h('div', { style: { textAlign: 'center', marginBottom: 26 } },
+          p.onBack ? h('button', {
+            onClick: p.onBack,
+            style: { position: 'absolute', top: 20, left: 20, background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', fontSize: '.85rem', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 4px' }
+          }, '←', ' Kembali') : null,
           h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 } },
-            h(WFMark, { size: 52 })),
-          h('h1', { style: { fontSize: '1.6rem', fontWeight: 800 } }, 'Wealth', h('span', { style: { color: 'var(--acc)' } }, 'Flow')),
-          h('p', { style: { color: 'var(--t3)', fontSize: '.85rem', marginTop: 4 } }, 'Personal Finance Manager'));
+            h(WFMark, { size: 46 })),
+          h('h1', { style: { fontSize: '1.45rem', fontWeight: 800, letterSpacing: '-.02em' } }, 'Wealth', h('span', { style: { color: 'var(--acc)' } }, 'Flow')),
+          h('p', { style: { color: 'var(--t3)', fontSize: '.84rem', marginTop: 5 } }, 'Catat keuangan tanpa repot'));
 
         var AlertBox = function (msg, type) { return h('div', { style: { background: type === 'ok' ? 'var(--accbg)' : 'var(--redbg)', border: '1px solid ' + (type === 'ok' ? 'var(--acc)' : 'var(--red)'), borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: '.82rem', color: type === 'ok' ? 'var(--acc)' : 'var(--red)' } }, msg) };
 
@@ -1414,23 +1895,29 @@
               h('button', { className: 'btn bp', style: { width: '100%', justifyContent: 'center', padding: '12px', fontSize: '.9rem', marginTop: 4 }, onClick: doResetPassword, disabled: loading || !!ok }, loading ? 'Menyimpan...' : 'Simpan Password Baru'))));
 
         // === LOGIN / REGISTER ===
-        return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', width: '100%', padding: 20 } },
-          h('div', { style: { maxWidth: 400, width: '100%' } },
+        var isLogin = tab === 'login';
+        return h('div', { style: { position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', width: '100%', padding: '28px 20px' } },
+          h('div', { style: { maxWidth: 396, width: '100%' } },
             Logo,
-            h('div', { className: 'cd', style: { padding: 28 } },
-              h('div', { className: 'tabs', style: { marginBottom: 20, width: '100%' } },
-                h('button', { className: 'tab' + (tab === 'login' ? ' act' : ''), style: { flex: 1, textAlign: 'center' }, onClick: function () { sTab('login'); sErr('') } }, 'Login'),
-                h('button', { className: 'tab' + (tab === 'register' ? ' act' : ''), style: { flex: 1, textAlign: 'center' }, onClick: function () { sTab('register'); sErr('') } }, 'Register')),
+            h('div', { className: 'cd', style: { padding: 26 } },
+              h('div', { style: { textAlign: 'center', marginBottom: 20 } },
+                h('h2', { style: { fontSize: '1.15rem', fontWeight: 750, letterSpacing: '-.01em' } }, isLogin ? 'Selamat datang kembali' : 'Buat akun baru'),
+                h('p', { style: { color: 'var(--t3)', fontSize: '.8rem', marginTop: 5, lineHeight: 1.5 } },
+                  isLogin ? 'Masuk untuk melanjutkan catatan keuanganmu' : 'Gratis selamanya, tanpa kartu kredit')),
               err ? AlertBox(err, 'err') : null,
               ok ? AlertBox(ok, 'ok') : null,
-              h('div', { className: 'fg' }, h('label', null, 'Email'), h('input', { className: 'fi', type: 'email', placeholder: 'email@contoh.com', value: email, onChange: function (e) { sEmail(e.target.value) }, onKeyDown: function (e) { if (e.key === 'Enter') { tab === 'login' ? doLogin() : doRegister() } } })),
-              h('div', { className: 'fg' }, h('label', null, 'Password'), h('input', { className: 'fi', type: 'password', placeholder: 'Minimal 6 karakter', value: pass, onChange: function (e) { sPass(e.target.value) }, onKeyDown: function (e) { if (e.key === 'Enter') { tab === 'login' ? doLogin() : doRegister() } } })),
-              h('button', { className: 'btn bp', style: { width: '100%', justifyContent: 'center', padding: '12px', fontSize: '.9rem' }, onClick: tab === 'login' ? doLogin : doRegister, disabled: loading }, loading ? 'Memproses...' : tab === 'login' ? 'Login' : 'Buat Akun'),
-              tab === 'login' ? h('div', { style: { marginTop: 14, textAlign: 'center' } },
-                h('button', { style: { color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '.78rem' }, onClick: function () { sTab('forgot'); sErr(''); sOk('') } }, 'Lupa password?'),
-                h('span', { style: { color: 'var(--t3)', fontSize: '.78rem', margin: '0 8px' } }, '·'),
-                h('button', { style: { color: 'var(--acc)', background: 'none', border: 'none', fontWeight: 600, cursor: 'pointer', fontSize: '.78rem' }, onClick: function () { sTab('register'); sErr('') } }, 'Daftar akun')) :
-                h('p', { style: { textAlign: 'center', fontSize: '.78rem', color: 'var(--t3)', marginTop: 14 } }, 'Sudah punya akun? ', h('button', { style: { color: 'var(--acc)', background: 'none', border: 'none', fontWeight: 600, cursor: 'pointer' }, onClick: function () { sTab('login'); sErr('') } }, 'Login')))))
+              h('div', { className: 'fg' }, h('label', null, 'Email'), h('input', { className: 'fi', type: 'email', autoComplete: 'email', placeholder: 'email@contoh.com', value: email, onChange: function (e) { sEmail(e.target.value) }, onKeyDown: function (e) { if (e.key === 'Enter') { isLogin ? doLogin() : doRegister() } } })),
+              h('div', { className: 'fg' }, h('label', null, 'Password'), h('input', { className: 'fi', type: 'password', autoComplete: isLogin ? 'current-password' : 'new-password', placeholder: isLogin ? 'Password kamu' : 'Minimal 8 karakter, ada huruf & angka', value: pass, onChange: function (e) { sPass(e.target.value) }, onKeyDown: function (e) { if (e.key === 'Enter') { isLogin ? doLogin() : doRegister() } } })),
+              h('button', {
+                className: 'lp-btn lp-btn-primary',
+                style: { width: '100%', marginTop: 4, padding: '12px' },
+                onClick: isLogin ? doLogin : doRegister, disabled: loading
+              }, loading ? 'Memproses...' : isLogin ? 'Masuk' : 'Buat akun gratis'),
+              isLogin ? h('div', { style: { marginTop: 16, textAlign: 'center' } },
+                h('button', { style: { color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '.78rem' }, onClick: function () { sTab('forgot'); sErr(''); sOk('') } }, 'Lupa password?')) : null,
+              h('div', { style: { marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--brd)', textAlign: 'center', fontSize: '.8rem', color: 'var(--t3)' } },
+                isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? ',
+                h('button', { style: { color: 'var(--acc)', background: 'none', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '.8rem' }, onClick: function () { sTab(isLogin ? 'register' : 'login'); sErr('') } }, isLogin ? 'Daftar gratis' : 'Masuk')))))
       }
       var sb = window.supabase.createClient('https://wkhjxgrjkrakfhwckriu.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraGp4Z3Jqa3Jha2Zod2Nrcml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjQyOTUsImV4cCI6MjA5NDMwMDI5NX0.Prtzf84zL-MvJuWF6Qk9HrJLzb2wmxxRD_OA094ulck');
       var COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#6366f1'];
@@ -2330,6 +2817,10 @@
         var t = useContext(TCtx); // untuk notifikasi sinkronisasi offline
         var _au = useState(null), user = _au[0], sUser = _au[1];
         var _ac = useState(true), authChecking = _ac[0], sAC = _ac[1];
+        // Pengunjung melihat halaman depan lebih dulu; formulir masuk baru dibuka saat diminta.
+        // Tautan pemulihan kata sandi dari surel harus langsung ke formulir, jadi dikenali di sini.
+        var _authOpen = useState(function () { try { return /type=recovery|access_token=/.test(location.hash || '') } catch (e) { return false } }), authOpen = _authOpen[0], sAuthOpen = _authOpen[1];
+        var _authTab = useState('login'), authTab = _authTab[0], sAuthTab = _authTab[1];
         var _rm = useState(false), resetMode = _rm[0], sResetMode = _rm[1];
         // Biometric lock state
         var _lk = useState(false), locked = _lk[0], sLocked = _lk[1];
@@ -2473,7 +2964,14 @@
         // Auth checking
         if (authChecking) return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', width: '100%' } }, h('div', { style: { textAlign: 'center' } }, h('div', { style: { display: 'flex', justifyContent: 'center', marginBottom: 16 } }, h(WFMark, { size: 52 })), h('h1', { style: { fontSize: '1.4rem', fontWeight: 800, marginBottom: 6 } }, 'Wealth', h('span', { style: { color: 'var(--acc)' } }, 'Flow')), h('p', { style: { color: 'var(--t3)', fontSize: '.82rem' } }, 'Memuat...')));
         // Not logged in
-        if (!user) return h(AuthPage, { onAuth: function (u) { UID = u.id; sUser(u) } });
+        if (!user) {
+          if (!authOpen) return h(Landing, { onStart: function (mode) { sAuthTab(mode === 'register' ? 'register' : 'login'); sAuthOpen(true) } });
+          return h(AuthPage, {
+            initTab: authTab,
+            onBack: function () { sAuthOpen(false) },
+            onAuth: function (u) { UID = u.id; sUser(u) }
+          });
+        }
         if (resetMode) return h(ResetPasswordPage, { onDone: function () { sResetMode(false) } });
         // Biometric lock screen — shown on session restore if biometric is enabled
         if (locked) return h(AppLock, {
