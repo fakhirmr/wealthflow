@@ -1549,6 +1549,23 @@
         }).catch(function () { _syncing = false; if (done) done(synced, obCount()) });
       }
 
+      /* Sesuaikan saldo dompet dengan AMAN.
+         Aplikasi dulu membaca saldo dari layar, menghitung, lalu MENIMPA hasilnya. Kalau ada
+         perubahan lain yang belum tampil (dari Telegram, perangkat lain, atau antrean offline),
+         perubahan itu ikut terhapus. Fungsi ini menambah/mengurangi langsung di server. */
+      function adjWallet(walletId, delta, done) {
+        if (!walletId || !delta) { if (done) done(); return }
+        sb.rpc('adjust_wallet_balance', { p_wallet: walletId, p_delta: delta }).then(function (r) {
+          if (!r.error) { if (done) done(); return }
+          // Cadangan bila fungsi SQL belum dipasang: setidaknya baca nilai TERBARU dari server
+          sb.from('wallets').select('balance').eq('id', walletId).single().then(function (wr) {
+            if (wr.error || !wr.data) { if (done) done(); return }
+            sb.from('wallets').update({ balance: (Number(wr.data.balance) || 0) + delta }).eq('id', walletId)
+              .then(function () { if (done) done() });
+          });
+        }).catch(function () { if (done) done() });
+      }
+
       // Simpan transaksi dengan dukungan offline. Jaringan mati -> diantre, bukan gagal.
       // onDone('saved' | 'queued'), onError(pesan) hanya untuk error database asli.
       function saveTxns(rows, onDone, onError) {
@@ -2677,7 +2694,7 @@
               return { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: r.category_id || null, sub_category_id: r.sub_category_id || null, amount: Number(r.amount), description: f.description.trim(), date: f.date };
             });
             saveTxns(srows, function (status) {
-              if (status === 'saved' && f.wallet_id) { var w2 = fid(W, f.wallet_id); if (w2) { var nb2 = f.type === 'income' ? (Number(w2.balance) || 0) + amt : (Number(w2.balance) || 0) - amt; sb.from('wallets').update({ balance: nb2 }).eq('id', f.wallet_id).then(function (wr) { if (wr && wr.error) console.log('Bal err:', wr.error.message); rW() }) } }
+              if (status === 'saved') adjWallet(f.wallet_id, (f.type === 'income' ? 1 : -1) * amt, rW);
               try { sessionStorage.removeItem(DRAFT) } catch (e) { }
               t(status === 'queued' ? '📴 ' + srows.length + ' transaksi tersimpan offline' : srows.length + ' transaksi tersimpan');
               rT(); p.onClose()
@@ -2686,7 +2703,7 @@
           }
           var pay = { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: f.category_id || null, sub_category_id: f.sub_category_id || null, amount: amt, description: f.description.trim(), date: f.date };
           saveTxns([pay], function (status) {
-            if (status === 'saved' && f.wallet_id) { var w = fid(W, f.wallet_id); if (w) { var nb = f.type === 'income' ? (Number(w.balance) || 0) + amt : (Number(w.balance) || 0) - amt; sb.from('wallets').update({ balance: nb }).eq('id', f.wallet_id).then(function (wr) { if (wr && wr.error) console.log('Bal err:', wr.error.message); rW() }) } }
+            if (status === 'saved') adjWallet(f.wallet_id, (f.type === 'income' ? 1 : -1) * amt, rW);
             try { sessionStorage.removeItem(DRAFT) } catch (e) { }
             t(status === 'queued' ? '📴 Tersimpan offline — akan dikirim saat online' : 'Transaksi ditambahkan');
             rT(); p.onClose()
@@ -3869,7 +3886,9 @@
           // terlihat "tidak bertambah" padahal saldonya naik, dan saldo berjalan jadi melompat.
           // Filter by selected month
           if (!q.trim()) { l = l.filter(function (t) { if (!t.date) return false; var d = new Date(t.date); return d.getMonth() === vMn && d.getFullYear() === vYr }) }
-          if (fTy !== 'all') l = l.filter(function (t) { return t.type === fTy });
+          // 'transfer' mencakup KEDUA sisi; sebelumnya hanya sisi keluar yang tersaring
+          if (fTy === 'transfer') l = l.filter(function (t) { return t.type === 'transfer_in' || t.type === 'transfer_out' });
+          else if (fTy !== 'all') l = l.filter(function (t) { return t.type === fTy });
           // Cukup cocokkan dompetnya: sisi masuk & keluar transfer kini sama-sama tampil,
           // jadi tak perlu lagi menebak pasangan lewat deskripsi.
           if (fWl !== 'all') l = l.filter(function (t) { return t.wallet_id === fWl });
@@ -3932,12 +3951,8 @@
             saveTxns(srows, function (status) {
               function doneSplit() { t(status === 'queued' ? '📴 ' + srows.length + ' transaksi tersimpan offline' : srows.length + ' transaksi tersimpan'); sSplits(null); sM(null); rT() }
               if (status === 'saved' && f.wallet_id) {
-                var w = fid(W, f.wallet_id);
-                if (w) {
-                  var nb = f.type === 'income' ? (Number(w.balance) || 0) + amt : (Number(w.balance) || 0) - amt;
-                  sb.from('wallets').update({ balance: nb }).eq('id', f.wallet_id).then(function (wr) { if (wr && wr.error) console.log('Bal err:', wr.error.message); doneSplit(); rW() });
-                  return;
-                }
+                adjWallet(f.wallet_id, (f.type === 'income' ? 1 : -1) * amt, function () { doneSplit(); rW() });
+                return;
               }
               doneSplit();
             }, function (msg) { t(msg, 'err') });
@@ -3949,14 +3964,14 @@
             for (var si = 0; si < splitN; si++) { var sd = new Date(baseD); sd.setMonth(sd.getMonth() + si); var sAmt = si === splitN - 1 ? amt - perAmt * (splitN - 1) : perAmt; var sDate = sd.getFullYear() + '-' + String(sd.getMonth() + 1).padStart(2, '0') + '-' + String(sd.getDate()).padStart(2, '0'); rows.push({ user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: f.category_id || null, sub_category_id: f.sub_category_id || null, amount: sAmt, description: f.description.trim() + ' (' + (si + 1) + '/' + splitN + ')', date: sDate }) }
             saveTxns(rows, function (status) {
               var lbl = status === 'queued' ? ('📴 ' + splitN + ' transaksi tersimpan offline') : (splitN + ' transaksi ditambahkan');
-              if (status === 'saved' && f.wallet_id) { var w = fid(W, f.wallet_id); if (w) { var nb = (Number(w.balance) || 0) - amt; sb.from('wallets').update({ balance: nb }).eq('id', f.wallet_id).then(function (wr) { if (wr && wr.error) console.log('Bal err:', wr.error.message); t(lbl); sM(null); rT(); rW() }); return } }
+              if (status === 'saved' && f.wallet_id) { adjWallet(f.wallet_id, -amt, function () { t(lbl); sM(null); rT(); rW() }); return }
               t(lbl); sM(null); rT()
             }, function (msg) { t(msg, 'err') }); return
           }
           if (mo.m === 'add') {
             saveTxns([pay], function (status) {
               var lbl = status === 'queued' ? '📴 Tersimpan offline — akan dikirim saat online' : 'Ditambahkan';
-              if (status === 'saved' && f.wallet_id) { var w = fid(W, f.wallet_id); if (w) { var nb = f.type === 'income' ? (Number(w.balance) || 0) + Number(f.amount) : (Number(w.balance) || 0) - Number(f.amount); sb.from('wallets').update({ balance: nb }).eq('id', f.wallet_id).then(function (wr) { if (wr && wr.error) console.log('Bal err:', wr.error.message); t(lbl); sM(null); rT(); rW() }); return } }
+              if (status === 'saved' && f.wallet_id) { adjWallet(f.wallet_id, (f.type === 'income' ? 1 : -1) * Number(f.amount), function () { t(lbl); sM(null); rT(); rW() }); return }
               t(lbl); sM(null); rT()
             }, function (msg) { t(msg, 'err') });
           }
@@ -4021,10 +4036,9 @@
             sb.from('transactions').delete().eq('id', tx.id).then(function (r) {
               if (r.error) { t(r.error.message, 'err'); return }
               if (tx.wallet_id) {
-                var w = fid(W, tx.wallet_id); if (w) {
-                  var nb = tx.type === 'income' ? (Number(w.balance) || 0) - Number(tx.amount) : (Number(w.balance) || 0) + Number(tx.amount);
-                  sb.from('wallets').update({ balance: nb }).eq('id', tx.wallet_id).then(function (wr) { if (wr && wr.error) { t('Saldo error', 'err') } t('Dihapus'); rT(); rW() })
-                } else { t('Dihapus'); rT(); rW() }
+                // Kebalikan dari efek transaksi: pemasukan dikembalikan (dikurangi), pengeluaran ditambahkan
+                var back = (tx.type === 'income' || tx.type === 'transfer_in') ? -Number(tx.amount) : Number(tx.amount);
+                adjWallet(tx.wallet_id, back, function () { t('Dihapus'); rT(); rW() });
               }
               else { t('Dihapus'); rT(); rW() }
             })
@@ -4111,7 +4125,7 @@
                   h('div', { style: { fontWeight: 700, color: (moInc - moExp) >= 0 ? 'var(--acc)' : 'var(--red)', fontSize: '.82rem' } }, fmt(moInc - moExp))))),
           h('div', { className: 'fbar' },
             h('input', { className: 'fi', placeholder: 'Cari semua...', value: q, onChange: function (e) { sQ(e.target.value) }, style: { maxWidth: 180 } }),
-            h('select', { className: 'fi', value: fTy, onChange: function (e) { sFT(e.target.value) }, style: { maxWidth: 130 } }, h('option', { value: 'all' }, 'Semua'), h('option', { value: 'income' }, 'Masuk'), h('option', { value: 'expense' }, 'Keluar'), h('option', { value: 'transfer_out' }, 'Transfer')),
+            h('select', { className: 'fi', value: fTy, onChange: function (e) { sFT(e.target.value) }, style: { maxWidth: 130 } }, h('option', { value: 'all' }, 'Semua'), h('option', { value: 'income' }, 'Masuk'), h('option', { value: 'expense' }, 'Keluar'), h('option', { value: 'transfer' }, 'Transfer')),
             h('select', { className: 'fi', value: fWl, onChange: function (e) { sFW(e.target.value) }, style: { maxWidth: 140 } }, h('option', { value: 'all' }, 'Semua Dompet'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name + ' (' + fmt(w.balance) + ')') }))),
           h('div', { className: 'cd', style: { padding: 0, overflow: 'hidden' } },
             list.length === 0 ? h('div', { className: 'empty', style: { padding: 32 } }, h('div', { className: 'ei' }, '📋'), h('h3', null, 'Tidak ada transaksi'), h('p', null, 'di ', MOS[vMn], ' ', vYr)) :
@@ -4284,8 +4298,7 @@
                   // hutang = uang masuk ke dompet (aset naik, liabilitas naik)
                   // piutang = uang keluar dari dompet (aset turun, piutang/aset lain naik)
                   var isHutang = f.type === 'hutang';
-                  var nb = isHutang ? (Number(w.balance) || 0) + amt : (Number(w.balance) || 0) - amt;
-                  sb.from('wallets').update({ balance: nb }).eq('id', f.txn_wallet_id).then(function (wr) { if (wr && wr.error) console.log('Bal err:', wr.error.message); rW() });
+                  adjWallet(f.txn_wallet_id, (isHutang ? 1 : -1) * amt, rW);
                   sb.from('transactions').insert({
                     user_id: UID,
                     type: isHutang ? 'income' : 'expense',
@@ -4336,9 +4349,8 @@
               if (pf.wallet_id) {
                 var w = fid(W, pf.wallet_id);
                 if (w) {
-                  var nb = (Number(w.balance) || 0) - (debt.type === 'hutang' ? amt : -amt);
-                  sb.from('wallets').update({ balance: nb }).eq('id', pf.wallet_id).then(function (wr) {
-                    if (wr && wr.error) console.log('Bal err:', wr.error.message);
+                  // hutang: uang keluar dari dompet; piutang: uang masuk
+                  adjWallet(pf.wallet_id, (debt.type === 'hutang' ? -1 : 1) * amt, function () {
                     rW(); afterWallet();
                   })
                 } else afterWallet();

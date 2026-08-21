@@ -102,7 +102,11 @@ export default async function handler(req) {
   var KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!TOKEN || !GKEY || !SB_URL || !KEY) return new Response('misconfig', { status: 500 });
 
-  if (SECRET && req.headers.get('x-telegram-bot-api-secret-token') !== SECRET) return new Response('forbidden', { status: 403 });
+  // Verifikasi WAJIB, tak boleh dilewati. Sebelumnya, bila env secret lupa diisi,
+  // pemeriksaan ini dilompati sepenuhnya — siapa pun yang tahu alamat webhook bisa
+  // mengirim pesan palsu dan menyisipkan transaksi ke akun orang lain.
+  if (!SECRET) return new Response('misconfig: webhook secret belum diset', { status: 500 });
+  if (req.headers.get('x-telegram-bot-api-secret-token') !== SECRET) return new Response('forbidden', { status: 403 });
 
   var update;
   try { update = await req.json(); } catch (e) { return new Response('ok'); }

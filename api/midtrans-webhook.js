@@ -50,6 +50,16 @@ export default async function handler(req) {
   // 3) Idempotency — kalau sudah diproses sukses, jangan diproses lagi (Midtrans bisa kirim notif berulang)
   if (payment.status === 'paid') return new Response('ok');
 
+  // 3b) Nominal yang dibayar harus sama persis dengan yang dipesan.
+  // Signature sudah mencakup gross_amount, jadi ini lapis kedua: menjaga agar
+  // pembayaran sebagian/berbeda tak pernah menghasilkan langganan penuh.
+  if (Math.round(Number(grossAmount)) !== Math.round(Number(payment.amount))) {
+    await sb('/rest/v1/payments?order_id=eq.' + encodeURIComponent(orderId), {
+      method: 'PATCH', body: JSON.stringify({ status: 'failed', raw_notification: notif })
+    }, SB_URL, KEY);
+    return new Response('amount mismatch', { status: 400 });
+  }
+
   var isSuccess = transactionStatus === 'settlement' || (transactionStatus === 'capture' && fraudStatus === 'accept');
   var isFailed = transactionStatus === 'deny' || transactionStatus === 'cancel' || transactionStatus === 'expire';
 
