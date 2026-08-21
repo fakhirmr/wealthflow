@@ -120,6 +120,18 @@ export default async function handler(req) {
   }
   var mj = await mr.json();
   if (!mr.ok) {
+    var pesan = [].concat((mj && mj.error_messages) || []).join(' ');
+    // "Access denied" saat format kunci & mode SUDAH cocok hampir selalu berarti kuncinya
+    // memang belum berlaku — umumnya karena akun Production belum lolos verifikasi Midtrans.
+    if (/access denied|unauthorized transaction/i.test(pesan)) {
+      return json({
+        error: 'midtrans_denied',
+        detail: 'Midtrans menolak kunci ini padahal format & modenya sudah cocok (' +
+          (isProdKey ? 'Production' : 'Sandbox') + '). Penyebab tersering: akun ' +
+          (isProdKey ? 'Production belum lolos verifikasi Midtrans, sehingga kuncinya belum aktif' : 'Sandbox belum disiapkan') +
+          '. Periksa status verifikasi di dasbor Midtrans, atau pakai kunci Sandbox dari dashboard.sandbox.midtrans.com untuk menguji lebih dulu.'
+      }, 502);
+    }
     return json({ error: 'midtrans_error', detail: (mj && mj.error_messages) || mj }, 502);
   }
 
