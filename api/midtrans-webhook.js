@@ -7,7 +7,7 @@
 
 export const config = { runtime: 'edge' };
 
-var PLAN_DAYS = { monthly: 30, yearly: 365 };
+var PLAN_DAYS = { monthly: 30, yearly: 365, test: 1 };
 
 function sb(url, opts, SB_URL, KEY) {
   opts = opts || {};
