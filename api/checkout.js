@@ -77,7 +77,12 @@ export default async function handler(req) {
   try {
     mr = await fetch(midtransBase + '/snap/v1/transactions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: 'Basic ' + basicAuth },
+      headers: {
+        'Content-Type': 'application/json', Accept: 'application/json', Authorization: 'Basic ' + basicAuth,
+        // Alamat notifikasi dikirim per-transaksi, jadi tak bergantung pada pengaturan
+        // di dasbor Midtrans (letak menunya berbeda-beda antar versi).
+        'X-Override-Notification': APP_URL + '/api/midtrans-webhook'
+      },
       body: JSON.stringify(snapBody)
     });
   } catch (e) {
