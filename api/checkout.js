@@ -33,26 +33,6 @@ export default async function handler(req) {
     return json({ error: 'server_misconfig', detail: 'Environment variables belum lengkap' }, 500);
   }
 
-  // Kenali jenis kunci dari awalannya, lalu tolak lebih awal bila tak cocok dengan
-  // lingkungan yang dituju. Tanpa ini, Midtrans hanya membalas "Access denied" tanpa
-  // menyebut mana yang keliru — kunci, lingkungan, atau tertukar Client/Server.
-  var isClientKey = /^(SB-)?Mid-client-/i.test(SERVER_KEY);
-  var isSandboxKey = /^SB-Mid-server-/i.test(SERVER_KEY);
-  var isProdKey = /^Mid-server-/i.test(SERVER_KEY);
-
-  if (isClientKey) {
-    return json({ error: 'key_salah', detail: 'Yang terisi adalah CLIENT key. MIDTRANS_SERVER_KEY harus diisi SERVER key (diawali "SB-Mid-server-" untuk Sandbox atau "Mid-server-" untuk Production).' }, 500);
-  }
-  if (!isSandboxKey && !isProdKey) {
-    return json({ error: 'key_salah', detail: 'Format Server Key tidak dikenali. Server Key Midtrans diawali "SB-Mid-server-" (Sandbox) atau "Mid-server-" (Production). Pastikan tersalin utuh.' }, 500);
-  }
-  if (IS_PROD && isSandboxKey) {
-    return json({ error: 'key_mismatch', detail: 'MIDTRANS_IS_PRODUCTION bernilai true, tetapi Server Key yang dipakai milik SANDBOX. Ubah MIDTRANS_IS_PRODUCTION menjadi false, atau ganti dengan Server Key Production.' }, 500);
-  }
-  if (!IS_PROD && isProdKey) {
-    return json({ error: 'key_mismatch', detail: 'Server Key yang dipakai milik PRODUCTION, tetapi MIDTRANS_IS_PRODUCTION belum bernilai true. Ubah menjadi true, atau ganti dengan Server Key Sandbox.' }, 500);
-  }
-
   // 1) Verifikasi login
   var authz = req.headers.get('authorization') || '';
   var token = authz.replace(/^Bearer\s+/i, '').trim();
@@ -65,6 +45,30 @@ export default async function handler(req) {
     uid = user && user.id; email = user && user.email;
     if (!uid) return json({ error: 'unauthorized' }, 401);
   } catch (e) { return json({ error: 'auth_failed' }, 401); }
+
+  // 1b) Periksa kecocokan kunci — ditempatkan SETELAH login agar konfigurasi server
+  // tidak terbaca publik. Midtrans sendiri hanya membalas "Access denied" tanpa
+  // menyebut mana yang keliru, jadi diperjelas di sini.
+  var isClientKey = /^(SB-)?Mid-client-/i.test(SERVER_KEY);
+  var isSandboxKey = /^SB-Mid-server-/i.test(SERVER_KEY);
+  var isProdKey = /^Mid-server-/i.test(SERVER_KEY);
+  // Petunjuk aman: hanya jenis & panjang, bukan isi kuncinya
+  var terbaca = 'Yang terbaca server: ' + (isSandboxKey ? 'SB-Mid-server-… (Sandbox)' : isProdKey ? 'Mid-server-… (Production)' : isClientKey ? 'Client key' : 'format tak dikenali')
+    + ', panjang ' + SERVER_KEY.length + ' karakter, MIDTRANS_IS_PRODUCTION=' + (IS_PROD ? 'true' : 'false')
+    + '. Bila ini bukan yang Anda isi, perubahannya belum diterapkan — lakukan Redeploy di Vercel.';
+
+  if (isClientKey) {
+    return json({ error: 'key_salah', detail: 'Yang terisi adalah CLIENT key. MIDTRANS_SERVER_KEY harus diisi SERVER key. ' + terbaca }, 500);
+  }
+  if (!isSandboxKey && !isProdKey) {
+    return json({ error: 'key_salah', detail: 'Format Server Key tidak dikenali (harus diawali "SB-Mid-server-" atau "Mid-server-"). ' + terbaca }, 500);
+  }
+  if (IS_PROD && isSandboxKey) {
+    return json({ error: 'key_mismatch', detail: 'Kunci SANDBOX tetapi mode Production. Ubah MIDTRANS_IS_PRODUCTION menjadi false. ' + terbaca }, 500);
+  }
+  if (!IS_PROD && isProdKey) {
+    return json({ error: 'key_mismatch', detail: 'Kunci PRODUCTION tetapi mode Sandbox. Ubah MIDTRANS_IS_PRODUCTION menjadi true, atau pakai kunci Sandbox. ' + terbaca }, 500);
+  }
 
   // 2) Validasi paket
   var body;
