@@ -1217,7 +1217,13 @@
     }
 
     /* ═══════════ HALAMAN DEPAN (LANDING) ═══════════ */
+    /* #root memakai display:flex untuk tata letak sidebar + konten aplikasi.
+       Tanpa lebar tegas, halaman depan jadi flex item yang menyusut mengikuti
+       isinya lalu menempel ke kiri — dan margin:0 auto di dalamnya menengahkan
+       isi terhadap kotak sempit itu, bukan terhadap layar. */
     .lp-wrap {
+      flex: 1;
+      width: 100%;
       min-height: 100vh;
       overflow-y: auto;
       background: var(--bg)
@@ -6336,7 +6342,8 @@
         render() {
           if (this.state.err) {
             var msg = (this.state.err && this.state.err.message) || String(this.state.err);
-            return h('div', { style: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--bg)', color: 'var(--t1)' } },
+            // width 100% wajib: #root memakai flex, tanpa ini layar galat menyusut ke kiri
+            return h('div', { style: { minHeight: '100vh', width: '100%', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'var(--bg)', color: 'var(--t1)' } },
               h('div', { style: { maxWidth: 420, textAlign: 'center' } },
                 h('div', { style: { fontSize: 44, marginBottom: 12 } }, '⚠️'),
                 h('h2', { style: { fontSize: '1.15rem', fontWeight: 700, marginBottom: 8 } }, 'Ups, terjadi kesalahan'),
