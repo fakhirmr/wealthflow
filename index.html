@@ -1246,8 +1246,27 @@
     }
 
     .lp-hero {
-      padding: 40px 0 8px;
-      text-align: center
+      padding: 44px 0 8px
+    }
+
+    /* Dua kolom di layar lebar: pesan di kiri, peragaan di kanan.
+       Rata kiri membuat baris teks lebih mudah dipindai daripada rata tengah. */
+    .lp-hero-grid {
+      display: grid;
+      grid-template-columns: 1.08fr .92fr;
+      gap: 52px;
+      align-items: center
+    }
+
+    @media(max-width:880px) {
+      .lp-hero-grid {
+        grid-template-columns: 1fr;
+        gap: 38px
+      }
+
+      .lp-demo {
+        max-width: 420px
+      }
     }
 
     .lp-eyebrow {
@@ -1287,14 +1306,13 @@
       font-size: clamp(.95rem, 2.3vw, 1.1rem);
       color: var(--t2);
       max-width: 54ch;
-      margin: 0 auto 30px;
+      margin: 0 0 30px;
       line-height: 1.62
     }
 
     .lp-cta {
       display: flex;
       gap: 12px;
-      justify-content: center;
       flex-wrap: wrap
     }
 
@@ -1342,8 +1360,9 @@
 
     /* Peragaan percakapan — bukti konkret pembeda utama */
     .lp-demo {
-      max-width: 420px;
-      margin: 44px auto 0;
+      /* Di layar lebar mengisi kolomnya sendiri; saat kolom menumpuk dibatasi
+         agar gelembung percakapan tak melebar dan jadi sulit dibaca. */
+      margin: 0;
       background: var(--bgc);
       border: 1px solid var(--brd);
       border-radius: 18px;
@@ -1401,7 +1420,6 @@
     }
 
     .lp-sec-hd {
-      text-align: center;
       margin-bottom: 34px
     }
 
@@ -1417,7 +1435,7 @@
       color: var(--t2);
       font-size: .93rem;
       max-width: 48ch;
-      margin: 0 auto;
+      margin: 0;
       line-height: 1.55
     }
 
@@ -1509,8 +1527,7 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
       gap: 16px;
-      max-width: 720px;
-      margin: 0 auto
+      max-width: 760px
     }
 
     .lp-plan {
@@ -1528,9 +1545,7 @@
     .lp-plan-tag {
       position: absolute;
       top: -11px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--acc);
+      left: 22px; background: var(--acc);
       color: #fff;
       font-size: .65rem;
       font-weight: 800;
@@ -1578,7 +1593,6 @@
     }
 
     .lp-foot {
-      text-align: center;
       padding: 46px 0 40px;
       margin-top: 60px;
       border-top: 1px solid var(--brd);
@@ -1599,32 +1613,12 @@
 </head>
 
 <body>
-  <svg xmlns="http://www.w3.org/2000/svg" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
-    <defs>
-      <linearGradient id="wfg" x1="4" y1="0" x2="48" y2="0" gradientUnits="userSpaceOnUse">
-        <stop offset="0%" stop-color="#10b981"/>
-        <stop offset="100%" stop-color="#06b6d4"/>
-      </linearGradient>
-    </defs>
-  </svg>
   <div id="root">
     <div
       style="display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;font-family:Inter,sans-serif">
-      <div style="text-align:center">
-        <svg style="width:54px;height:52px;margin:0 auto 16px;display:block" viewBox="0 0 52 50" fill="none">
-          <defs>
-            <linearGradient id="slg" x1="4" y1="0" x2="48" y2="0" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#10b981"/>
-              <stop offset="100%" stop-color="#06b6d4"/>
-            </linearGradient>
-          </defs>
-          <path d="M 4,7 C 6,20 12,35 13,40 C 15,33 19,24 22,17 C 25,24 29,33 31,40 L 31,7" stroke="url(#slg)" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
-          <line x1="31" y1="40" x2="31" y2="44" stroke="url(#slg)" stroke-width="3.5" stroke-linecap="round"/>
-          <line x1="31" y1="7" x2="48" y2="7" stroke="url(#slg)" stroke-width="3.5" stroke-linecap="round"/>
-          <line x1="31" y1="24" x2="44" y2="24" stroke="url(#slg)" stroke-width="3.5" stroke-linecap="round"/>
-        </svg>
-        <div style="font-size:1.4rem;font-weight:800;color:#f1f5f9">Wealth<span style="color:#10b981">Flow</span></div>
-        <div style="color:#64748b;font-size:.82rem;margin-top:6px">Memuat...</div>
+      <div>
+        <div style="font-size:1.75rem;font-weight:800;letter-spacing:-.025em;color:#f1f5f9">Wealth<span style="color:#10b981">Flow</span></div>
+        <div style="color:#64748b;font-size:.82rem;margin-top:8px">Memuat...</div>
       </div>
     </div>
   </div>
@@ -1639,16 +1633,13 @@
       var h = React.createElement, F = React.Fragment, useState = React.useState, useEffect = React.useEffect, useCallback = React.useCallback, useMemo = React.useMemo, createContext = React.createContext, useContext = React.useContext, useRef = React.useRef;
       var UID = null; // Dynamic - set from auth session
 
-      function WFMark(p) {
-        var sz = p.size || 32;
-        var ht = Math.round(sz * 50 / 52);
-        var s = p.white ? 'white' : 'url(#wfg)';
-        return h('svg', { width: sz, height: ht, viewBox: '0 0 52 50', fill: 'none', 'aria-hidden': 'true', style: p.style || {} },
-          h('path', { d: 'M 4,7 C 6,20 12,35 13,40 C 15,33 19,24 22,17 C 25,24 29,33 31,40 L 31,7', stroke: s, strokeWidth: '3.5', strokeLinejoin: 'round', strokeLinecap: 'round' }),
-          h('line', { x1: '31', y1: '40', x2: '31', y2: '44', stroke: s, strokeWidth: '3.5', strokeLinecap: 'round' }),
-          h('line', { x1: '31', y1: '7', x2: '48', y2: '7', stroke: s, strokeWidth: '3.5', strokeLinecap: 'round' }),
-          h('line', { x1: '31', y1: '24', x2: '44', y2: '24', stroke: s, strokeWidth: '3.5', strokeLinecap: 'round' })
-        );
+      /* Penanda merek berbasis tulisan. Wordmark-nya sendiri sudah cukup kuat,
+         jadi lambang terpisah dilepas agar tampilannya tidak berlebihan. */
+      function WFText(p) {
+        var putih = !!p.white;
+        return h('span', {
+          style: { fontWeight: 800, fontSize: p.size || '1.5rem', letterSpacing: '-.025em', lineHeight: 1.1, color: putih ? '#fff' : 'var(--t1)', whiteSpace: 'nowrap' }
+        }, 'Wealth', h('span', { style: { color: putih ? 'rgba(255,255,255,.82)' : 'var(--acc)' } }, 'Flow'));
       }
 
       var ALL_PAGES = [
@@ -1706,19 +1697,21 @@
         return h('div', { className: 'lp-wrap' },
           h('div', { className: 'lp' },
             h('nav', { className: 'lp-nav' },
-              h('div', { className: 'lp-brand' }, h(WFMark, { size: 30 }), h('span', null, 'Wealth', h('span', { style: { color: 'var(--acc)' } }, 'Flow'))),
+              h('div', { className: 'lp-brand' }, h(WFText, { size: '1.18rem' })),
               h('button', { className: 'lp-btn lp-btn-ghost', style: { padding: '8px 18px', fontSize: '.85rem' }, onClick: go('login') }, 'Masuk')),
 
             h('header', { className: 'lp-hero' },
-              h('span', { className: 'lp-eyebrow' }, 'Pencatat keuangan pribadi'),
-              h('h1', { className: 'lp-h1' }, 'Catat keuangan ', h('em', null, 'semudah kirim chat')),
-              h('p', { className: 'lp-sub' }, 'Mencatat pengeluaran itu merepotkan — itu sebabnya kebanyakan orang berhenti di minggu kedua. WealthFlow menerima kabar dari kamu lewat chat, foto struk, atau ketikan singkat, lalu merapikannya sendiri.'),
-              h('div', { className: 'lp-cta' },
-                h('button', { className: 'lp-btn lp-btn-primary', onClick: go('register') }, 'Mulai gratis'),
-                h('button', { className: 'lp-btn lp-btn-ghost', onClick: go('login') }, 'Sudah punya akun')),
-              h('p', { className: 'lp-note' }, 'Gratis selamanya untuk pencatatan. Tanpa kartu kredit.'),
+              h('div', { className: 'lp-hero-grid' },
+                h('div', null,
+                  h('span', { className: 'lp-eyebrow' }, 'Pencatat keuangan pribadi'),
+                  h('h1', { className: 'lp-h1' }, 'Catat keuangan ', h('em', null, 'semudah kirim chat')),
+                  h('p', { className: 'lp-sub' }, 'Mencatat pengeluaran itu merepotkan — itu sebabnya kebanyakan orang berhenti di minggu kedua. WealthFlow menerima kabar dari kamu lewat chat, foto struk, atau ketikan singkat, lalu merapikannya sendiri.'),
+                  h('div', { className: 'lp-cta' },
+                    h('button', { className: 'lp-btn lp-btn-primary', onClick: go('register') }, 'Mulai gratis'),
+                    h('button', { className: 'lp-btn lp-btn-ghost', onClick: go('login') }, 'Sudah punya akun')),
+                  h('p', { className: 'lp-note' }, 'Gratis selamanya untuk pencatatan. Tanpa kartu kredit.')),
 
-              h('div', { className: 'lp-demo' },
+                h('div', { className: 'lp-demo' },
                 h('div', { className: 'lp-demo-hd' },
                   h('div', { className: 'lp-demo-av' }, 'WF'),
                   h('div', null,
@@ -1729,7 +1722,7 @@
                   h('span', { style: { color: 'var(--t3)', fontSize: '.76rem' } }, 'Makanan & Minuman › Kopi · GoPay')),
                 h('div', { className: 'lp-bub lp-bub-me' }, '📷 (foto struk)'),
                 h('div', { className: 'lp-bub lp-bub-bot', style: { marginBottom: 0 } }, 'Terbaca dari struk', h('br'), h('b', null, 'Rp 187.500'), ' — Indomaret', h('br'),
-                  h('span', { style: { color: 'var(--t3)', fontSize: '.76rem' } }, 'Belanja Bulanan · 21 Agu')))),
+                  h('span', { style: { color: 'var(--t3)', fontSize: '.76rem' } }, 'Belanja Bulanan · 21 Agu'))))),
 
             h('section', { className: 'lp-sec' },
               h('div', { className: 'lp-sec-hd' },
@@ -1773,7 +1766,7 @@
                     ['Semua yang ada di paket gratis', '500 permintaan AI per bulan', 'Baca struk & mutasi sepuasnya', 'Catat lewat Telegram tanpa hambatan'].map(function (x, i) {
                       return h('li', { key: i }, h('span', { className: 'lp-tick' }, '✓'), x);
                     })))),
-              h('div', { style: { textAlign: 'center', marginTop: 34 } },
+              h('div', { style: { marginTop: 34 } },
                 h('button', { className: 'lp-btn lp-btn-primary', onClick: go('register') }, 'Buat akun gratis'))),
 
             h('footer', { className: 'lp-foot' },
@@ -1837,14 +1830,12 @@
         }
 
         // Logo header - reusable
-        var Logo = h('div', { style: { textAlign: 'center', marginBottom: 26 } },
+        var Logo = h('div', { style: { marginBottom: 26 } },
           p.onBack ? h('button', {
             onClick: p.onBack,
             style: { position: 'absolute', top: 20, left: 20, background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', fontSize: '.85rem', display: 'flex', alignItems: 'center', gap: 6, padding: '6px 4px' }
           }, '←', ' Kembali') : null,
-          h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 } },
-            h(WFMark, { size: 46 })),
-          h('h1', { style: { fontSize: '1.45rem', fontWeight: 800, letterSpacing: '-.02em' } }, 'Wealth', h('span', { style: { color: 'var(--acc)' } }, 'Flow')),
+          h('div', { style: { marginBottom: 6 } }, h(WFText, { size: '1.7rem' })),
           h('p', { style: { color: 'var(--t3)', fontSize: '.84rem', marginTop: 5 } }, 'Catat keuangan tanpa repot'));
 
         var AlertBox = function (msg, type) { return h('div', { style: { background: type === 'ok' ? 'var(--accbg)' : 'var(--redbg)', border: '1px solid ' + (type === 'ok' ? 'var(--acc)' : 'var(--red)'), borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: '.82rem', color: type === 'ok' ? 'var(--acc)' : 'var(--red)' } }, msg) };
@@ -1852,8 +1843,7 @@
         // === VERIFY EMAIL ===
         if (tab === 'verify') return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', width: '100%', padding: 20 } },
           h('div', { style: { maxWidth: 400, width: '100%' } }, Logo,
-            h('div', { className: 'cd', style: { padding: 28, textAlign: 'center' } },
-              h('div', { style: { fontSize: 48, marginBottom: 16 } }, '📧'),
+            h('div', { className: 'cd', style: { padding: 28 } },
               h('h2', { style: { marginBottom: 8 } }, 'Cek Email Kamu'),
               h('p', { style: { color: 'var(--t2)', marginBottom: 8 } }, 'Link verifikasi dikirim ke ', h('strong', null, email)),
               h('p', { style: { color: 'var(--t3)', fontSize: '.82rem', marginBottom: 16 } }, 'Klik link di email, lalu kembali ke sini dan login.'),
@@ -1863,8 +1853,7 @@
         if (tab === 'forgot') return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', width: '100%', padding: 20 } },
           h('div', { style: { maxWidth: 400, width: '100%' } }, Logo,
             h('div', { className: 'cd', style: { padding: 28 } },
-              h('div', { style: { textAlign: 'center', marginBottom: 20 } },
-                h('div', { style: { fontSize: 36, marginBottom: 8 } }, '🔑'),
+              h('div', { style: { marginBottom: 20 } },
                 h('h2', { style: { fontSize: '1.2rem', fontWeight: 700 } }, 'Lupa Password'),
                 h('p', { style: { color: 'var(--t3)', fontSize: '.82rem', marginTop: 4 } }, 'Masukkan email kamu. Kami kirim link untuk reset password.')),
               err ? AlertBox(err, 'err') : null,
@@ -1873,12 +1862,12 @@
               h('button', { className: 'btn bp', style: { width: '100%', justifyContent: 'center', padding: '12px', fontSize: '.9rem', marginTop: 4 }, onClick: doForgot, disabled: loading || !!ok }, loading ? 'Mengirim...' : ok ? 'Email Terkirim ✓' : 'Kirim Link Reset'),
               // Tips
               h('div', { style: { marginTop: 16, padding: '12px 14px', background: 'var(--bgi)', borderRadius: 8, fontSize: '.75rem', color: 'var(--t3)', lineHeight: 1.6 } },
-                h('div', { style: { fontWeight: 600, marginBottom: 4, color: 'var(--t2)' } }, '📬 Email tidak masuk?'),
+                h('div', { style: { fontWeight: 600, marginBottom: 4, color: 'var(--t2)' } }, 'Email tidak masuk?'),
                 h('div', null, '• Cek folder Spam / Junk'),
                 h('div', null, '• Pengirim: noreply@mail.app.supabase.io'),
                 h('div', null, '• Tunggu 1-2 menit'),
                 h('div', null, '• Maksimal 2 email per jam'),
-                h('div', { style: { marginTop: 8, fontWeight: 600, color: 'var(--t2)' } }, '💡 Alternatif:'),
+                h('div', { style: { marginTop: 8, fontWeight: 600, color: 'var(--t2)' } }, 'Alternatif:'),
                 h('div', null, 'Login dulu, lalu ubah password di Pengaturan → Akun')),
               h('button', { style: { width: '100%', marginTop: 12, padding: '8px', background: 'none', border: 'none', color: 'var(--acc)', cursor: 'pointer', fontSize: '.82rem' }, onClick: function () { sTab('login'); sErr(''); sOk('') } }, '← Kembali ke Login'))));
 
@@ -1886,8 +1875,7 @@
         if (tab === 'reset_password') return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', width: '100%', padding: 20 } },
           h('div', { style: { maxWidth: 400, width: '100%' } }, Logo,
             h('div', { className: 'cd', style: { padding: 28 } },
-              h('div', { style: { textAlign: 'center', marginBottom: 20 } },
-                h('div', { style: { fontSize: 36, marginBottom: 8 } }, '🔐'),
+              h('div', { style: { marginBottom: 20 } },
                 h('h2', { style: { fontSize: '1.2rem', fontWeight: 700 } }, 'Buat Password Baru')),
               err ? AlertBox(err, 'err') : null,
               ok ? AlertBox(ok, 'ok') : null,
@@ -1900,7 +1888,7 @@
           h('div', { style: { maxWidth: 396, width: '100%' } },
             Logo,
             h('div', { className: 'cd', style: { padding: 26 } },
-              h('div', { style: { textAlign: 'center', marginBottom: 20 } },
+              h('div', { style: { marginBottom: 20 } },
                 h('h2', { style: { fontSize: '1.15rem', fontWeight: 750, letterSpacing: '-.01em' } }, isLogin ? 'Selamat datang kembali' : 'Buat akun baru'),
                 h('p', { style: { color: 'var(--t3)', fontSize: '.8rem', marginTop: 5, lineHeight: 1.5 } },
                   isLogin ? 'Masuk untuk melanjutkan catatan keuanganmu' : 'Gratis selamanya, tanpa kartu kredit')),
@@ -1913,9 +1901,9 @@
                 style: { width: '100%', marginTop: 4, padding: '12px' },
                 onClick: isLogin ? doLogin : doRegister, disabled: loading
               }, loading ? 'Memproses...' : isLogin ? 'Masuk' : 'Buat akun gratis'),
-              isLogin ? h('div', { style: { marginTop: 16, textAlign: 'center' } },
-                h('button', { style: { color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '.78rem' }, onClick: function () { sTab('forgot'); sErr(''); sOk('') } }, 'Lupa password?')) : null,
-              h('div', { style: { marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--brd)', textAlign: 'center', fontSize: '.8rem', color: 'var(--t3)' } },
+              isLogin ? h('div', { style: { marginTop: 16 } },
+                h('button', { style: { color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '.78rem', padding: 0 }, onClick: function () { sTab('forgot'); sErr(''); sOk('') } }, 'Lupa password?')) : null,
+              h('div', { style: { marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--brd)', fontSize: '.8rem', color: 'var(--t3)' } },
                 isLogin ? 'Belum punya akun? ' : 'Sudah punya akun? ',
                 h('button', { style: { color: 'var(--acc)', background: 'none', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '.8rem' }, onClick: function () { sTab(isLogin ? 'register' : 'login'); sErr('') } }, isLogin ? 'Daftar gratis' : 'Masuk')))))
       }
@@ -2558,13 +2546,10 @@
 
         return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', width: '100%', padding: 20 } },
           h('div', { style: { maxWidth: 400, width: '100%' } },
-            h('div', { style: { textAlign: 'center', marginBottom: 32 } },
-              h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 } },
-                h(WFMark, { size: 52 })),
-              h('h1', { style: { fontSize: '1.6rem', fontWeight: 800 } }, 'Wealth', h('span', { style: { color: 'var(--acc)' } }, 'Flow'))),
+            h('div', { style: { marginBottom: 32 } },
+              h(WFText, { size: '1.6rem' })),
             h('div', { className: 'cd', style: { padding: 28 } },
-              h('div', { style: { textAlign: 'center', marginBottom: 20 } },
-                h('div', { style: { fontSize: 40, marginBottom: 8 } }, '🔐'),
+              h('div', { style: { marginBottom: 20 } },
                 h('h2', { style: { fontSize: '1.15rem', fontWeight: 700 } }, 'Buat Password Baru'),
                 h('p', { style: { color: 'var(--t3)', fontSize: '.8rem', marginTop: 4 } }, 'Pilih password yang kuat dan mudah diingat')),
               err ? h('div', { style: { background: 'var(--redbg)', border: '1px solid var(--red)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: '.82rem', color: 'var(--red)' } }, err) : null,
@@ -2765,8 +2750,7 @@
         },
           h('div', { style: { textAlign: 'center', maxWidth: 320, width: '100%' } },
             // Logo
-            h('div', { style: { marginBottom: 16 } }, h(WFMark, { size: 62, white: true })),
-            h('h2', { style: { fontWeight: 800, fontSize: '1.4rem', color: '#fff', marginBottom: 4 } }, 'WealthFlow'),
+            h('div', { style: { marginBottom: 10 } }, h(WFText, { size: '1.8rem', white: true })),
             h('p', { style: { color: '#6b7280', fontSize: '.82rem', marginBottom: 48 } }, email ? 'Halo, ' + email.split('@')[0] + '!' : 'Verifikasi identitas'),
 
             // Main biometric button
@@ -2962,7 +2946,7 @@
         function go(p) { sPg(p); sMb(false) }
         function openWalletTxns(wid) { txnWalletRef.current = wid; go('transactions') }
         // Auth checking
-        if (authChecking) return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', width: '100%' } }, h('div', { style: { textAlign: 'center' } }, h('div', { style: { display: 'flex', justifyContent: 'center', marginBottom: 16 } }, h(WFMark, { size: 52 })), h('h1', { style: { fontSize: '1.4rem', fontWeight: 800, marginBottom: 6 } }, 'Wealth', h('span', { style: { color: 'var(--acc)' } }, 'Flow')), h('p', { style: { color: 'var(--t3)', fontSize: '.82rem' } }, 'Memuat...')));
+        if (authChecking) return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', width: '100%' } }, h('div', { style: { textAlign: 'center' } }, h('div', { style: { marginBottom: 8 } }, h(WFText, { size: '1.75rem' })), h('p', { style: { color: 'var(--t3)', fontSize: '.82rem' } }, 'Memuat...')));
         // Not logged in
         if (!user) {
           if (!authOpen) return h(Landing, { onStart: function (mode) { sAuthTab(mode === 'register' ? 'register' : 'login'); sAuthOpen(true) } });
