@@ -20,7 +20,9 @@ function json(obj, status) {
 export default async function handler(req) {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
-  var SERVER_KEY = process.env.MIDTRANS_SERVER_KEY;
+  // Spasi/baris baru ikut tersalin saat menempel kunci — itu saja sudah membuat
+  // Midtrans menolak dengan "Access denied ... check client or server key".
+  var SERVER_KEY = (process.env.MIDTRANS_SERVER_KEY || '').trim();
   var IS_PROD = process.env.MIDTRANS_IS_PRODUCTION === 'true';
   var SB_URL = process.env.SUPABASE_URL;
   var SB_ANON = process.env.SUPABASE_ANON_KEY;
@@ -29,6 +31,26 @@ export default async function handler(req) {
 
   if (!SERVER_KEY || !SB_URL || !SB_ANON || !SB_SERVICE) {
     return json({ error: 'server_misconfig', detail: 'Environment variables belum lengkap' }, 500);
+  }
+
+  // Kenali jenis kunci dari awalannya, lalu tolak lebih awal bila tak cocok dengan
+  // lingkungan yang dituju. Tanpa ini, Midtrans hanya membalas "Access denied" tanpa
+  // menyebut mana yang keliru — kunci, lingkungan, atau tertukar Client/Server.
+  var isClientKey = /^(SB-)?Mid-client-/i.test(SERVER_KEY);
+  var isSandboxKey = /^SB-Mid-server-/i.test(SERVER_KEY);
+  var isProdKey = /^Mid-server-/i.test(SERVER_KEY);
+
+  if (isClientKey) {
+    return json({ error: 'key_salah', detail: 'Yang terisi adalah CLIENT key. MIDTRANS_SERVER_KEY harus diisi SERVER key (diawali "SB-Mid-server-" untuk Sandbox atau "Mid-server-" untuk Production).' }, 500);
+  }
+  if (!isSandboxKey && !isProdKey) {
+    return json({ error: 'key_salah', detail: 'Format Server Key tidak dikenali. Server Key Midtrans diawali "SB-Mid-server-" (Sandbox) atau "Mid-server-" (Production). Pastikan tersalin utuh.' }, 500);
+  }
+  if (IS_PROD && isSandboxKey) {
+    return json({ error: 'key_mismatch', detail: 'MIDTRANS_IS_PRODUCTION bernilai true, tetapi Server Key yang dipakai milik SANDBOX. Ubah MIDTRANS_IS_PRODUCTION menjadi false, atau ganti dengan Server Key Production.' }, 500);
+  }
+  if (!IS_PROD && isProdKey) {
+    return json({ error: 'key_mismatch', detail: 'Server Key yang dipakai milik PRODUCTION, tetapi MIDTRANS_IS_PRODUCTION belum bernilai true. Ubah menjadi true, atau ganti dengan Server Key Sandbox.' }, 500);
   }
 
   // 1) Verifikasi login
