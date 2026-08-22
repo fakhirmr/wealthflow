@@ -9,12 +9,12 @@
 export const config = { runtime: 'edge' };
 
 var PLANS = {
-  monthly: { amount: 15000, days: 30, label: 'WealthFlow Premium — Bulanan' },
-  yearly: { amount: 100000, days: 365, label: 'WealthFlow Premium — Tahunan' },
+  monthly: { amount: 15000, days: 30, label: 'WealthFlow Premium Bulanan' },
+  yearly: { amount: 100000, days: 365, label: 'WealthFlow Premium Tahunan' },
   // Paket uji: untuk memastikan alur bayar → premium aktif benar-benar bekerja
   // di lingkungan Production tanpa mengeluarkan uang berarti. Sengaja TIDAK
   // ditampilkan di aplikasi dan hanya berlaku 1 hari, jadi tak berguna disalahgunakan.
-  test: { amount: 1000, days: 1, label: 'WealthFlow — Uji Coba Pembayaran' }
+  test: { amount: 1000, days: 1, label: 'WealthFlow Uji Coba Pembayaran' }
 };
 
 function json(obj, status) {
@@ -59,7 +59,7 @@ export default async function handler(req) {
   // Petunjuk aman: hanya jenis & panjang, bukan isi kuncinya
   var terbaca = 'Yang terbaca server: ' + (isSandboxKey ? 'SB-Mid-server-… (Sandbox)' : isProdKey ? 'Mid-server-… (Production)' : isClientKey ? 'Client key' : 'format tak dikenali')
     + ', panjang ' + SERVER_KEY.length + ' karakter, MIDTRANS_IS_PRODUCTION=' + (IS_PROD ? 'true' : 'false')
-    + '. Bila ini bukan yang Anda isi, perubahannya belum diterapkan — lakukan Redeploy di Vercel.';
+    + '. Bila ini bukan yang Anda isi, perubahannya belum diterapkan. Lakukan Redeploy di Vercel.';
 
   if (isClientKey) {
     return json({ error: 'key_salah', detail: 'Yang terisi adalah CLIENT key. MIDTRANS_SERVER_KEY harus diisi SERVER key. ' + terbaca }, 500);

@@ -1678,17 +1678,17 @@
       function Landing(p) {
         function go(mode) { return function () { p.onStart(mode) } }
         var unggulan = [
-          { ic: 'transfer', t: 'Cukup chat, langsung tercatat', d: 'Kirim "beli kopi 25rb pakai gopay" ke bot Telegram. Tak perlu buka aplikasi, tak perlu isi formulir — catatanmu sudah rapi saat kamu sampai rumah.' },
-          { ic: 'camera', t: 'Foto struk & mutasi', d: 'Potret struk belanja atau tangkapan layar mutasi rekening. Nominal, tanggal, dan kategorinya dibaca otomatis — kamu tinggal memeriksa.' },
-          { ic: 'wallet', t: 'Semua dompet jadi satu', d: 'Rekening bank, e-wallet, kartu kredit, sampai uang tunai di dompet. Aplikasi bank hanya menunjukkan satu bank; di sini semuanya berdampingan.' }
+          { ic: 'transfer', t: 'Cukup chat, langsung tercatat', d: 'Kirim "beli kopi 25rb pakai gopay" ke bot Telegram. Tidak perlu buka aplikasi, tidak perlu isi formulir. Sampai rumah, catatanmu sudah rapi.' },
+          { ic: 'camera', t: 'Foto struk & mutasi', d: 'Foto struk belanja atau screenshot mutasi rekening. Nominal, tanggal, dan kategorinya dibaca otomatis. Kamu tinggal cek sudah benar atau belum.' },
+          { ic: 'wallet', t: 'Semua dompet jadi satu', d: 'Rekening bank, e-wallet, kartu kredit, sampai uang tunai di dompet. Aplikasi bank cuma menampilkan isi satu bank. Di sini semuanya kelihatan sekaligus.' }
         ];
         var lain = [
-          ['Anggaran per kategori', 'Pagu bulanan dengan peringatan saat mendekati batas'],
-          ['Hutang & piutang', 'Cicilan, bunga, dan sisa tagihan terhitung otomatis'],
-          ['Pengingat tagihan', 'Diingatkan sebelum jatuh tempo, bukan setelah telat'],
-          ['Tetap jalan tanpa sinyal', 'Catat di parkiran basement, terkirim saat online'],
-          ['Statistik & komposisi', 'Lihat ke mana uangmu benar-benar pergi tiap bulan'],
-          ['Asisten AI', 'Tanya kondisi keuanganmu, dijawab dari datamu sendiri']
+          ['Anggaran per kategori', 'Pasang batas bulanan, nanti diingatkan kalau sudah mepet'],
+          ['Hutang & piutang', 'Cicilan, bunga, dan sisa tagihan dihitung otomatis'],
+          ['Pengingat tagihan', 'Diingatkan sebelum jatuh tempo biar tidak kena denda'],
+          ['Tetap jalan tanpa sinyal', 'Catat sekarang, terkirim sendiri begitu ada internet'],
+          ['Statistik & komposisi', 'Lihat uangmu habis ke mana tiap bulan'],
+          ['Asisten AI', 'Tanya soal keuanganmu, dijawab pakai datamu sendiri']
         ];
         return h('div', { className: 'lp-wrap' },
           h('div', { className: 'lp' },
@@ -1699,7 +1699,7 @@
             h('header', { className: 'lp-hero' },
               h('span', { className: 'lp-eyebrow' }, 'Pencatat keuangan pribadi'),
               h('h1', { className: 'lp-h1' }, 'Catat keuangan ', h('em', null, 'semudah kirim chat')),
-              h('p', { className: 'lp-sub' }, 'Mencatat pengeluaran itu merepotkan — itu sebabnya kebanyakan orang berhenti di minggu kedua. WealthFlow menerima kabar dari kamu lewat chat, foto struk, atau ketikan singkat, lalu merapikannya sendiri.'),
+              h('p', { className: 'lp-sub' }, 'Mencatat pengeluaran itu ribet, makanya banyak orang berhenti di minggu kedua. Di WealthFlow kamu tinggal chat, foto struk, atau ketik singkat. Sisanya biar kami yang rapikan.'),
               h('div', { className: 'lp-cta' },
                 h('button', { className: 'lp-btn lp-btn-primary', onClick: go('register') }, 'Mulai gratis'),
                 h('button', { className: 'lp-btn lp-btn-ghost', onClick: go('login') }, 'Sudah punya akun')),
@@ -1712,16 +1712,16 @@
                     h('div', { style: { fontWeight: 700, fontSize: '.84rem' } }, 'WealthFlow'),
                     h('div', { style: { fontSize: '.68rem', color: 'var(--acc)' } }, 'online'))),
                 h('div', { className: 'lp-bub lp-bub-me' }, 'beli kopi 25rb pakai gopay'),
-                h('div', { className: 'lp-bub lp-bub-bot' }, 'Tercatat', h('br'), h('b', null, 'Rp 25.000'), ' — Kopi', h('br'),
+                h('div', { className: 'lp-bub lp-bub-bot' }, 'Sudah dicatat', h('br'), h('b', null, 'Rp 25.000'), ' buat kopi', h('br'),
                   h('span', { style: { color: 'var(--t3)', fontSize: '.76rem' } }, 'Makanan & Minuman › Kopi · GoPay')),
                 h('div', { className: 'lp-bub lp-bub-me' }, '📷 (foto struk)'),
-                h('div', { className: 'lp-bub lp-bub-bot', style: { marginBottom: 0 } }, 'Terbaca dari struk', h('br'), h('b', null, 'Rp 187.500'), ' — Indomaret', h('br'),
+                h('div', { className: 'lp-bub lp-bub-bot', style: { marginBottom: 0 } }, 'Kebaca dari struknya', h('br'), h('b', null, 'Rp 187.500'), ' di Indomaret', h('br'),
                   h('span', { style: { color: 'var(--t3)', fontSize: '.76rem' } }, 'Belanja Bulanan · 21 Agu')))),
 
             h('section', { className: 'lp-sec' },
               h('div', { className: 'lp-sec-hd' },
                 h('h2', { className: 'lp-h2' }, 'Dibuat untuk orang yang malas mencatat'),
-                h('p', { className: 'lp-sec-sub' }, 'Bukan karena tidak peduli pada uangnya — tapi karena mencatat manual memang melelahkan.')),
+                h('p', { className: 'lp-sec-sub' }, 'Bukan karena tidak peduli sama uangnya. Tapi mencatat satu-satu tiap hari memang melelahkan.')),
               h('div', { className: 'lp-grid3' },
                 unggulan.map(function (f, i) {
                   return h('div', { className: 'lp-card', key: i },
@@ -1740,8 +1740,8 @@
 
             h('section', { className: 'lp-sec' },
               h('div', { className: 'lp-sec-hd' },
-                h('h2', { className: 'lp-h2' }, 'Harga yang jujur'),
-                h('p', { className: 'lp-sec-sub' }, 'Semua fitur pencatatan gratis selamanya. Yang berbayar hanya kecerdasan buatannya, karena itu memang berbiaya.')),
+                h('h2', { className: 'lp-h2' }, 'Berapa biayanya?'),
+                h('p', { className: 'lp-sec-sub' }, 'Semua fitur pencatatan gratis selamanya. Yang berbayar cuma bagian AI-nya, karena tiap dipakai memang ada biayanya.')),
               h('div', { className: 'lp-price' },
                 h('div', { className: 'lp-plan' },
                   h('div', { className: 'lp-plan-name' }, 'Gratis'),
@@ -1755,16 +1755,16 @@
                   h('span', { className: 'lp-plan-tag' }, 'PALING HEMAT'),
                   h('div', { className: 'lp-plan-name' }, 'Premium'),
                   h('div', { className: 'lp-plan-amt' }, 'Rp 100rb'),
-                  h('div', { className: 'lp-plan-per' }, 'per tahun · setara Rp 8.300/bulan'),
+                  h('div', { className: 'lp-plan-per' }, 'per tahun, sekitar Rp 8.300 sebulan'),
                   h('ul', null,
-                    ['Semua yang ada di paket gratis', '500 permintaan AI per bulan', 'Baca struk & mutasi sepuasnya', 'Catat lewat Telegram tanpa hambatan'].map(function (x, i) {
+                    ['Semua yang ada di paket gratis', '500 permintaan AI per bulan', 'Cukup untuk scan struk tiap hari', 'Berlaku di aplikasi dan Telegram'].map(function (x, i) {
                       return h('li', { key: i }, h('span', { className: 'lp-tick' }, '✓'), x);
                     })))),
               h('div', { style: { textAlign: 'center', marginTop: 34 } },
                 h('button', { className: 'lp-btn lp-btn-primary', onClick: go('register') }, 'Buat akun gratis'))),
 
             h('footer', { className: 'lp-foot' },
-              h('div', { style: { marginBottom: 6 } }, 'WealthFlow — catat keuangan tanpa repot'),
+              h('div', { style: { marginBottom: 6 } }, 'WealthFlow, catat keuangan tanpa repot'),
               h('div', { style: { fontSize: '.74rem' } }, '© ', new Date().getFullYear(), ' WealthFlow'))));
       }
 
@@ -1885,7 +1885,7 @@
               h('div', { style: { textAlign: 'center', marginBottom: 20 } },
                 h('h2', { style: { fontSize: '1.15rem', fontWeight: 750, letterSpacing: '-.01em' } }, isLogin ? 'Selamat datang kembali' : 'Buat akun baru'),
                 h('p', { style: { color: 'var(--t3)', fontSize: '.8rem', marginTop: 5, lineHeight: 1.5 } },
-                  isLogin ? 'Masuk untuk melanjutkan catatan keuanganmu' : 'Gratis selamanya, tanpa kartu kredit')),
+                  isLogin ? 'Masuk untuk lanjut mencatat' : 'Gratis selamanya, tanpa kartu kredit')),
               err ? AlertBox(err, 'err') : null,
               ok ? AlertBox(ok, 'ok') : null,
               h('div', { className: 'fg' }, h('label', null, 'Email'), h('input', { className: 'fi', type: 'email', autoComplete: 'email', placeholder: 'email@contoh.com', value: email, onChange: function (e) { sEmail(e.target.value) }, onKeyDown: function (e) { if (e.key === 'Enter') { isLogin ? doLogin() : doRegister() } } })),
@@ -2405,7 +2405,7 @@
                 var reached = pct >= m; var amount = Math.round(target * m / 100);
                 return h('div', { key: m, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid var(--brd)' } },
                   h('div', { style: { width: 24, height: 24, borderRadius: 12, background: reached ? 'var(--acc)' : 'var(--bgi)', color: reached ? '#fff' : 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 } }, reached ? '✓' : m),
-                  h('span', { style: { flex: 1, fontSize: '.82rem', fontWeight: reached ? 600 : 400, color: reached ? 'var(--acc)' : 'var(--t3)', textDecoration: reached ? 'line-through' : 'none' } }, m + '% — ', fmt(amount)),
+                  h('span', { style: { flex: 1, fontSize: '.82rem', fontWeight: reached ? 600 : 400, color: reached ? 'var(--acc)' : 'var(--t3)', textDecoration: reached ? 'line-through' : 'none' } }, m + '% ', fmt(amount)),
                   reached ? h('span', { style: { fontSize: '.7rem', color: 'var(--acc)' } }, 'Tercapai!') : null)
               })),
             // Actions
@@ -2423,7 +2423,7 @@
               h('div', { className: 'fg' }, h('label', null, 'Deadline (opsional)'), h('input', { className: 'fi', type: 'date', value: f.deadline, onChange: function (e) { uf('deadline', e.target.value) } })),
               h('div', { className: 'fg' }, h('label', null, 'Link ke Dompet (opsional)'),
                 h('select', { className: 'fi', value: f.wallet_id, onChange: function (e) { uf('wallet_id', e.target.value) } },
-                  h('option', { value: '' }, '— Manual (isi sendiri) —'),
+                  h('option', { value: '' }, 'Isi sendiri'),
                   W.map(function (w) { return h('option', { key: w.id, value: w.id }, '🔗 ' + w.name + ' (' + fmt(Number(w.balance) || 0) + ')') })),
                 f.wallet_id ? h('div', { style: { marginTop: 4, fontSize: '.72rem', color: 'var(--blu)', background: 'var(--blubg)', padding: '6px 10px', borderRadius: 6 } }, '💡 Progress otomatis = saldo dompet ini') : null),
               h('div', { className: 'fg' }, h('label', null, 'Prioritas'),
@@ -2481,7 +2481,7 @@
             h('div', { className: 'fg' }, h('label', null, 'Deadline (opsional)'), h('input', { className: 'fi', type: 'date', value: f.deadline, onChange: function (e) { uf('deadline', e.target.value) } })),
             h('div', { className: 'fg' }, h('label', null, 'Link ke Dompet (opsional)'),
               h('select', { className: 'fi', value: f.wallet_id, onChange: function (e) { uf('wallet_id', e.target.value) } },
-                h('option', { value: '' }, '— Manual (isi sendiri) —'),
+                h('option', { value: '' }, 'Isi sendiri'),
                 W.map(function (w) { return h('option', { key: w.id, value: w.id }, '🔗 ' + w.name + ' (' + fmt(Number(w.balance) || 0) + ')') })),
               f.wallet_id ? h('div', { style: { marginTop: 4, fontSize: '.72rem', color: 'var(--blu)', background: 'var(--blubg)', padding: '6px 10px', borderRadius: 6 } }, '💡 Progress otomatis = saldo dompet ini') : null),
             h('div', { className: 'fg' }, h('label', null, 'Prioritas'),
@@ -2564,8 +2564,8 @@
       var WF_CHANGELOG = [
         {
           v: '4.0', date: '4 Jun 2026', items: [
-            { type: 'fix', emoji: '🛠', text: 'Layar gelap / crash saat buka app — diperbaiki' },
-            { type: 'fix', emoji: '✨', text: 'Kedip/glitch saat pertama buka — diperbaiki' },
+            { type: 'fix', emoji: '🛠', text: 'Layar gelap atau crash saat buka app sudah diperbaiki' },
+            { type: 'fix', emoji: '✨', text: 'Kedip saat pertama buka sudah diperbaiki' },
             { type: 'new', emoji: '💳', text: 'Toggle "Catat di Transaksi" saat bayar hutang/piutang' },
             { type: 'improve', emoji: '📱', text: 'Anti zoom-in pada form input (iOS)' },
             { type: 'new', emoji: '🎬', text: 'Animasi transisi halaman yang halus' },
@@ -2576,19 +2576,19 @@
         },
         {
           v: '3.0', date: '30 Mei 2026', items: [
-            { type: 'new', emoji: '🎯', text: 'Halaman Goals — pantau tujuan keuanganmu' },
+            { type: 'new', emoji: '🎯', text: 'Halaman Goals buat pantau tujuan keuanganmu' },
             { type: 'new', emoji: '🔄', text: 'Tab Transfer di form transaksi cepat' },
-            { type: 'improve', emoji: '📊', text: 'Budget 2.0 — sub-kategori & navigasi bulan' },
+            { type: 'improve', emoji: '📊', text: 'Budget 2.0 dengan sub-kategori & navigasi bulan' },
             { type: 'improve', emoji: '💰', text: 'Saldo dompet tampil di semua dropdown' },
             { type: 'new', emoji: '🔑', text: 'Ganti password dari dalam app (Pengaturan)' },
-            { type: 'fix', emoji: '🛠', text: 'Transfer sync — saldo tidak terupdate' },
+            { type: 'fix', emoji: '🛠', text: 'Transfer sync, saldo tidak terupdate' },
           ]
         },
         {
           v: '2.0', date: '21 Mei 2026', items: [
-            { type: 'new', emoji: '🤖', text: 'AI Asisten — Chat, Anomali, Forecast, Weekly Digest' },
+            { type: 'new', emoji: '🤖', text: 'AI Asisten: Chat, Anomali, Forecast, Weekly Digest' },
             { type: 'new', emoji: '💳', text: 'Hutang & Piutang 2.0 dengan kalkulator bunga' },
-            { type: 'new', emoji: '📈', text: 'Halaman Investasi — portofolio & return' },
+            { type: 'new', emoji: '📈', text: 'Halaman Investasi buat pantau portofolio & return' },
             { type: 'improve', emoji: '🏷', text: 'Kategori bertingkat (parent → sub-kategori)' },
           ]
         },
@@ -3032,7 +3032,7 @@
               h('span', null, online ? '🔄' : '📴'),
               h('span', { style: { flex: 1, fontWeight: 600 } },
                 !online
-                  ? ('Mode offline' + (pendCount > 0 ? ' · ' + pendCount + ' transaksi menunggu dikirim' : ' — data yang tampil dari simpanan terakhir'))
+                  ? ('Mode offline' + (pendCount > 0 ? ' · ' + pendCount + ' transaksi menunggu dikirim' : ', data yang tampil dari simpanan terakhir'))
                   : (pendCount + ' transaksi menunggu dikirim...')),
               (online && pendCount > 0) ? h('button', { className: 'btn bs', style: { fontSize: '.7rem', padding: '2px 8px' }, onClick: function () { syncOutbox(function (s, left) { sPendCount(left); if (s > 0) { t('✅ ' + s + ' transaksi terkirim'); rT(); rW() } }) } }, 'Kirim') : null) : null,
             pg === 'dashboard' ? h(Dash, Object.assign({}, cx, { dashCards: dashCards, sDash: sDash })) : null, pg === 'transactions' ? h(TxnsP, Object.assign({}, cx, { txnWalletRef: txnWalletRef })) : null, pg === 'budgets' ? h(BudgP, cx) : null, pg === 'wallets' ? h(WalletsP, Object.assign({}, cx, { openTxns: openWalletTxns })) : null, pg === 'goals' ? h(GoalsP, cx) : null, pg === 'debts' ? h(DebtP, cx) : null, pg === 'reminders' ? h(ReminderP, Object.assign({}, cx, { go: go })) : null, pg === 'ai' ? h(AiP, cx) : null, pg === 'investments' ? h(InvP, cx) : null, pg === 'categories' ? h(CatsP, cx) : null, pg === 'settings' ? h(SettingsP, Object.assign({}, cx, { theme: theme, sTh: sTh, user: user, bnav: bnav, sBnav: sBnav, dashCards: dashCards, sDash: sDash })) : null)),
@@ -3181,7 +3181,7 @@
           saveTxns([pay], function (status) {
             if (status === 'saved') adjWallet(f.wallet_id, (f.type === 'income' ? 1 : -1) * amt, rW);
             try { sessionStorage.removeItem(DRAFT) } catch (e) { }
-            t(status === 'queued' ? '📴 Tersimpan offline — akan dikirim saat online' : 'Transaksi ditambahkan');
+            t(status === 'queued' ? '📴 Tersimpan offline, akan dikirim saat online' : 'Transaksi ditambahkan');
             rT(); p.onClose()
           }, function (msg) { t(msg, 'err') });
         }
@@ -3214,8 +3214,8 @@
                   h('div', { style: { marginBottom: 6 } },
                     h(NumInput, { value: String(r.amount || ''), onChange: function (v) { updSplit(i, 'amount', v) }, style: { fontSize: '.9rem' } })),
                   h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
-                    h('select', { className: 'fi', value: r.category_id || '', onChange: function (e) { updSplit(i, 'category_id', e.target.value) }, style: { flex: 1, minWidth: 130, fontSize: '.8rem' } }, h('option', { value: '' }, '— Kategori —'), relC.map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })),
-                    r.category_id ? h('select', { className: 'fi', value: r.sub_category_id || '', onChange: function (e) { updSplit(i, 'sub_category_id', e.target.value) }, style: { flex: 1, minWidth: 120, fontSize: '.8rem' } }, h('option', { value: '' }, '— Sub —'), C.filter(function (c) { return c.parent_id === r.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })) : null));
+                    h('select', { className: 'fi', value: r.category_id || '', onChange: function (e) { updSplit(i, 'category_id', e.target.value) }, style: { flex: 1, minWidth: 130, fontSize: '.8rem' } }, h('option', { value: '' }, 'Pilih kategori'), relC.map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })),
+                    r.category_id ? h('select', { className: 'fi', value: r.sub_category_id || '', onChange: function (e) { updSplit(i, 'sub_category_id', e.target.value) }, style: { flex: 1, minWidth: 120, fontSize: '.8rem' } }, h('option', { value: '' }, 'Pilih sub'), C.filter(function (c) { return c.parent_id === r.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })) : null));
               }),
               h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2 } },
                 h('button', { className: 'btn bs', style: { fontSize: '.75rem', padding: '4px 10px' }, onClick: addSplitRow }, '+ Baris'),
@@ -3375,7 +3375,7 @@
         cardMap.cashflow = function() {
           return h('div',{className:'cd',style:{marginBottom:16,padding:'16px 18px'}},
             h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}},
-              h('div',{style:{fontWeight:700,fontSize:'.88rem'}},'Arus Kas — ',MO[mo]),
+              h('div',{style:{fontWeight:700,fontSize:'.88rem'}},'Arus Kas ',MO[mo]),
               h('div',{style:{fontSize:'.75rem',fontWeight:700,color:savRate>=0?'var(--acc)':'var(--red)',background:'var(--bgi)',padding:'2px 8px',borderRadius:10}},savRate>=0?'+'+savRate+'%':savRate+'%',' tabungan')),
             h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:12}},
               h('div',{style:{textAlign:'center',background:'var(--accbg)',borderRadius:8,padding:'10px 6px'}},
@@ -3718,7 +3718,7 @@
               setTimeout(function () {
                 sb.from('user_settings').select('premium_until').eq('user_id', UID).maybeSingle().then(function (r) {
                   if (r.data && r.data.premium_until && new Date(r.data.premium_until) > new Date()) { sPrem(r.data.premium_until); t('✅ Premium aktif!') }
-                  else t('Pembayaran diproses. Jika sudah bayar, status akan update dalam beberapa saat — refresh halaman ini.');
+                  else t('Pembayaran diproses. Jika sudah bayar, status akan update dalam beberapa saat. Coba refresh halaman ini.');
                 });
               }, 2500);
             }
@@ -3912,7 +3912,7 @@
                 h('button', { className: 'btn bs', style: { color: 'var(--red)', fontSize: '.78rem' }, onClick: tgUnlink }, 'Putuskan'))
               : (tgLink && tgLink.link_code)
                 ? h('div', null,
-                  h('div', { style: { fontSize: '.8rem', color: 'var(--t2)', marginBottom: 12, lineHeight: 1.5 } }, 'Tekan tombol di bawah, lalu ketuk ', h('b', null, 'START'), ' di Telegram — akunmu otomatis terhubung.'),
+                  h('div', { style: { fontSize: '.8rem', color: 'var(--t2)', marginBottom: 12, lineHeight: 1.5 } }, 'Tekan tombol di bawah, lalu ketuk ', h('b', null, 'START'), ' di Telegram. Akunmu langsung terhubung.'),
                   h('a', { href: 'https://t.me/' + TG_BOT + '?start=' + tgLink.link_code, target: '_blank', rel: 'noopener', className: 'btn bp', style: { textDecoration: 'none', display: 'inline-flex', marginBottom: 12 } }, 'Buka Bot & Hubungkan →'),
                   h('div', { style: { fontSize: '.72rem', color: 'var(--t3)', marginBottom: 10 } }, 'Kalau tombol tak jalan, kirim ini ke bot: ', h('code', { style: { background: 'var(--bgi)', padding: '1px 6px', borderRadius: 4 } }, '/start ' + tgLink.link_code)),
                   h('button', { className: 'btn bs', style: { fontSize: '.78rem' }, onClick: tgRefresh }, '↻ Cek status'))
@@ -4446,7 +4446,7 @@
           }
           if (mo.m === 'add') {
             saveTxns([pay], function (status) {
-              var lbl = status === 'queued' ? '📴 Tersimpan offline — akan dikirim saat online' : 'Ditambahkan';
+              var lbl = status === 'queued' ? '📴 Tersimpan offline, akan dikirim saat online' : 'Ditambahkan';
               if (status === 'saved' && f.wallet_id) { adjWallet(f.wallet_id, (f.type === 'income' ? 1 : -1) * Number(f.amount), function () { t(lbl); sM(null); rT(); rW() }); return }
               t(lbl); sM(null); rT()
             }, function (msg) { t(msg, 'err') });
@@ -4682,8 +4682,8 @@
                         h('div', { style: { marginBottom: 6 } },
                           h(NumInput, { value: String(r.amount || ''), onChange: function (v) { updSplit(i, 'amount', v) }, style: { fontSize: '.9rem' } })),
                         h('div', { style: { display: 'flex', gap: 6, flexWrap: 'wrap' } },
-                          h('select', { className: 'fi', value: r.category_id || '', onChange: function (e) { updSplit(i, 'category_id', e.target.value) }, style: { flex: 1, minWidth: 130, fontSize: '.8rem' } }, h('option', { value: '' }, '— Kategori —'), relC.map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })),
-                          r.category_id ? h('select', { className: 'fi', value: r.sub_category_id || '', onChange: function (e) { updSplit(i, 'sub_category_id', e.target.value) }, style: { flex: 1, minWidth: 120, fontSize: '.8rem' } }, h('option', { value: '' }, '— Sub —'), C.filter(function (c) { return c.parent_id === r.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })) : null));
+                          h('select', { className: 'fi', value: r.category_id || '', onChange: function (e) { updSplit(i, 'category_id', e.target.value) }, style: { flex: 1, minWidth: 130, fontSize: '.8rem' } }, h('option', { value: '' }, 'Pilih kategori'), relC.map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })),
+                          r.category_id ? h('select', { className: 'fi', value: r.sub_category_id || '', onChange: function (e) { updSplit(i, 'sub_category_id', e.target.value) }, style: { flex: 1, minWidth: 120, fontSize: '.8rem' } }, h('option', { value: '' }, 'Pilih sub'), C.filter(function (c) { return c.parent_id === r.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })) : null));
                     }),
                     h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2 } },
                       h('button', { className: 'btn bs', style: { fontSize: '.75rem', padding: '4px 10px' }, onClick: addSplitRow }, '+ Baris'),
@@ -4868,7 +4868,7 @@
                 h('div', { style: { fontSize: '1rem', flexShrink: 0 } }, '🏠'),
                 h('div', null,
                   h('div', { style: { fontWeight: 600, color: 'var(--t1)' } }, 'Cicilan (KPR, Motor)'),
-                  h('div', { style: { color: 'var(--t3)', lineHeight: 1.4 } }, 'Catat sebagai hutang. Saat bayar cicilan, pilih kategori "Cicilan" — bukan kategori konsumsi.'))),
+                  h('div', { style: { color: 'var(--t3)', lineHeight: 1.4 } }, 'Catat sebagai hutang. Saat bayar cicilan, pilih kategori "Cicilan", jangan kategori konsumsi.'))),
               h('div', { style: { display: 'flex', gap: 10, fontSize: '.8rem' } },
                 h('div', { style: { fontSize: '1rem', flexShrink: 0 } }, '🤝'),
                 h('div', null,
@@ -5070,7 +5070,7 @@
             var upd = (r.recurrence === 'once') ? { is_active: false, last_paid: pf.paid_date } : { due_date: advance(r.due_date, r.recurrence), last_paid: pf.paid_date };
             sb.from('reminders').update(upd).eq('id', r.id).then(function (ru) {
               if (ru.error) { t(ru.error.message, 'err'); return; }
-              t(r.recurrence === 'once' ? 'Lunas! 🎉' : 'Tercatat — jadwal berikutnya diset'); sPMo(null); rR();
+              t(r.recurrence === 'once' ? 'Lunas! 🎉' : 'Tercatat, jadwal berikutnya sudah diset'); sPMo(null); rR();
             });
           }
           if (pf.record_txn && pf.wallet_id && amt > 0) {
@@ -5202,7 +5202,7 @@
                         strokeDasharray: dash + ' ' + (CIRC - dash), strokeDashoffset: -acc, strokeLinecap: 'butt',
                         style: { cursor: 'pointer', transition: 'stroke-width .15s, opacity .15s' },
                         onClick: function () { toggle(s.id) }
-                      }, h('title', null, s.name + ' — ' + fmt(s.value)));
+                      }, h('title', null, s.name + ': ' + fmt(s.value)));
                       acc += len; return el;
                     })),
                   // Bagian tengah ikut berubah saat irisan dipilih — inilah rincian yang muncul
@@ -5418,8 +5418,8 @@
           return '=== DATA KEUANGAN ' + MO[mo] + ' ' + yr + ' ===\n' +
             'Net Worth: ' + fmt(netWorth) + '\n' +
             'Dompet: ' + W.map(function (w) { return w.name + ' ' + fmt(Number(w.balance) || 0) }).join(', ') + '\n' +
-            'Bulan ini — Masuk: ' + fmt(inc) + ', Keluar: ' + fmt(exp) + ', Selisih: ' + fmt(inc - exp) + '\n' +
-            'Bulan lalu — Masuk: ' + fmt(pInc) + ', Keluar: ' + fmt(pExp) + '\n' +
+            'Bulan ini, Masuk: ' + fmt(inc) + ', Keluar: ' + fmt(exp) + ', Selisih: ' + fmt(inc - exp) + '\n' +
+            'Bulan lalu, Masuk: ' + fmt(pInc) + ', Keluar: ' + fmt(pExp) + '\n' +
             'Pengeluaran: ' + cats.join(', ') + '\n' +
             (B.length ? 'Anggaran: ' + B.map(function (b) { var c = fid(C, b.category_id); var s = moTxns.filter(function (t) { return t.category_id === b.category_id && t.type === 'expense' }).reduce(function (ss, t) { return ss + (Number(t.amount) || 0) }, 0); return (c ? c.name : '?') + ' ' + fmt(s) + '/' + fmt(Number(b.amount)) }).join(', ') + '\n' : '') +
             (D.filter(function (d) { return d.status === 'active' }).length ? 'Hutang: ' + D.filter(function (d) { return d.status === 'active' }).map(function (d) { return d.name + ' sisa ' + fmt(Number(d.remaining_amount) || 0) + ' cicilan ' + fmt(Number(d.monthly_payment) || 0) + '/bln' }).join('; ') + '\n' : '') +
@@ -5444,7 +5444,7 @@
           var wList = W.map(function (w) { return w.id + '=' + w.name }).join(',');
           var cList = C.filter(function (c) { return !c.parent_id }).map(function (c) { return c.id + '=' + c.name + '(' + c.type + ')' }).join(',');
           var sList = C.filter(function (c) { return !!c.parent_id }).map(function (c) { return c.id + '=' + c.name + '[parent:' + c.parent_id + ']' }).join(',');
-          var sysPrompt = 'Kamu adalah WealthFlow AI — asisten keuangan pribadi yang cerdas dan analitis untuk pengguna Indonesia.\n\nGAYA: Bahasa Indonesia natural dan hangat. Emoji secukupnya. Jawaban terstruktur (bullet/list jika perlu). Maksimal 300 kata kecuali diminta lebih detail.\n\nDATA KEUANGAN: Gunakan HANYA angka dari data di bawah. Jangan pernah mengarang angka. Jika data tidak ada atau kurang, minta user input dengan jelas.\n\nPANDUAN RESPONS:\n• Kondisi umum → highlight surplus/defisit, perbandingan bulan lalu, kategori pengeluaran terbesar\n• Analisis pengeluaran → sebutkan angka spesifik per kategori, tandai yang perlu diwaspadai\n• Status budget → tampilkan % terpakai tiap kategori, yang sudah over, estimasi sisa bulan\n• Hutang → total beban cicilan/bulan, rekomendasikan urutan prioritas pelunasan\n• Tips hemat → SPESIFIK berdasarkan pola pengeluaran user, bukan saran generik\n• Pertanyaan di luar keuangan → bantu singkat lalu arahkan ke konteks keuangan user\n\nCATAT TRANSAKSI OTOMATIS: Jika pesan user mengandung transaksi keuangan (beli, bayar, makan, transfer, terima, gaji, dll), sertakan di AKHIR respons satu blok [TX] per transaksi dalam SATU BARIS:\n[TX]{"type":"expense","amount":0,"description":"","date":"' + td() + '","wallet_id":"UUID_ATAU_null","category_id":"UUID_ATAU_null","sub_category_id":"UUID_ATAU_null"}[/TX]\nATURAN KETAT: (1) Setiap blok [TX]...{json}...[/TX] harus ditulis dalam SATU BARIS, jangan dipecah. (2) Semua ID harus UUID TUNGGAL, bukan gabungan koma. (3) sub_category_id harus anak dari category_id yang dipilih, atau null. (4) Jika tidak ada transaksi, JANGAN sertakan [TX].\nDompet: ' + wList + '\nKategori: ' + cList + '\nSub-Kategori: ' + sList + '\n\nPENTING: Fokus pada insight yang actionable. Ingat percakapan sebelumnya.\n\n' + buildCtx();
+          var sysPrompt = 'Kamu adalah WealthFlow AI, asisten keuangan pribadi yang cerdas dan analitis untuk pengguna Indonesia.\n\nGAYA: Bahasa Indonesia sehari-hari, seperti teman yang paham keuangan. Kalimat pendek dan langsung. Emoji secukupnya. Jawaban terstruktur (bullet/list jika perlu). Maksimal 300 kata kecuali diminta lebih detail.\n\nDILARANG: jangan pakai tanda pisah em-dash. Pakai titik, koma, atau titik dua. Hindari gaya bahasa AI seperti "bukan X, melainkan Y", "mari kita", "penting untuk dicatat", atau kalimat penutup yang cuma mengulang isi jawaban.\n\nDATA KEUANGAN: Gunakan HANYA angka dari data di bawah. Jangan pernah mengarang angka. Jika data tidak ada atau kurang, minta user input dengan jelas.\n\nPANDUAN RESPONS:\n• Kondisi umum → highlight surplus/defisit, perbandingan bulan lalu, kategori pengeluaran terbesar\n• Analisis pengeluaran → sebutkan angka spesifik per kategori, tandai yang perlu diwaspadai\n• Status budget → tampilkan % terpakai tiap kategori, yang sudah over, estimasi sisa bulan\n• Hutang → total beban cicilan/bulan, rekomendasikan urutan prioritas pelunasan\n• Tips hemat → SPESIFIK berdasarkan pola pengeluaran user, bukan saran generik\n• Pertanyaan di luar keuangan → bantu singkat lalu arahkan ke konteks keuangan user\n\nCATAT TRANSAKSI OTOMATIS: Jika pesan user mengandung transaksi keuangan (beli, bayar, makan, transfer, terima, gaji, dll), sertakan di AKHIR respons satu blok [TX] per transaksi dalam SATU BARIS:\n[TX]{"type":"expense","amount":0,"description":"","date":"' + td() + '","wallet_id":"UUID_ATAU_null","category_id":"UUID_ATAU_null","sub_category_id":"UUID_ATAU_null"}[/TX]\nATURAN KETAT: (1) Setiap blok [TX]...{json}...[/TX] harus ditulis dalam SATU BARIS, jangan dipecah. (2) Semua ID harus UUID TUNGGAL, bukan gabungan koma. (3) sub_category_id harus anak dari category_id yang dipilih, atau null. (4) Jika tidak ada transaksi, JANGAN sertakan [TX].\nDompet: ' + wList + '\nKategori: ' + cList + '\nSub-Kategori: ' + sList + '\n\nPENTING: Fokus pada insight yang actionable. Ingat percakapan sebelumnya.\n\n' + buildCtx();
           aiFetch({
             model: 'gemini-flash-latest', max_tokens: 4096,
             messages: [{ role: 'system', content: sysPrompt }].concat(hist)
@@ -5554,7 +5554,7 @@
               if (tx.category_id && String(tx.category_id).indexOf(',') > -1) tx.category_id = String(tx.category_id).split(',')[0].trim() || null;
               tx.sub_category_id = tx.sub_category_id || null;
               sPendingTx(function (prev) { return prev.concat([tx]) });
-              var preview = '📋 Transaksi terdeteksi:\n' + (tx.type === 'income' ? '💚 Pemasukan' : '💸 Pengeluaran') + '\nJumlah: ' + fmt(tx.amount) + '\nKeterangan: ' + (tx.description || '-') + '\nDompet: ' + (tx.wallet_id ? wn(W, tx.wallet_id) : '—') + '\nKategori: ' + (tx.category_id ? cn(C, tx.category_id) : '—') + '\nTanggal: ' + tx.date;
+              var preview = '📋 Transaksi terdeteksi:\n' + (tx.type === 'income' ? '💚 Pemasukan' : '💸 Pengeluaran') + '\nJumlah: ' + fmt(tx.amount) + '\nKeterangan: ' + (tx.description || '-') + '\nDompet: ' + (tx.wallet_id ? wn(W, tx.wallet_id) : '-') + '\nKategori: ' + (tx.category_id ? cn(C, tx.category_id) : '-') + '\nTanggal: ' + tx.date;
               var fm = nm.concat({ role: 'ai', text: preview }); sMs(fm); saveMem(fm);
             } catch (e) { var em = nm.concat({ role: 'sys', text: '⚠️ Gagal parse transaksi' }); sMs(em); saveMem(em) }
           }).catch(function (e) { sBusy(false) })
@@ -5814,7 +5814,7 @@
               ld || busy ? h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', color: 'var(--blu)', fontSize: '.8rem' } }, '🤔 ', busy ? 'Menganalisis transaksi...' : 'Menganalisis...') : null),
             h(Mod, { open: pendingTx.length > 0, onClose: function () { sPendingTx([]); sEditIdx(null) }, title: pendingTx.length + ' transaksi terbaca', footer: h(F, null, h('button', { className: 'btn bs', onClick: function () { sPendingTx([]); sEditIdx(null) } }, 'Batal'), h('button', { className: 'btn bp', onClick: confirmTx }, 'Simpan Semua')) },
               h('div', { style: { fontSize: '.78rem', color: 'var(--t3)', marginBottom: 6, lineHeight: 1.4 } }, 'Periksa & pilih kategori tiap transaksi sebelum disimpan. Total: ', h('b', { style: { color: 'var(--t1)' } }, fmt(pendingTx.reduce(function (s, t) { return s + (t.type === 'income' ? Number(t.amount) : -Number(t.amount)) }, 0)))),
-              h('div', { style: { fontSize: '.72rem', color: 'var(--acc)', background: 'var(--accbg)', padding: '6px 10px', borderRadius: 6, marginBottom: 10 } }, 'Tersimpan otomatis — aman kalau kamu pindah ke app bank dulu untuk cek detail.'),
+              h('div', { style: { fontSize: '.72rem', color: 'var(--acc)', background: 'var(--accbg)', padding: '6px 10px', borderRadius: 6, marginBottom: 10 } }, 'Tersimpan otomatis, aman kalau kamu pindah ke app bank dulu untuk cek detail.'),
               // Mutasi berasal dari SATU rekening, jadi dompet cukup dipilih sekali di sini
               h('div', { style: { border: '1px solid var(--brd)', borderRadius: 8, padding: '10px 12px', marginBottom: 12 } },
                 h('label', { style: { display: 'block', fontSize: '.72rem', fontWeight: 700, color: 'var(--t3)', marginBottom: 5, letterSpacing: '.03em' } }, 'DOMPET UNTUK SEMUA'),
@@ -5822,7 +5822,7 @@
                   className: 'fi', style: { fontSize: '.85rem' },
                   value: (pendingTx.length && pendingTx.every(function (t) { return (t.wallet_id || '') === (pendingTx[0].wallet_id || '') })) ? (pendingTx[0].wallet_id || '') : '',
                   onChange: function (e) { var wid = e.target.value || null; sPendingTx(function (arr) { return arr.map(function (tx) { return Object.assign({}, tx, { wallet_id: wid }) }) }) }
-                }, h('option', { value: '' }, '— Pilih dompet —'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name) })),
+                }, h('option', { value: '' }, 'Pilih dompet'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name) })),
                 h('div', { style: { fontSize: '.68rem', color: 'var(--t3)', marginTop: 5 } }, 'Langsung terisi ke semua transaksi di bawah. Bisa diubah per transaksi bila perlu.')),
               pendingTx.map(function (tx, i) {
                 return h('div', { key: i, style: { border: '1px solid var(--brd)', borderRadius: 10, padding: '10px 12px', marginBottom: 8 } },
@@ -5831,10 +5831,10 @@
                     h(NumInput, { value: numStr(tx.amount), onChange: function (v) { updatePendingTx(i, 'amount', Number(v) || 0) }, style: { width: 110, fontSize: '.82rem' } })),
                   h('div', { style: { display: 'flex', gap: 6, marginBottom: 6 } },
                     h('select', { className: 'fi', value: tx.type, onChange: function (e) { updatePendingTx(i, 'type', e.target.value) }, style: { width: 92, flexShrink: 0, fontSize: '.82rem' } }, h('option', { value: 'expense' }, 'Keluar'), h('option', { value: 'income' }, 'Masuk')),
-                    h('select', { className: 'fi', value: tx.category_id || '', onChange: function (e) { updatePendingTx(i, 'category_id', e.target.value || null) }, style: { flex: 1, minWidth: 0, fontSize: '.82rem' } }, h('option', { value: '' }, '— Kategori —'), C.filter(function (c) { return !c.parent_id && c.type === tx.type }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))),
+                    h('select', { className: 'fi', value: tx.category_id || '', onChange: function (e) { updatePendingTx(i, 'category_id', e.target.value || null) }, style: { flex: 1, minWidth: 0, fontSize: '.82rem' } }, h('option', { value: '' }, 'Pilih kategori'), C.filter(function (c) { return !c.parent_id && c.type === tx.type }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) }))),
                   h('div', { style: { display: 'flex', gap: 6 } },
-                    tx.category_id ? h('select', { className: 'fi', value: tx.sub_category_id || '', onChange: function (e) { updatePendingTx(i, 'sub_category_id', e.target.value || null) }, style: { flex: 1, minWidth: 0, fontSize: '.82rem' } }, h('option', { value: '' }, '— Sub-kategori —'), C.filter(function (c) { return c.parent_id === tx.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })) : null,
-                    h('select', { className: 'fi', value: tx.wallet_id || '', onChange: function (e) { updatePendingTx(i, 'wallet_id', e.target.value || null) }, style: { flex: 1, minWidth: 0, fontSize: '.82rem' } }, h('option', { value: '' }, '— Dompet —'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name) }))),
+                    tx.category_id ? h('select', { className: 'fi', value: tx.sub_category_id || '', onChange: function (e) { updatePendingTx(i, 'sub_category_id', e.target.value || null) }, style: { flex: 1, minWidth: 0, fontSize: '.82rem' } }, h('option', { value: '' }, 'Pilih sub-kategori'), C.filter(function (c) { return c.parent_id === tx.category_id }).map(function (c) { return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name) })) : null,
+                    h('select', { className: 'fi', value: tx.wallet_id || '', onChange: function (e) { updatePendingTx(i, 'wallet_id', e.target.value || null) }, style: { flex: 1, minWidth: 0, fontSize: '.82rem' } }, h('option', { value: '' }, 'Pilih dompet'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name) }))),
                   h('div', { style: { display: 'flex', gap: 6, marginTop: 8, justifyContent: 'flex-end' } },
                     h('button', { className: 'btn bs', style: { fontSize: '.72rem', padding: '3px 10px' }, onClick: function () { splitPendingTx(i) }, title: 'Pecah jadi 2 kategori' }, 'Pecah'),
                     h('button', { className: 'btn bs', style: { fontSize: '.72rem', padding: '3px 10px', color: 'var(--red)' }, onClick: function () { removePendingTx(i) } }, 'Hapus')));
