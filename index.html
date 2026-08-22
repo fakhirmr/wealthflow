@@ -2062,11 +2062,42 @@
         }).catch(function (e) { queue() });
       }
 
-      function lt(name, ord, asc) {
+      /* Galat yang menyangkut token, bukan datanya.
+         "JWT issued at future" muncul ketika jam server yang menerbitkan token dan
+         jam server yang memeriksanya sempat berselisih, paling sering sesaat setelah
+         project Supabase bangun dari tidur. Sekali disegarkan biasanya beres. */
+      function isAuthErr(msg) {
+        var m = String(msg || '').toLowerCase();
+        return m.indexOf('jwt') >= 0 || m.indexOf('pgrst301') >= 0 || m.indexOf('pgrst302') >= 0
+          || m.indexOf('token is expired') >= 0 || m.indexOf('invalid claim') >= 0
+          || m.indexOf('not yet valid') >= 0 || m.indexOf('bad_jwt') >= 0;
+      }
+
+      /* Satu penyegaran dipakai bersama-sama. Sembilan tabel dimuat berbarengan,
+         jadi tanpa ini satu gangguan token memicu sembilan penyegaran sekaligus. */
+      var _segarP = null;
+      function segarkanSesi() {
+        if (!_segarP) {
+          _segarP = Promise.resolve()
+            .then(function () { return sb.auth.refreshSession() })
+            .catch(function () { return null })
+            .then(function (r) { setTimeout(function () { _segarP = null }, 2000); return r });
+        }
+        return _segarP;
+      }
+
+      function lt(name, ord, asc, ulang) {
         return sb.from(name).select('*').order(ord, { ascending: asc !== false })
           .then(function (r) {
             if (r.error) {
               if (isNetErr(r.error.message)) { var s = snapLoad(name); if (s) return { d: s.d, e: null, offline: true, ts: s.ts } }
+              if (isAuthErr(r.error.message)) {
+                // Coba sekali lagi dengan token baru sebelum mengganggu user
+                if (!ulang) return segarkanSesi().then(function () { return lt(name, ord, asc, true) });
+                // Masih gagal juga: tampilkan simpanan terakhir daripada layar kosong
+                var sa = snapLoad(name);
+                if (sa) return { d: sa.d, e: r.error.message, offline: true, ts: sa.ts };
+              }
               return { d: [], e: r.error.message };
             }
             snapSave(name, r.data || []);
@@ -2077,6 +2108,19 @@
             if (s) return { d: s.d, e: null, offline: true, ts: s.ts };
             return { d: [], e: e.message };
           })
+      }
+
+      /* Pesan dari Postgres & PostgREST berbahasa Inggris dan penuh istilah dalam.
+         Pelanggan tidak bisa berbuat apa-apa dengan "JWT issued at future", jadi yang
+         tampil pesan yang bisa ditindaklanjuti. Teks aslinya tetap dikirim ke console
+         supaya masih bisa ditelusuri kalau ada laporan masuk. */
+      function pesanGalat(mentah) {
+        try { console.warn('WealthFlow, galat basis data:', mentah) } catch (e) { }
+        var m = String(mentah || '').toLowerCase();
+        if (isAuthErr(m)) return 'Sesi kamu perlu disegarkan. Muat ulang halaman, atau keluar lalu masuk lagi.';
+        if (m.indexOf('row-level security') >= 0 || m.indexOf('permission denied') >= 0) return 'Data ini tidak bisa dibuka dari akun kamu.';
+        if (m.indexOf('does not exist') >= 0 || m.indexOf('schema cache') >= 0) return 'Ada bagian aplikasi yang belum siap di server. Coba lagi sebentar.';
+        return 'Gagal memuat sebagian data. Coba muat ulang halaman.';
       }
       // Pemisah ribuan pakai TITIK, mengikuti konvensi Indonesia & tampilan uang lain (Rp 200.000)
       function fmtNum(v) {
@@ -2894,7 +2938,11 @@
               clearTimeout(t2);
               // Filter out Service Worker / network errors — only show real DB errors
               var realErrs = errs.filter(function (e) { return e && e.indexOf('FetchEvent') < 0 && e.indexOf('Load failed') < 0 && e.indexOf('fetch') < 0 });
-              if (realErrs.length) sE(realErrs.join('; '));
+              // Sembilan tabel gagal karena satu sebab yang sama akan menghasilkan
+              // sembilan kalimat identik, jadi diringkas jadi satu.
+              if (realErrs.length) {
+                sE(realErrs.map(pesanGalat).filter(function (v, i, a) { return a.indexOf(v) === i }).join(' '));
+              }
               sL(false);
               // Show What's New if version is newer than last seen
               try { var seen = localStorage.getItem('wf_seen_ver'); if (seen !== WF_VERSION) setTimeout(function () { sShowWN(true) }, 600) } catch (e) { }
@@ -3029,7 +3077,9 @@
               return h('button', { key: id, className: 'mni' + (pg === id ? ' act' : ''), onClick: function () { go(id) } }, h(Ic, { n: item.ic }), h('span', null, item.lb));
             })),
           h('main', { className: 'main' }, h('div', { className: 'pg' + (_navKey.current > 0 ? ' pg-page' : ''), key: _navKey.current },
-            dbE ? h('div', { style: { background: 'var(--redbg)', border: '1px solid var(--red)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: '.8rem', color: 'var(--red)' } }, dbE) : null,
+            dbE ? h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--redbg)', border: '1px solid var(--red)', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: '.8rem', color: 'var(--red)' } },
+              h('span', { style: { flex: 1, lineHeight: 1.45 } }, dbE),
+              h('button', { className: 'btn bs', style: { fontSize: '.7rem', padding: '3px 10px', flexShrink: 0 }, onClick: function () { try { location.reload() } catch (e) { } } }, 'Muat ulang')) : null,
             // Status offline / antrean menunggu kirim
             (!online || pendCount > 0) ? h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, background: online ? 'var(--blubg)' : 'rgba(217,119,6,.12)', border: '1px solid ' + (online ? 'var(--blu)' : 'var(--org)'), borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: '.78rem', color: online ? 'var(--blu)' : 'var(--org)' } },
               h('span', null, online ? '🔄' : '📴'),
