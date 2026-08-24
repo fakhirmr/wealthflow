@@ -5366,7 +5366,13 @@
           if (d.error === 'unauthorized') return '🔒 Sesi habis. Silakan login ulang.';
           if (d.error === 'server_misconfig') return '⚙️ AI belum dikonfigurasi. Hubungi admin.';
           if (d.error === 'model_not_allowed') return '⚠️ Model tidak didukung.';
-          if (d.error === 'upstream_failed') return '❌ AI bermasalah: ' + (d.detail || 'timeout / tak diketahui');
+          if (d.error === 'upstream_failed') {
+            var det = String(d.detail || '');
+            // Batas waktu proxy 24 detik, paling sering kena saat mutasi panjang.
+            // Kata "aborted" mentah tidak memberi tahu user harus berbuat apa.
+            if (/abort|timeout|timed out|deadline/i.test(det)) return '⏱️ AI kelamaan menjawab. Kalau ini mutasi panjang, potong jadi beberapa screenshot lalu coba lagi.';
+            return '❌ AI bermasalah: ' + (det || 'tak diketahui');
+          }
           if (typeof d.error === 'object' && d.error.message) {
             var m = d.error.message; var ml = m.toLowerCase();
             if (ml.indexOf('rate') > -1 || ml.indexOf('429') > -1 || ml.indexOf('limit') > -1 || ml.indexOf('quota') > -1 || ml.indexOf('exhaust') > -1) return '⏳ Layanan AI sedang sibuk / jatah sesaat penuh. Tunggu ~1 menit lalu coba lagi.';
@@ -5640,9 +5646,8 @@
                 sScanBusy(false);
                 var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
                 var content = d.choices && d.choices[0] && d.choices[0].message ? stripThink(d.choices[0].message.content) : '';
-                var arr = [];
-                try { arr = JSON.parse(content.replace(/```json|```/g, '').replace(/^[^\[]*/, '').replace(/[^\]]*$/, '').trim()); } catch (e) { }
-                if (!Array.isArray(arr) || arr.length === 0) { var em2 = nm.concat({ role: 'sys', text: '⚠️ Tidak ada transaksi terbaca dari struk. Coba foto yang lebih jelas & tegak.' }); sMs(em2); saveMem(em2); return }
+                var arr = parseTxArray(content).arr;
+                if (arr.length === 0) { var em2 = nm.concat({ role: 'sys', text: '⚠️ Tidak ada transaksi terbaca dari struk. Coba foto yang lebih jelas & tegak.' }); sMs(em2); saveMem(em2); return }
                 arr = arr.filter(function (t) { return t && Number(t.amount) > 0 }).map(function (t) { return { type: t.type || 'expense', amount: Number(t.amount) || 0, description: t.description || 'Struk', date: safeDate(t.date), wallet_id: null, category_id: t.category_id || null, sub_category_id: null } });
                 sPendingTx(function (prev) { return prev.concat(arr) });
                 var fm = nm.concat({ role: 'ai', text: '📷 ' + arr.length + ' transaksi terbaca dari struk. Periksa & simpan di bawah 👇' }); sMs(fm); saveMem(fm);
@@ -5667,10 +5672,12 @@
               var cw = Math.round(img.width * scale), ch = Math.round(img.height * scale);
               var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
               cv.getContext('2d').drawImage(img, 0, 0, cw, ch);
-              var dataUrl = cv.toDataURL('image/jpeg', 0.85);
+              // Mutu dinaikkan: yang dibaca di sini deretan teks kecil, dan
+              // artefak JPEG paling merusak justru angka nominalnya.
+              var dataUrl = cv.toDataURL('image/jpeg', 0.92);
               var thisYear = new Date().getFullYear();
               aiFetch({
-                model: 'gemini-flash-latest', max_tokens: 4096,
+                model: 'gemini-flash-latest', max_tokens: 8192,
                 messages: [{
                   role: 'user', content: [
                     { type: 'text', text: 'Ini screenshot mutasi rekening bank / e-wallet. Ekstrak SEMUA transaksi yang terlihat menjadi JSON array. Balas HANYA JSON valid tanpa penjelasan apa pun, format: [{"type":"income"|"expense","amount":number,"description":"keterangan singkat transaksi","date":"YYYY-MM-DD"}]. Aturan type: uang MASUK / kredit / CR / tanda + = "income"; uang KELUAR / debit / DB / tanda - = "expense". Ambil tanggal tiap transaksi; jika tahun tidak terlihat gunakan ' + thisYear + '. JANGAN masukkan baris saldo/total. Jika tidak ada transaksi yang terbaca, balas [].' },
@@ -5680,13 +5687,22 @@
               }).then(pj).then(function (d) {
                 sScanBusy(false);
                 var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
-                var content = d.choices && d.choices[0] && d.choices[0].message ? stripThink(d.choices[0].message.content) : '';
-                var arr = [];
-                try { arr = JSON.parse(content.replace(/```json|```/g, '').replace(/^[^\[]*/, '').replace(/[^\]]*$/, '').trim()); } catch (e) { }
-                if (!Array.isArray(arr) || arr.length === 0) { var em2 = nm.concat({ role: 'sys', text: '⚠️ Tidak ada transaksi terbaca dari mutasi. Pastikan screenshot jelas & memuat kolom nominal.' }); sMs(em2); saveMem(em2); return }
+                var pilihan = d.choices && d.choices[0] ? d.choices[0] : null;
+                var content = pilihan && pilihan.message ? stripThink(pilihan.message.content) : '';
+                var hasil = parseTxArray(content);
+                var arr = hasil.arr;
+                // Kehabisan jatah token itu soal panjang mutasi, bukan mutu foto.
+                // Menyuruh user memotret ulang di kasus ini hanya membuang waktunya.
+                var kepanjangan = (pilihan && pilihan.finish_reason === 'length') || hasil.potong;
+                if (arr.length === 0) {
+                  var em2 = nm.concat({ role: 'sys', text: kepanjangan
+                    ? '⚠️ Mutasinya terlalu panjang untuk sekali baca. Potong jadi beberapa screenshot, sekitar 15 transaksi per gambar.'
+                    : '⚠️ Tidak ada transaksi terbaca dari mutasi. Pastikan screenshot jelas & memuat kolom nominal.' });
+                  sMs(em2); saveMem(em2); return;
+                }
                 arr = arr.filter(function (t) { return t && Number(t.amount) > 0 }).map(function (t) { return { type: (t.type === 'income' ? 'income' : 'expense'), amount: Number(t.amount) || 0, description: t.description || 'Mutasi', date: safeDate(t.date), wallet_id: null, category_id: null, sub_category_id: null } });
                 sPendingTx(function (prev) { return prev.concat(arr) });
-                var fm = nm.concat({ role: 'ai', text: '📄 ' + arr.length + ' transaksi terbaca dari mutasi. Tinggal pilih kategori (& dompet) tiap baris lalu simpan 👇' }); sMs(fm); saveMem(fm);
+                var fm = nm.concat({ role: 'ai', text: '📄 ' + arr.length + ' transaksi terbaca dari mutasi.' + (kepanjangan ? ' Ini baru sebagian, sisanya kepanjangan. Scan bagian bawahnya terpisah.' : '') + ' Tinggal pilih kategori (& dompet) tiap baris lalu simpan 👇' }); sMs(fm); saveMem(fm);
               }).catch(function (e) { sScanBusy(false); var em = nm.concat({ role: 'sys', text: '❌ ' + e.message }); sMs(em); saveMem(em) });
             };
             img.onerror = function () { sScanBusy(false); sMs(function (prev) { return prev.concat({ role: 'sys', text: '❌ Gagal memuat gambar' }) }); };
@@ -5761,6 +5777,37 @@
 
         function clearChat() { var init = [{ role: 'sys', text: '🔄 Percakapan direset. Memori juga dihapus.' }]; sMs(init); clearMem() }
         function stripThink(t) { return (t || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim() }
+
+        /* Mengambil array transaksi dari balasan AI, termasuk ketika balasannya
+           terpotong di tengah karena kehabisan jatah token. Cara lama memakai
+           regex /[^\]]*$/ untuk memangkas ekor: kalau kurung penutup tak pernah
+           sempat ditulis, seluruh isi ikut terhapus sehingga hasilnya array kosong,
+           lalu user disuruh memotret ulang padahal fotonya sudah benar.
+           Sekarang objek yang sudah lengkap tetap dipungut, dan pemanggil diberi
+           tahu lewat .potong bahwa masih ada sisa yang belum terbaca. */
+        function parseTxArray(content) {
+          var t = String(content || '').replace(/```json|```/g, '').trim();
+          var mulai = t.indexOf('[');
+          if (mulai < 0) return { arr: [], potong: false };
+          t = t.slice(mulai);
+          try { var utuh = JSON.parse(t); if (Array.isArray(utuh)) return { arr: utuh, potong: false } } catch (e) { }
+          // Pungut objek yang kurawalnya sudah tertutup. Tanda kutip dilacak supaya
+          // kurawal di dalam keterangan transaksi tidak ikut terhitung.
+          var out = [], dalam = 0, awal = -1, diTeks = false, lolos = false;
+          for (var i = 0; i < t.length; i++) {
+            var c = t[i];
+            if (lolos) { lolos = false; continue }
+            if (c === '\\') { lolos = true; continue }
+            if (c === '"') { diTeks = !diTeks; continue }
+            if (diTeks) continue;
+            if (c === '{') { if (dalam === 0) awal = i; dalam++ }
+            else if (c === '}') {
+              dalam--;
+              if (dalam === 0 && awal >= 0) { try { out.push(JSON.parse(t.slice(awal, i + 1))) } catch (e) { } awal = -1 }
+            }
+          }
+          return { arr: out, potong: true };
+        }
 
         var quickP = [
           { lb: 'Kondisi keuangan', q: 'Bagaimana kondisi keuangan aku bulan ini secara keseluruhan?' },
