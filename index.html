@@ -5677,10 +5677,13 @@
               var dataUrl = cv.toDataURL('image/jpeg', 0.92);
               var thisYear = new Date().getFullYear();
               aiFetch({
-                model: 'gemini-flash-latest', max_tokens: 8192,
+                // Plafon diturunkan lagi setelah formatnya diringkas. Mutasi 40 baris
+                // kini cuma ~500 token, dan plafon rendah membatasi waktu berpikir
+                // model sehingga tak menabrak batas 24 detik di proxy.
+                model: 'gemini-flash-latest', max_tokens: 3072,
                 messages: [{
                   role: 'user', content: [
-                    { type: 'text', text: 'Ini screenshot mutasi rekening bank / e-wallet. Ekstrak SEMUA transaksi yang terlihat menjadi JSON array. Balas HANYA JSON valid tanpa penjelasan apa pun, format: [{"type":"income"|"expense","amount":number,"description":"keterangan singkat transaksi","date":"YYYY-MM-DD"}]. Aturan type: uang MASUK / kredit / CR / tanda + = "income"; uang KELUAR / debit / DB / tanda - = "expense". Ambil tanggal tiap transaksi; jika tahun tidak terlihat gunakan ' + thisYear + '. JANGAN masukkan baris saldo/total. Jika tidak ada transaksi yang terbaca, balas [].' },
+                    { type: 'text', text: 'Ini screenshot mutasi rekening bank atau e-wallet. Tulis SEMUA transaksi yang terlihat, SATU transaksi per baris, dengan format persis:\ntipe|nominal|keterangan|tanggal\n\ntipe: M kalau uang masuk (kredit, CR, tanda +). K kalau uang keluar (debit, DB, tanda -).\nnominal: angka saja, tanpa titik, koma, atau Rp.\nketerangan: singkat, maksimal 4 kata.\ntanggal: YYYY-MM-DD. Kalau tahun tidak terlihat pakai ' + thisYear + '.\n\nContoh:\nK|25000|Kopi|' + thisYear + '-08-21\nM|8500000|Gaji|' + thisYear + '-08-18\n\nLewati baris saldo dan total. JANGAN tulis header, nomor urut, tanda kutip, atau penjelasan apa pun. Kalau tak ada transaksi terbaca, balas: KOSONG' },
                     { type: 'image_url', image_url: { url: dataUrl } }
                   ]
                 }]
@@ -5689,18 +5692,25 @@
                 var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
                 var pilihan = d.choices && d.choices[0] ? d.choices[0] : null;
                 var content = pilihan && pilihan.message ? stripThink(pilihan.message.content) : '';
-                var hasil = parseTxArray(content);
-                var arr = hasil.arr;
+                var arr = parseTxLines(content);
+                var potongJson = false;
+                // Cadangan: sesekali model tetap membalas JSON walau diminta format baris
+                if (arr.length === 0) {
+                  var hasil = parseTxArray(content);
+                  potongJson = hasil.potong;
+                  arr = hasil.arr.filter(function (t) { return t && Number(t.amount) > 0 }).map(function (t) {
+                    return { type: (t.type === 'income' ? 'income' : 'expense'), amount: Number(t.amount) || 0, description: t.description || 'Mutasi', date: safeDate(t.date), wallet_id: null, category_id: null, sub_category_id: null };
+                  });
+                }
                 // Kehabisan jatah token itu soal panjang mutasi, bukan mutu foto.
                 // Menyuruh user memotret ulang di kasus ini hanya membuang waktunya.
-                var kepanjangan = (pilihan && pilihan.finish_reason === 'length') || hasil.potong;
+                var kepanjangan = (pilihan && pilihan.finish_reason === 'length') || potongJson;
                 if (arr.length === 0) {
                   var em2 = nm.concat({ role: 'sys', text: kepanjangan
                     ? '⚠️ Mutasinya terlalu panjang untuk sekali baca. Potong jadi beberapa screenshot, sekitar 15 transaksi per gambar.'
                     : '⚠️ Tidak ada transaksi terbaca dari mutasi. Pastikan screenshot jelas & memuat kolom nominal.' });
                   sMs(em2); saveMem(em2); return;
                 }
-                arr = arr.filter(function (t) { return t && Number(t.amount) > 0 }).map(function (t) { return { type: (t.type === 'income' ? 'income' : 'expense'), amount: Number(t.amount) || 0, description: t.description || 'Mutasi', date: safeDate(t.date), wallet_id: null, category_id: null, sub_category_id: null } });
                 sPendingTx(function (prev) { return prev.concat(arr) });
                 var fm = nm.concat({ role: 'ai', text: '📄 ' + arr.length + ' transaksi terbaca dari mutasi.' + (kepanjangan ? ' Ini baru sebagian, sisanya kepanjangan. Scan bagian bawahnya terpisah.' : '') + ' Tinggal pilih kategori (& dompet) tiap baris lalu simpan 👇' }); sMs(fm); saveMem(fm);
               }).catch(function (e) { sScanBusy(false); var em = nm.concat({ role: 'sys', text: '❌ ' + e.message }); sMs(em); saveMem(em) });
@@ -5807,6 +5817,37 @@
             }
           }
           return { arr: out, potong: true };
+        }
+
+        /* Membaca format ringkas "tipe|nominal|keterangan|tanggal", satu
+           transaksi per baris. Dipakai untuk mutasi karena JSON menghabiskan
+           sekitar 30 token per transaksi sedangkan format ini sekitar 12, dan
+           menghasilkan token itulah bagian paling lambat. Untuk mutasi 30 baris
+           bedanya ratusan token, cukup untuk menghindari batas waktu 24 detik.
+           Bonusnya: tiap baris berdiri sendiri, jadi balasan yang terpotong
+           cuma kehilangan baris terakhir, bukan seluruh isinya. */
+        function parseTxLines(teks) {
+          var baris = String(teks || '').split('\n');
+          var out = [];
+          for (var i = 0; i < baris.length; i++) {
+            var b = baris[i].trim();
+            if (!b || b.indexOf('|') < 0) continue;
+            var f = b.split('|');
+            if (f.length < 3) continue;
+            var tipe = f[0].trim().toUpperCase();
+            if (tipe !== 'M' && tipe !== 'K') continue;
+            // Nominal dibersihkan dari titik, koma, dan "Rp" kalau model tetap menulisnya
+            var nominal = Number(String(f[1] || '').replace(/[^0-9]/g, ''));
+            if (!nominal || nominal <= 0) continue;
+            out.push({
+              type: tipe === 'M' ? 'income' : 'expense',
+              amount: nominal,
+              description: (f[2] || '').trim() || 'Mutasi',
+              date: safeDate((f[3] || '').trim()),
+              wallet_id: null, category_id: null, sub_category_id: null
+            });
+          }
+          return out;
         }
 
         var quickP = [
