@@ -205,6 +205,11 @@ export default async function handler(req) {
     var tautan = await lr.json();
     if (!Array.isArray(tautan)) tautan = [];
 
+    // Bersihkan penanda update Telegram yang sudah lewat 3 hari. Penanda ini cuma
+    // dipakai menolak kiriman ulang yang datang dalam hitungan menit.
+    var batas = new Date(Date.now() - 3 * 86400000).toISOString();
+    await sb('/rest/v1/telegram_updates?created_at=lt.' + batas, { method: 'DELETE' }, SB_URL, KEY).catch(function () { });
+
     var hasil = {};
     if (job === 'malam') {
       hasil.harian = await jobHarian(TOKEN, SB_URL, KEY, tautan, hari);

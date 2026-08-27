@@ -86,9 +86,20 @@ function sb(url, opts, SB_URL, KEY) {
 }
 
 // Panggil Gemini, ekstrak array transaksi dari teks atau gambar
-async function geminiExtract(GKEY, content) {
-  var body = { model: 'gemini-flash-latest', max_tokens: 1500, reasoning_effort: 'low', messages: [{ role: 'user', content: content }] };
-  var r = await fetch(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) });
+/* Batas waktu WAJIB di sini. Tanpa ini, permintaan yang lama (mis. mutasi
+   panjang) membuat fungsi dibunuh Vercel sebelum sempat menjawab 200, lalu
+   Telegram MENGIRIM ULANG update yang sama berkali-kali dan bot memulai
+   pekerjaan dari nol terus-menerus. Lebih baik gagal cepat dan berkata jujur. */
+async function fetchTO(url, opts, ms) {
+  var ctrl = new AbortController();
+  var id = setTimeout(function () { ctrl.abort(); }, ms || 18000);
+  try { return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal })); }
+  finally { clearTimeout(id); }
+}
+
+async function geminiExtract(GKEY, content, maxTok) {
+  var body = { model: 'gemini-flash-latest', max_tokens: maxTok || 1500, reasoning_effort: 'low', messages: [{ role: 'user', content: content }] };
+  var r = await fetchTO(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) }, 18000);
   var d = await r.json();
   var txt = '';
   try { txt = d.choices[0].message.content || ''; } catch (e) { txt = ''; }
@@ -96,6 +107,40 @@ async function geminiExtract(GKEY, content) {
   var arr = [];
   try { arr = JSON.parse(txt); } catch (e) { arr = []; }
   return Array.isArray(arr) ? arr : [];
+}
+
+/* Mutasi diminta dalam format "tipe|nominal|keterangan|tanggal" satu baris per
+   transaksi. JSON menghabiskan sekitar 30 token per baris, format ini sekitar 12,
+   dan menghasilkan token itulah bagian paling lambat. Untuk mutasi 30 baris
+   selisihnya ratusan token, cukup untuk tidak menabrak batas waktu. */
+var BA_KELUAR = ['K', 'KELUAR', 'D', 'DB', 'DEBIT', 'DEBET', 'EXPENSE', 'PENGELUARAN', '-'];
+var BA_MASUK = ['M', 'MASUK', 'C', 'CR', 'KREDIT', 'CREDIT', 'INCOME', 'PEMASUKAN', '+'];
+function parseBaris(teks) {
+  var out = [];
+  String(teks || '').split('\n').forEach(function (b0) {
+    var b = b0.trim();
+    if (!b || b.indexOf('|') < 0) return;
+    b = b.replace(/^\|+/, '').replace(/\|+$/, '').trim();
+    if (!b || /^[\s|:-]+$/.test(b)) return;
+    var f = b.split('|');
+    if (f.length < 3) return;
+    var tipe = f[0].trim().toUpperCase().replace(/[^A-Z+-]/g, '');
+    var masuk = BA_MASUK.indexOf(tipe) >= 0, keluar = BA_KELUAR.indexOf(tipe) >= 0;
+    if (!masuk && !keluar) return;
+    var nominal = Number(String(f[1] || '').replace(/[^0-9]/g, ''));
+    if (!nominal || nominal <= 0) return;
+    out.push({ type: masuk ? 'income' : 'expense', amount: nominal, description: (f[2] || '').trim() || 'Mutasi', date: safeDate((f[3] || '').trim()) });
+  });
+  return out;
+}
+
+async function geminiBaris(GKEY, content) {
+  var body = { model: 'gemini-flash-latest', max_tokens: 3072, reasoning_effort: 'low', messages: [{ role: 'user', content: content }] };
+  var r = await fetchTO(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) }, 18000);
+  var d = await r.json();
+  var txt = '';
+  try { txt = d.choices[0].message.content || ''; } catch (e) { txt = ''; }
+  return parseBaris(txt);
 }
 
 function wList(wallets) { return wallets.map(function (w) { return w.id + '=' + w.name; }).join(', '); }
@@ -141,6 +186,25 @@ export default async function handler(req) {
 
   var update;
   try { update = await req.json(); } catch (e) { return new Response('ok'); }
+
+  /* Telegram mengirim ULANG update yang sama bila webhook tak menjawab 200 tepat
+     waktu. Update yang sudah pernah masuk dibuang di sini, sebelum apa pun
+     dikerjakan, supaya pekerjaan berat tidak diulang dan pesan "Membaca..."
+     tidak dikirim berkali-kali. Penandanya kunci utama, jadi dua permintaan
+     yang datang bersamaan pun hanya satu yang lolos. */
+  if (update && update.update_id != null) {
+    try {
+      var ir = await sb('/rest/v1/telegram_updates', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
+        body: JSON.stringify({ update_id: update.update_id })
+      }, SB_URL, KEY);
+      var baru = [];
+      try { baru = await ir.json(); } catch (e) { baru = []; }
+      // Array kosong berarti barisnya sudah ada: ini kiriman ulang.
+      if (ir.ok && Array.isArray(baru) && baru.length === 0) return new Response('ok');
+    } catch (e) { /* tabel belum dipasang: jangan halangi bot bekerja */ }
+  }
   /* Tombol di dalam pesan datang sebagai callback_query, bukan message.
      Ditangani lebih dulu dan berhenti di sini supaya tidak jatuh ke alur
      pencatatan transaksi yang memakai AI. */
@@ -327,17 +391,39 @@ export default async function handler(req) {
 
     // 4) Ekstrak transaksi (foto struk atau teks)
     var txList = [];
-    if (msg.photo && msg.photo.length) {
-      await reply(TOKEN, chatId, '📷 Membaca struk...');
-      var fileId = msg.photo[msg.photo.length - 1].file_id;
+    /* Gambar bisa datang sebagai photo (terkompresi) atau document (dikirim
+       sebagai berkas, kualitas asli). Dulu hanya photo yang diterima, sehingga
+       mutasi yang dikirim sebagai berkas tak pernah terbaca. */
+    var docFile = null;
+    if (msg.document) {
+      var mime = (msg.document.mime_type || '').toLowerCase();
+      if (mime.indexOf('image/') === 0) docFile = msg.document.file_id;
+      else {
+        await reply(TOKEN, chatId, '📎 Berkas <b>' + (mime || 'ini') + '</b> belum bisa dibaca.\n\nKirim sebagai <b>gambar</b> ya (screenshot mutasi atau foto struk). PDF belum didukung di chat; unggah lewat app.');
+        return new Response('ok');
+      }
+    }
+
+    // Mutasi berisi BANYAK transaksi, struk hanya satu total. Dibedakan lewat
+    // keterangan gambar supaya pengguna bisa memilih tanpa menu tambahan.
+    var modeMutasi = /mutasi|rekening|riwayat|transaksi/i.test(text || '');
+
+    if (msg.photo && msg.photo.length || docFile) {
+      await reply(TOKEN, chatId, modeMutasi ? '📄 Membaca mutasi...' : '📷 Membaca struk...');
+      var fileId = docFile || msg.photo[msg.photo.length - 1].file_id;
       var gf = await tgCall(TOKEN, 'getFile', { file_id: fileId });
       var gfj = await gf.json();
       var filePath = gfj.result && gfj.result.file_path;
       if (filePath) {
         var img = await fetch('https://api.telegram.org/file/bot' + TOKEN + '/' + filePath);
         var b64 = b64FromBuffer(await img.arrayBuffer());
+        if (modeMutasi) {
+          var mprompt = 'Ini screenshot mutasi rekening bank atau e-wallet. Tulis SEMUA transaksi yang terlihat, SATU transaksi per baris, format persis:\ntipe|nominal|keterangan|tanggal\n\ntipe: M kalau uang masuk (kredit, CR, +). K kalau uang keluar (debit, DB, -).\nnominal: angka saja tanpa titik atau koma.\nketerangan: singkat, maksimal 4 kata.\ntanggal: YYYY-MM-DD, pakai ' + today() + ' kalau tahun tak terlihat.\n\nLewati baris saldo dan total. JANGAN tulis header, nomor urut, atau penjelasan. Kalau tak ada transaksi, balas: KOSONG';
+          txList = await geminiBaris(GKEY, [{ type: 'text', text: mprompt }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }]);
+        } else {
         var vprompt = 'Ini foto struk belanja. Ekstrak jadi JSON array transaksi pengeluaran. Balas HANYA JSON: [{"type":"expense","amount":number,"description":"nama toko/item","date":"YYYY-MM-DD","category_id":"id atau null","sub_category_id":"id atau null","wallet_id":"id atau null"}]. Gunakan TOTAL akhir sebagai 1 transaksi. Tanggal dari struk; jika tak ada pakai ' + today() + '. Cocokkan dompet bila disebut. PENTING: pilih kategori sespesifik mungkin. Kalau isi struk cocok dengan salah satu SUB-KATEGORI, isi sub_category_id dengan sub itu dan category_id dengan induknya (lihat penanda [induk:...]). sub_category_id harus anak dari category_id.\nDompet: ' + wList(wallets) + '\nKategori: ' + cList(cats) + '\nSub-Kategori: ' + sList(cats);
         txList = await geminiExtract(GKEY, [{ type: 'text', text: vprompt }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }]);
+        }
       }
     } else if (text) {
       var tprompt = 'Kamu parser transaksi keuangan Bahasa Indonesia. Ekstrak dari pesan user jadi JSON array. Balas HANYA JSON valid: [{"type":"expense"|"income","amount":number,"description":"singkat","date":"YYYY-MM-DD","category_id":"id atau null","sub_category_id":"id atau null","wallet_id":"id atau null"}].\nATURAN:\n1) uang keluar/beli/bayar = expense; uang masuk/terima/gaji = income.\n2) Cocokkan dompet dari nama yang disebut user.\n3) PENTING: pilih kategori SESPESIFIK mungkin: kalau barang/jasa yang disebut user cocok dengan salah satu SUB-KATEGORI, WAJIB isi sub_category_id dengan sub itu, dan category_id dengan induknya. Contoh: user tulis "kopi" dan ada sub-kategori "Kopi" -> sub_category_id = id sub "Kopi", category_id = id induknya. Jangan biarkan sub_category_id null kalau ada sub yang cocok.\n4) sub_category_id HARUS anak dari category_id yang dipilih (lihat penanda [induk:...]).\n5) description = keterangan tambahan/detail (mis. nama tempat atau merek). Kalau tidak ada detail lain, boleh diisi nama barangnya.\n6) Tanggal default ' + today() + '. Jika bukan transaksi, balas [].\nDompet: ' + wList(wallets) + '\nKategori: ' + cList(cats) + '\nSub-Kategori: ' + sList(cats) + '\n\nPesan: "' + text + '"';
@@ -345,6 +431,15 @@ export default async function handler(req) {
     } else {
       await reply(TOKEN, chatId, 'Kirim teks transaksi atau foto struk ya 🙂\nContoh: <i>bayar parkir 5rb cash</i>');
       return new Response('ok');
+    }
+
+    /* Mutasi berasal dari SATU rekening. Kalau nama dompet disebut di keterangan
+       gambar (mis. "mutasi bank jago"), dompet itu dipakai untuk semua barisnya.
+       Tanpa ini seluruh transaksi masuk tanpa dompet dan saldo tak ikut berubah. */
+    if (modeMutasi && txList.length) {
+      var sebut = (text || '').toLowerCase();
+      var wCocok = wallets.find(function (w) { return w.name && sebut.indexOf(w.name.toLowerCase()) >= 0; });
+      if (wCocok) txList.forEach(function (tx) { tx.wallet_id = wCocok.id; });
     }
 
     // 5) Bersihkan & simpan
@@ -414,7 +509,12 @@ export default async function handler(req) {
     }
     await reply(TOKEN, chatId, '✅ <b>Tercatat!</b>\n' + summary + (balFailed ? '\n\n⚠️ Transaksi tersimpan, tapi saldo dompet gagal diperbarui. Cek dan sesuaikan manual di app.' : '') + (tombolAksi ? '\n\n<i>Salah kategori? Ketuk salah satu di bawah.</i>' : ''), tombolAksi);
   } catch (e) {
-    try { await reply(TOKEN, chatId, '❌ Ada kesalahan memproses. Coba lagi sebentar.'); } catch (e2) { }
+    // Batas waktu perlu disebut apa adanya, supaya user tahu memotong mutasinya
+    // dan tidak mengira botnya rusak lalu mengirim ulang berkali-kali.
+    var pesanGagal = /abort|timeout|timed out/i.test(String(e && e.message || e))
+      ? '⏱️ Kelamaan membaca gambarnya. Kalau ini mutasi panjang, potong jadi beberapa screenshot lalu kirim lagi.'
+      : '❌ Ada kesalahan memproses. Coba lagi sebentar.';
+    try { await reply(TOKEN, chatId, pesanGagal); } catch (e2) { }
   }
   return new Response('ok');
 }

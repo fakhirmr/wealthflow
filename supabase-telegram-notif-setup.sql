@@ -163,3 +163,25 @@ revoke execute on function public.set_kategori_bot(uuid, uuid, uuid) from public
 grant  execute on function public.set_kategori_bot(uuid, uuid, uuid) to service_role;
 
 -- Selesai.
+
+
+-- ─────────────────────────────────────────────────────────────
+-- 5) Penjaga update ganda dari Telegram
+--
+-- Telegram mengirim ULANG update yang sama bila webhook tak menjawab 200
+-- tepat waktu. Tanpa penjagaan ini, satu foto mutasi yang lambat diproses
+-- membuat bot memulai pekerjaan dari awal berkali-kali dan mengirim
+-- "Membaca struk..." tanpa henti sampai Telegram menyerah.
+-- ─────────────────────────────────────────────────────────────
+create table if not exists telegram_updates (
+  update_id  bigint primary key,
+  created_at timestamptz not null default now()
+);
+
+alter table telegram_updates enable row level security;
+-- Hanya server (service role) yang menyentuh tabel ini; tak ada policy untuk
+-- peramban, jadi RLS menutup semuanya.
+
+create index if not exists telegram_updates_waktu_idx on telegram_updates (created_at);
+
+-- Selesai.
