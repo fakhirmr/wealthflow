@@ -1,5 +1,9 @@
 {
   "rewrites": [{"source": "/((?!api/).*)", "destination": "/index.html"}],
+  "crons": [
+    {"path": "/api/cron?job=pagi", "schedule": "0 1 * * *"},
+    {"path": "/api/cron?job=malam", "schedule": "0 13 * * *"}
+  ],
   "headers": [
     {
       "source": "/sw.js",

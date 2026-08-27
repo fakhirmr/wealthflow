@@ -46,7 +46,38 @@ function safeDate(d) {
 async function tgCall(token, method, body) {
   return fetch('https://api.telegram.org/bot' + token + '/' + method, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 }
-function reply(token, chatId, text) { return tgCall(token, 'sendMessage', { chat_id: chatId, text: text, parse_mode: 'HTML' }); }
+function reply(token, chatId, text, tombol) {
+  var body = { chat_id: chatId, text: text, parse_mode: 'HTML', disable_web_page_preview: true };
+  if (tombol && tombol.length) body.reply_markup = { inline_keyboard: tombol };
+  return tgCall(token, 'sendMessage', body);
+}
+
+// Telegram menampilkan jam pasir pada tombol sampai callback dijawab; tanpa ini
+// tombol terlihat menggantung walau pekerjaannya sudah selesai.
+function jawabTombol(token, id, teks) {
+  return tgCall(token, 'answerCallbackQuery', { callback_query_id: id, text: teks || '' }).catch(function () { });
+}
+function ubahPesan(token, chatId, msgId, teks) {
+  return tgCall(token, 'editMessageText', { chat_id: chatId, message_id: msgId, text: teks, parse_mode: 'HTML' }).catch(function () { });
+}
+
+async function rpc(nama, argumen, SB_URL, KEY) {
+  var r = await sb('/rest/v1/rpc/' + nama, { method: 'POST', body: JSON.stringify(argumen) }, SB_URL, KEY);
+  if (!r.ok) return null;
+  try { return await r.json(); } catch (e) { return null; }
+}
+
+// Nilai uang di Indonesia sering ditulis 25rb / 1,5jt. Dipakai perintah cepat
+// yang tidak memakai AI sama sekali, jadi tak memakan jatah bulanan.
+function angkaId(teks) {
+  var m = String(teks || '').toLowerCase().replace(/\s+/g, '').match(/([\d.,]+)(rb|ribu|jt|juta|k|m)?/);
+  if (!m) return 0;
+  var v = parseFloat(m[1].replace(/\./g, '').replace(',', '.')) || 0;
+  var sat = m[2] || '';
+  if (sat === 'rb' || sat === 'ribu' || sat === 'k') v *= 1000;
+  else if (sat === 'jt' || sat === 'juta' || sat === 'm') v *= 1000000;
+  return Math.round(v);
+}
 
 function sb(url, opts, SB_URL, KEY) {
   opts = opts || {};
@@ -110,6 +141,69 @@ export default async function handler(req) {
 
   var update;
   try { update = await req.json(); } catch (e) { return new Response('ok'); }
+  /* Tombol di dalam pesan datang sebagai callback_query, bukan message.
+     Ditangani lebih dulu dan berhenti di sini supaya tidak jatuh ke alur
+     pencatatan transaksi yang memakai AI. */
+  if (update.callback_query) {
+    var cq = update.callback_query;
+    var cChat = cq.message && cq.message.chat && cq.message.chat.id;
+    var cMsg = cq.message && cq.message.message_id;
+    var data = (cq.data || '').split(':');
+    if (!cChat) return new Response('ok');
+    try {
+      var clr = await sb('/rest/v1/telegram_links?chat_id=eq.' + cChat + '&linked=eq.true&select=user_id', {}, SB_URL, KEY);
+      var crows = await clr.json();
+      if (!Array.isArray(crows) || !crows[0]) { await jawabTombol(TOKEN, cq.id, 'Akun belum terhubung'); return new Response('ok'); }
+      var cuid = crows[0].user_id;
+
+      if (data[0] === 'bayar' && data[1]) {
+        var hb = await rpc('bayar_cicilan_bot', { p_user: cuid, p_debt: data[1] }, SB_URL, KEY);
+        if (hb && hb.ok) {
+          await jawabTombol(TOKEN, cq.id, 'Tercatat');
+          await reply(TOKEN, cChat, (hb.lunas ? '🎉 <b>Lunas!</b> ' : '✅ <b>Cicilan tercatat.</b> ') + hb.nama + ' — ' + fmtRp(hb.bayar) + (hb.lunas ? '' : '\nSisa: <b>' + fmtRp(hb.sisa) + '</b>'));
+        } else {
+          await jawabTombol(TOKEN, cq.id, (hb && hb.pesan) || 'Gagal');
+        }
+        return new Response('ok');
+      }
+
+      if (data[0] === 'batal' && data[1]) {
+        var hx = await rpc('batal_transaksi_bot', { p_user: cuid, p_txn: data[1] }, SB_URL, KEY);
+        if (hx && hx.ok) {
+          await jawabTombol(TOKEN, cq.id, 'Dibatalkan');
+          if (cMsg) await ubahPesan(TOKEN, cChat, cMsg, '🗑 <b>Dibatalkan.</b> ' + fmtRp(hx.jumlah) + ' ' + (hx.ket || '') + '\nSaldo dompet sudah dikembalikan.');
+        } else {
+          await jawabTombol(TOKEN, cq.id, (hx && hx.pesan) || 'Gagal');
+        }
+        return new Response('ok');
+      }
+
+      if (data[0] === 'kat' && data[1] && data[2]) {
+        var hk = await rpc('set_kategori_bot', { p_user: cuid, p_txn: data[1], p_cat: data[2] }, SB_URL, KEY);
+        if (hk && hk.ok) await jawabTombol(TOKEN, cq.id, 'Kategori → ' + hk.nama);
+        else await jawabTombol(TOKEN, cq.id, (hk && hk.pesan) || 'Gagal');
+        return new Response('ok');
+      }
+
+      if (data[0] === 'notif' && data[1]) {
+        var kolom = { tagihan: 'notif_tagihan', harian: 'notif_harian', mingguan: 'notif_mingguan' }[data[1]];
+        if (kolom) {
+          var cur = await sb('/rest/v1/telegram_links?user_id=eq.' + cuid + '&select=' + kolom, {}, SB_URL, KEY);
+          var curRows = await cur.json();
+          var nilaiBaru = !(Array.isArray(curRows) && curRows[0] && curRows[0][kolom]);
+          var patch = {}; patch[kolom] = nilaiBaru;
+          await sb('/rest/v1/telegram_links?user_id=eq.' + cuid, { method: 'PATCH', body: JSON.stringify(patch) }, SB_URL, KEY);
+          await jawabTombol(TOKEN, cq.id, (nilaiBaru ? 'Dinyalakan' : 'Dimatikan'));
+          if (cMsg) await ubahPesan(TOKEN, cChat, cMsg, '🔔 Pengaturan disimpan. Ketik /notif untuk melihat lagi.');
+        }
+        return new Response('ok');
+      }
+
+      await jawabTombol(TOKEN, cq.id, '');
+    } catch (e) { try { await jawabTombol(TOKEN, cq.id, 'Ada kesalahan'); } catch (e2) { } }
+    return new Response('ok');
+  }
+
   var msg = update.message || update.edited_message;
   if (!msg || !msg.chat) return new Response('ok');
   var chatId = msg.chat.id;
@@ -124,7 +218,7 @@ export default async function handler(req) {
       var rows = await r.json();
       if (Array.isArray(rows) && rows[0]) {
         await sb('/rest/v1/telegram_links?user_id=eq.' + rows[0].user_id, { method: 'PATCH', body: JSON.stringify({ chat_id: chatId, linked: true, link_code: null }) }, SB_URL, KEY);
-        await reply(TOKEN, chatId, '✅ <b>Akun WealthFlow terhubung!</b>\n\nSekarang catat transaksi langsung dari sini. Contoh:\n• <i>beli kopi 25rb pakai gopay</i>\n• <i>terima gaji 5jt</i>\n• <i>bayar listrik 150000</i>\n\nAtau kirim <b>foto struk</b> 📷');
+        await reply(TOKEN, chatId, '✅ <b>Akun WealthFlow terhubung!</b>\n\nCatat transaksi langsung dari sini. Contoh:\n• <i>beli kopi 25rb pakai gopay</i>\n• <i>terima gaji 5jt</i>\n\nAtau kirim <b>foto struk</b> 📷\n\nCoba juga /saldo, /sisa, dan /notif. Ketik /bantuan untuk daftar lengkapnya.');
       } else {
         await reply(TOKEN, chatId, '❌ Kode tidak valid atau kedaluwarsa.\n\nBuat kode baru di app WealthFlow → <b>Pengaturan → Hubungkan Telegram</b>.');
       }
@@ -143,6 +237,70 @@ export default async function handler(req) {
       return new Response('ok');
     }
     var uid = lrows[0].user_id;
+
+    /* Perintah cepat. Semua dijawab dari basis data langsung, TANPA memanggil AI,
+       jadi tidak memakan jatah bulanan pengguna. */
+    if (/^\/saldo\b/i.test(text)) {
+      var swr = await sb('/rest/v1/wallets?user_id=eq.' + uid + '&select=name,balance&order=balance.desc', {}, SB_URL, KEY);
+      var sw = await swr.json(); if (!Array.isArray(sw)) sw = [];
+      if (!sw.length) { await reply(TOKEN, chatId, 'Belum ada dompet. Tambahkan dulu di app.'); return new Response('ok'); }
+      var tot = sw.reduce(function (a, w) { return a + (Number(w.balance) || 0); }, 0);
+      await reply(TOKEN, chatId, '💳 <b>Saldo dompet</b>\n\n' +
+        sw.map(function (w) { return '• ' + w.name + ' — <b>' + fmtRp(w.balance) + '</b>'; }).join('\n') +
+        '\n\nTotal: <b>' + fmtRp(tot) + '</b>');
+      return new Response('ok');
+    }
+
+    if (/^\/sisa\b/i.test(text)) {
+      var bln = today().slice(0, 7);
+      var br = await sb('/rest/v1/budgets?user_id=eq.' + uid + '&select=amount,category_id,is_recurring,month,year', {}, SB_URL, KEY);
+      var bud = await br.json(); if (!Array.isArray(bud)) bud = [];
+      var kini = new Date(); var blnKini = kini.getMonth() + 1, thnKini = kini.getFullYear();
+      var pagu = bud.filter(function (b) {
+        if (b.is_recurring === true || b.is_recurring === null || b.is_recurring === undefined) return true;
+        return Number(b.month) === blnKini && Number(b.year) === thnKini;
+      }).reduce(function (a, b) { return a + (Number(b.amount) || 0); }, 0);
+      if (pagu <= 0) { await reply(TOKEN, chatId, 'Belum ada anggaran bulan ini. Atur dulu di app supaya bisa dihitung sisanya.'); return new Response('ok'); }
+      var xr = await sb('/rest/v1/transactions?user_id=eq.' + uid + '&type=eq.expense&date=gte.' + bln + '-01&select=amount', {}, SB_URL, KEY);
+      var xs = await xr.json(); if (!Array.isArray(xs)) xs = [];
+      var pakai = xs.reduce(function (a, x) { return a + (Number(x.amount) || 0); }, 0);
+      var sisaAnggaran = pagu - pakai;
+      var akhirBln = new Date(thnKini, blnKini, 0).getDate();
+      var sisaHari = Math.max(akhirBln - kini.getDate() + 1, 1);
+      await reply(TOKEN, chatId, '🎯 <b>Sisa anggaran</b>\n\n' +
+        'Pagu: ' + fmtRp(pagu) + '\nTerpakai: ' + fmtRp(pakai) + '\n' +
+        'Sisa: <b>' + fmtRp(sisaAnggaran) + '</b>\n\n' +
+        (sisaAnggaran > 0
+          ? 'Jatah ' + sisaHari + ' hari tersisa: <b>' + fmtRp(sisaAnggaran / sisaHari) + '</b>/hari'
+          : '⚠️ Anggaran bulan ini sudah lewat batas.'));
+      return new Response('ok');
+    }
+
+    if (/^\/notif\b/i.test(text)) {
+      var nr = await sb('/rest/v1/telegram_links?user_id=eq.' + uid + '&select=notif_tagihan,notif_harian,notif_mingguan', {}, SB_URL, KEY);
+      var nrows = await nr.json();
+      var pref = (Array.isArray(nrows) && nrows[0]) ? nrows[0] : { notif_tagihan: true, notif_harian: true, notif_mingguan: true };
+      var tik = function (v) { return v ? '🔔 nyala' : '🔕 mati'; };
+      await reply(TOKEN, chatId,
+        '⚙️ <b>Pengaturan notifikasi</b>\n\nKetuk untuk menyalakan atau mematikan.',
+        [
+          [{ text: 'Tagihan mendekat · ' + tik(pref.notif_tagihan), callback_data: 'notif:tagihan' }],
+          [{ text: 'Rekap malam · ' + tik(pref.notif_harian), callback_data: 'notif:harian' }],
+          [{ text: 'Laporan Senin · ' + tik(pref.notif_mingguan), callback_data: 'notif:mingguan' }]
+        ]);
+      return new Response('ok');
+    }
+
+    if (/^\/(bantuan|perintah)\b/i.test(text)) {
+      await reply(TOKEN, chatId, '📖 <b>Yang bisa dilakukan</b>\n\n' +
+        '<b>Mencatat</b>\n• Ketik langsung: <i>beli kopi 25rb pakai gopay</i>\n• Kirim foto struk 📷\n\n' +
+        '<b>Perintah cepat</b> (tak memakai jatah AI)\n' +
+        '/saldo — saldo semua dompet\n' +
+        '/sisa — sisa anggaran &amp; jatah harian\n' +
+        '/notif — atur notifikasi\n' +
+        '/bantuan — pesan ini');
+      return new Response('ok');
+    }
 
     // 2b) Cek kuota — kuota GABUNGAN dengan app (sama-sama pakai tabel ai_usage), jadi anti-bocor
     var FREE_LIMIT = parseInt(process.env.AI_FREE_LIMIT || '30', 10);
@@ -203,13 +361,18 @@ export default async function handler(req) {
     }
 
     // Jangan pernah bilang "tercatat" tanpa memastikan benar-benar tersimpan
-    var insRes = await sb('/rest/v1/transactions', { method: 'POST', body: JSON.stringify(rows) }, SB_URL, KEY);
+    // Prefer return=representation: id baris dibutuhkan untuk tombol Batal & ganti kategori
+    var insRes = await sb('/rest/v1/transactions', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(rows) }, SB_URL, KEY);
     if (!insRes.ok) {
       var errTxt = '';
       try { errTxt = (await insRes.text() || '').slice(0, 300); } catch (e) { }
       await reply(TOKEN, chatId, '❌ <b>Gagal menyimpan.</b> Transaksi TIDAK tercatat.\n\n<code>' + errTxt.replace(/[<>&]/g, '') + '</code>\n\nCoba lagi, atau catat manual di app.');
       return new Response('ok');
     }
+    var tersimpan = [];
+    try { tersimpan = await insRes.json(); } catch (e) { }
+    if (!Array.isArray(tersimpan)) tersimpan = [];
+
     await sb('/rest/v1/rpc/increment_ai_usage', { method: 'POST', body: JSON.stringify({ p_user: uid, p_period: period }) }, SB_URL, KEY);
 
     // Update saldo dompet — HANYA dijalankan setelah insert dipastikan berhasil,
@@ -235,7 +398,21 @@ export default async function handler(req) {
       var dateTxt = r.date !== today() ? ('\n   🗓 ' + r.date) : '';
       return (r.type === 'income' ? '📥' : '📤') + ' <b>' + fmtRp(r.amount) + '</b> ' + (r.description || '-') + catTxt + (w ? ' · ' + w.name : '') + dateTxt;
     }).join('\n');
-    await reply(TOKEN, chatId, '✅ <b>Tercatat!</b>\n' + summary + (balFailed ? '\n\n⚠️ Transaksi tersimpan, tapi saldo dompet gagal diperbarui. Cek dan sesuaikan manual di app.' : ''));
+    /* Tombol aksi hanya dipasang untuk pencatatan tunggal. Untuk banyak transaksi
+       sekaligus (mis. struk panjang), satu tombol Batal akan ambigu: yang mana yang
+       dibatalkan. Kasus itu diarahkan ke app saja. */
+    var tombolAksi = null;
+    if (tersimpan.length === 1 && tersimpan[0] && tersimpan[0].id) {
+      var txId = tersimpan[0].id;
+      var jenis = rows[0].type === 'income' ? 'income' : 'expense';
+      // Tiga kategori terdekat sebagai pintasan koreksi; sisanya lewat app.
+      var pilihanKat = cats.filter(function (c) { return !c.parent_id && c.type === jenis && c.id !== rows[0].category_id; }).slice(0, 3);
+      tombolAksi = [[{ text: '↩️ Batalkan', callback_data: 'batal:' + txId }]];
+      if (pilihanKat.length) {
+        tombolAksi.push(pilihanKat.map(function (c) { return { text: '→ ' + c.name, callback_data: 'kat:' + txId + ':' + c.id }; }));
+      }
+    }
+    await reply(TOKEN, chatId, '✅ <b>Tercatat!</b>\n' + summary + (balFailed ? '\n\n⚠️ Transaksi tersimpan, tapi saldo dompet gagal diperbarui. Cek dan sesuaikan manual di app.' : '') + (tombolAksi ? '\n\n<i>Salah kategori? Ketuk salah satu di bawah.</i>' : ''), tombolAksi);
   } catch (e) {
     try { await reply(TOKEN, chatId, '❌ Ada kesalahan memproses. Coba lagi sebentar.'); } catch (e2) { }
   }
