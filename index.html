@@ -2992,6 +2992,20 @@
           lt('debt_payments', 'paid_date', false).then(function (r) { sDP(r.d); if (r.e) errs.push(r.e); chk() });
           lt('goals', 'created_at', false).then(function (r) { sG(r.d); if (r.e) errs.push(r.e); chk() });
           lt('reminders', 'due_date', true).then(function (r) { sR(r.d); if (r.e) errs.push(r.e); chk() })
+
+          /* Bayar otomatis cicilan. Dijalankan sekali tiap aplikasi dibuka, sebab
+             aplikasi ini tak punya penjadwal di server. Seluruh pencatatan terjadi di
+             dalam satu fungsi basis data supaya empat tabel yang tersentuh tak pernah
+             setengah jalan, dan pemeriksaan auto_pay_last di dalamnya mencegah cicilan
+             yang sama tercatat dua kali walau aplikasi dibuka di dua perangkat. */
+          if (navigator.onLine) {
+            sb.rpc('auto_bayar_hutang').then(function (r) {
+              if (r.error || !r.data || !r.data.jumlah) return;
+              var nm = (r.data.nama && r.data.nama.length) ? r.data.nama.join(", ") : "cicilan";
+              t('⚡ ' + r.data.jumlah + ' cicilan dicatat otomatis: ' + nm);
+              rD(); rDP(); rW(); rT();
+            }).catch(function () { });
+          }
           return function () { clearTimeout(t1); clearTimeout(t2) }
         }, [user]);
         function rW() { lt('wallets', 'created_at', true).then(function (r) { sW(r.d) }) }
@@ -4827,7 +4841,7 @@
         var _pMo = useState(null), pMo = _pMo[0], sPMo = _pMo[1];
         var _tip = useState(function() { try { return !localStorage.getItem('wf_debt_tip_closed') } catch(e) { return true } }), showTip = _tip[0], sShowTip = _tip[1];
         function closeTip() { sShowTip(false); try { localStorage.setItem('wf_debt_tip_closed', '1') } catch(e) {} }
-        var _f = useState({ type: 'hutang', name: '', description: '', category: 'personal', total_amount: '', remaining_amount: '', monthly_payment: '', interest_rate: '', interest_model: 'flat', tenor: '', start_date: td(), due_date: '', wallet_id: '', record_txn: true, txn_wallet_id: '' }), f = _f[0], sF = _f[1];
+        var _f = useState({ type: 'hutang', name: '', description: '', category: 'personal', total_amount: '', remaining_amount: '', monthly_payment: '', interest_rate: '', interest_model: 'flat', tenor: '', start_date: td(), due_date: '', wallet_id: '', record_txn: true, txn_wallet_id: '', auto_pay: false, auto_pay_wallet: '', auto_pay_category: '' }), f = _f[0], sF = _f[1];
         var _pf = useState({ amount: '', paid_date: td(), wallet_id: '', notes: '', record_txn: true }), pf = _pf[0], sPf = _pf[1];
         var CATS = { kpr: '🏠 KPR/Rumah', kendaraan: '🚗 Kendaraan', personal: '👤 Personal', usaha: '💼 Usaha', pendidikan: '🎓 Pendidikan', lainnya: '📦 Lainnya' };
         var IMODELS = { flat: 'Flat (Bunga Tetap)', anuitas: 'Anuitas (Efektif)', simple: 'Simple (Sekali Bayar)' };
@@ -4857,8 +4871,8 @@
         function ufx(k, v) { var n = {}; for (var x in f) n[x] = f[x]; n[k] = v; sF(n) }
         function ufp(k, v) { var n = {}; for (var x in pf) n[x] = f[x]; n[k] = v; sPf(n) }
 
-        function openAdd() { sF({ type: tab, name: '', description: '', category: 'personal', total_amount: '', remaining_amount: '', monthly_payment: '', interest_rate: '', interest_model: 'flat', tenor: '', start_date: td(), due_date: '', wallet_id: '', record_txn: true, txn_wallet_id: W.length ? W[0].id : '' }); sMo({ m: 'add' }) }
-        function openEdit(d) { sF({ type: d.type, name: d.name || '', description: d.description || '', category: d.category || 'personal', total_amount: numStr(d.total_amount), remaining_amount: numStr(d.remaining_amount), monthly_payment: numStr(d.monthly_payment), interest_rate: String(d.interest_rate || 0), interest_model: d.interest_model || 'flat', tenor: String(d.tenor || 0), start_date: d.start_date || td(), due_date: d.due_date || '', wallet_id: d.wallet_id || '', record_txn: false, txn_wallet_id: '' }); sMo({ m: 'edit', d: d }) }
+        function openAdd() { sF({ type: tab, name: '', description: '', category: 'personal', total_amount: '', remaining_amount: '', monthly_payment: '', interest_rate: '', interest_model: 'flat', tenor: '', start_date: td(), due_date: '', wallet_id: '', record_txn: true, txn_wallet_id: W.length ? W[0].id : '', auto_pay: false, auto_pay_wallet: W.length ? W[0].id : '', auto_pay_category: '' }); sMo({ m: 'add' }) }
+        function openEdit(d) { sF({ type: d.type, name: d.name || '', description: d.description || '', category: d.category || 'personal', total_amount: numStr(d.total_amount), remaining_amount: numStr(d.remaining_amount), monthly_payment: numStr(d.monthly_payment), interest_rate: String(d.interest_rate || 0), interest_model: d.interest_model || 'flat', tenor: String(d.tenor || 0), start_date: d.start_date || td(), due_date: d.due_date || '', wallet_id: d.wallet_id || '', record_txn: false, txn_wallet_id: '', auto_pay: !!d.auto_pay, auto_pay_wallet: d.auto_pay_wallet || (W.length ? W[0].id : ''), auto_pay_category: d.auto_pay_category || '' }); sMo({ m: 'edit', d: d }) }
         function openPay(d) { sPf({ amount: numStr(d.monthly_payment), paid_date: td(), wallet_id: W.length ? W[0].id : '', notes: '', record_txn: true, category_id: '', sub_category_id: '' }); sPMo(d) }
 
         function saveDebt() {
@@ -4867,6 +4881,12 @@
           var amt = Number(f.total_amount) || 0;
           var calc = calcInterest(amt, f.interest_rate, f.tenor, f.interest_model);
           var pay = { user_id: UID, type: f.type, name: f.name.trim(), description: f.description, category: f.category, total_amount: amt, remaining_amount: Number(f.remaining_amount) || calc.totalBayar, monthly_payment: Number(f.monthly_payment) || Math.round(calc.cicilanPerBulan), interest_rate: Number(f.interest_rate) || 0, interest_model: f.interest_model || 'flat', tenor: Number(f.tenor) || 0, total_with_interest: calc.totalBayar, start_date: f.start_date || null, due_date: f.due_date || null, wallet_id: f.wallet_id || null, status: 'active' };
+          // Bayar otomatis hanya masuk akal untuk hutang bercicilan bulanan yang punya
+          // tanggal jatuh tempo; tanpa keduanya tak ada yang bisa dipicu.
+          var bolehAuto = f.type === 'hutang' && !!f.due_date && (Number(f.monthly_payment) > 0 || calc.cicilanPerBulan > 0);
+          pay.auto_pay = bolehAuto && !!f.auto_pay && !!f.auto_pay_wallet;
+          pay.auto_pay_wallet = pay.auto_pay ? f.auto_pay_wallet : null;
+          pay.auto_pay_category = pay.auto_pay ? (f.auto_pay_category || null) : null;
           if (mo.m === 'add') {
             sb.from('debts').insert(pay).then(function (r) {
               if (r.error) { t(r.error.message, 'err'); return }
@@ -5030,7 +5050,8 @@
                     'Bunga: ', fmt(Math.round(d.total_with_interest - d.total_amount))) : null,
                   d.due_date ? h('span', { style: { color: 'var(--t3)' } }, '🗓 ', (Number(d.monthly_payment) > 0 && d.status === 'active' ? 'Cicilan: ' : 'Tempo: '), new Date(d.due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })) : null,
                   (d.status === 'active' && Number(d.monthly_payment) > 0 && Number(d.remaining_amount) > 0 && d.due_date) ? (function () { var ml = Math.ceil((Number(d.remaining_amount) || 0) / Number(d.monthly_payment)); var po = addMonths(d.due_date, Math.max(0, ml - 1)); return h('span', { style: { color: 'var(--t1)', fontWeight: 600 } }, 'Lunas ~', new Date(po).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }), ' (', ml, 'x lagi)'); })() : null,
-                  d.wallet_id ? h('span', null, '💳 ', wn(W, d.wallet_id)) : null),
+                  d.wallet_id ? h('span', null, '💳 ', wn(W, d.wallet_id)) : null,
+                  d.auto_pay ? h('span', { style: { color: 'var(--acc)', fontWeight: 600 } }, '⚡ Otomatis dari ', wn(W, d.auto_pay_wallet)) : null),
                 // Recent payments
                 payments.length > 0 ? h('div', { style: { borderTop: '1px solid var(--brd)', paddingTop: 10 } },
                   h('div', { style: { fontSize: '.72rem', fontWeight: 600, color: 'var(--t3)', marginBottom: 6 } }, 'Riwayat Pembayaran'),
@@ -5065,6 +5086,31 @@
                 h('button', { className: 'btn bs', style: { marginTop: 8, width: '100%', fontSize: '.78rem' }, onClick: function () { var c2 = calcInterest(f.total_amount, f.interest_rate, f.tenor, f.interest_model); var n = {}; for (var x in f) n[x] = f[x]; n.remaining_amount = String(Math.round(c2.totalBayar)); n.monthly_payment = String(Math.round(c2.cicilanPerBulan)); sF(n) } }, '⬆ Terapkan ke form'))
             }()) : null,
             h('div', { className: 'fr' }, h('div', { className: 'fg' }, h('label', null, 'Tgl Mulai'), h('input', { className: 'fi', type: 'date', value: f.start_date, onChange: function (e) { ufx('start_date', e.target.value) } })), h('div', { className: 'fg' }, h('label', null, 'Jatuh Tempo Cicilan'), h('input', { className: 'fi', type: 'date', value: f.due_date, onChange: function (e) { ufx('due_date', e.target.value) } }))),
+            // Bayar otomatis. Sengaja hanya muncul bila prasyaratnya terpenuhi,
+            // supaya user tak menyalakan sesuatu yang tak akan pernah jalan.
+            (f.type === 'hutang' && f.due_date && (Number(f.monthly_payment) > 0 || Number(f.total_amount) > 0)) ? h('div', { style: { border: '1px solid var(--brd)', borderRadius: 10, padding: '12px 14px', marginTop: 4, marginBottom: 10, background: 'var(--bgi)' } },
+              h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }, onClick: function () { ufx('auto_pay', !f.auto_pay) } },
+                h('div', { style: { width: 40, height: 22, borderRadius: 11, background: f.auto_pay ? 'var(--acc)' : 'var(--brd)', position: 'relative', transition: 'background .2s', flexShrink: 0 } },
+                  h('div', { style: { width: 16, height: 16, borderRadius: '50%', background: '#fff', position: 'absolute', top: 3, left: f.auto_pay ? 21 : 3, transition: 'left .2s' } })),
+                h('div', null,
+                  h('div', { style: { fontWeight: 600, fontSize: '.85rem' } }, 'Bayar otomatis'),
+                  h('div', { style: { fontSize: '.72rem', color: 'var(--t3)', lineHeight: 1.4 } }, 'Cicilan dicatat sendiri tiap jatuh tempo'))),
+              f.auto_pay ? h(F, null,
+                h('div', { className: 'fg', style: { marginTop: 12, marginBottom: 8 } },
+                  h('label', null, 'Ambil dari dompet'),
+                  h('select', { className: 'fi', value: f.auto_pay_wallet, onChange: function (e) { ufx('auto_pay_wallet', e.target.value) } },
+                    h('option', { value: '' }, 'Pilih dompet'),
+                    W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name) }))),
+                h('div', { className: 'fg', style: { marginBottom: 8 } },
+                  h('label', null, 'Kategori ', h('span', { style: { color: 'var(--t3)', fontWeight: 400 } }, '(opsional)')),
+                  h('select', { className: 'fi', value: f.auto_pay_category, onChange: function (e) { ufx('auto_pay_category', e.target.value) } },
+                    h('option', { value: '' }, 'Tanpa kategori'),
+                    C.filter(function (c) { return c.type === 'expense' && !c.parent_id }).map(function (c) {
+                      return h('option', { key: c.id, value: c.id }, (c.icon || '') + ' ' + c.name);
+                    }))),
+                h('div', { style: { fontSize: '.72rem', color: 'var(--org)', background: 'rgba(217,119,6,.12)', border: '1px solid var(--org)', borderRadius: 8, padding: '8px 10px', lineHeight: 1.45 } },
+                  h('b', null, 'Ini mencatat, bukan mengirim uang.'), ' Saldo dompet dipotong dan cicilan ditandai lunas saat jatuh tempo lewat. Pembayaran ke bank tetap lewat autodebet bank atau kamu bayar sendiri.')
+              ) : null) : null,
             h('div', { className: 'fg' }, h('label', null, 'Dompet Terkait (untuk cicilan)'), h('select', { className: 'fi', value: f.wallet_id, onChange: function (e) { ufx('wallet_id', e.target.value) } }, h('option', { value: '' }, '-- Tidak ada --'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name) }))),
             mo && mo.m === 'add' ? h(DebtAddSection, { f: f, ufx: ufx, W: W }) : null),
 
