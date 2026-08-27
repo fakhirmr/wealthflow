@@ -134,13 +134,35 @@ function parseBaris(teks) {
   return out;
 }
 
-async function geminiBaris(GKEY, content) {
-  var body = { model: 'gemini-flash-latest', max_tokens: 3072, reasoning_effort: 'low', messages: [{ role: 'user', content: content }] };
+/* Mengambil balasan AI apa adanya. Jenis gambar tidak lagi ditebak dari
+   keterangan yang diketik pengguna, melainkan ditentukan AI sendiri; balasannya
+   bisa berupa JSON (struk) atau baris berpipa (mutasi), jadi teksnya diambil
+   mentah lalu dicoba kedua pembaca. */
+async function geminiRaw(GKEY, content, maxTok) {
+  var body = { model: 'gemini-flash-latest', max_tokens: maxTok || 3072, reasoning_effort: 'low', messages: [{ role: 'user', content: content }] };
   var r = await fetchTO(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) }, 18000);
   var d = await r.json();
-  var txt = '';
-  try { txt = d.choices[0].message.content || ''; } catch (e) { txt = ''; }
-  return parseBaris(txt);
+  try { return d.choices[0].message.content || ''; } catch (e) { return ''; }
+}
+
+function parseJsonArr(teks) {
+  var t = String(teks || '').replace(/```json/gi, '').replace(/```/g, '').trim();
+  var i = t.indexOf('[');
+  if (i < 0) return [];
+  t = t.slice(i);
+  try { var a = JSON.parse(t); if (Array.isArray(a)) return a; } catch (e) { }
+  // Balasan terpotong: pungut objek yang kurawalnya sudah tertutup
+  var out = [], dalam = 0, awal = -1, diTeks = false, lolos = false;
+  for (var k = 0; k < t.length; k++) {
+    var c = t[k];
+    if (lolos) { lolos = false; continue }
+    if (c === '\\') { lolos = true; continue }
+    if (c === '"') { diTeks = !diTeks; continue }
+    if (diTeks) continue;
+    if (c === '{') { if (dalam === 0) awal = k; dalam++ }
+    else if (c === '}') { dalam--; if (dalam === 0 && awal >= 0) { try { out.push(JSON.parse(t.slice(awal, k + 1))) } catch (e) { } awal = -1 } }
+  }
+  return out;
 }
 
 function wList(wallets) { return wallets.map(function (w) { return w.id + '=' + w.name; }).join(', '); }
@@ -404,12 +426,14 @@ export default async function handler(req) {
       }
     }
 
-    // Mutasi berisi BANYAK transaksi, struk hanya satu total. Dibedakan lewat
-    // keterangan gambar supaya pengguna bisa memilih tanpa menu tambahan.
-    var modeMutasi = /mutasi|rekening|riwayat|transaksi/i.test(text || '');
+    /* Jenis gambar ditentukan AI, bukan ditebak dari keterangan yang diketik.
+       Versi sebelumnya mensyaratkan pengguna menulis kata "mutasi" di caption;
+       yang tidak tahu itu selalu mendapat balasan "membaca struk" walau yang
+       dikirim mutasi. Pesan tunggunya kini netral sampai jenisnya diketahui. */
+    var modeMutasi = false;
 
     if (msg.photo && msg.photo.length || docFile) {
-      await reply(TOKEN, chatId, modeMutasi ? '📄 Membaca mutasi...' : '📷 Membaca struk...');
+      await reply(TOKEN, chatId, '🔍 Membaca gambar...');
       var fileId = docFile || msg.photo[msg.photo.length - 1].file_id;
       var gf = await tgCall(TOKEN, 'getFile', { file_id: fileId });
       var gfj = await gf.json();
@@ -417,13 +441,27 @@ export default async function handler(req) {
       if (filePath) {
         var img = await fetch('https://api.telegram.org/file/bot' + TOKEN + '/' + filePath);
         var b64 = b64FromBuffer(await img.arrayBuffer());
-        if (modeMutasi) {
-          var mprompt = 'Ini screenshot mutasi rekening bank atau e-wallet. Tulis SEMUA transaksi yang terlihat, SATU transaksi per baris, format persis:\ntipe|nominal|keterangan|tanggal\n\ntipe: M kalau uang masuk (kredit, CR, +). K kalau uang keluar (debit, DB, -).\nnominal: angka saja tanpa titik atau koma.\nketerangan: singkat, maksimal 4 kata.\ntanggal: YYYY-MM-DD, pakai ' + today() + ' kalau tahun tak terlihat.\n\nLewati baris saldo dan total. JANGAN tulis header, nomor urut, atau penjelasan. Kalau tak ada transaksi, balas: KOSONG';
-          txList = await geminiBaris(GKEY, [{ type: 'text', text: mprompt }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }]);
-        } else {
-        var vprompt = 'Ini foto struk belanja. Ekstrak jadi JSON array transaksi pengeluaran. Balas HANYA JSON: [{"type":"expense","amount":number,"description":"nama toko/item","date":"YYYY-MM-DD","category_id":"id atau null","sub_category_id":"id atau null","wallet_id":"id atau null"}]. Gunakan TOTAL akhir sebagai 1 transaksi. Tanggal dari struk; jika tak ada pakai ' + today() + '. Cocokkan dompet bila disebut. PENTING: pilih kategori sespesifik mungkin. Kalau isi struk cocok dengan salah satu SUB-KATEGORI, isi sub_category_id dengan sub itu dan category_id dengan induknya (lihat penanda [induk:...]). sub_category_id harus anak dari category_id.\nDompet: ' + wList(wallets) + '\nKategori: ' + cList(cats) + '\nSub-Kategori: ' + sList(cats);
-        txList = await geminiExtract(GKEY, [{ type: 'text', text: vprompt }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }]);
-        }
+        /* Satu panggilan untuk kedua jenis. Memisahkannya jadi dua panggilan
+           (satu untuk mengenali, satu untuk membaca) menghabiskan dua jatah AI
+           dan menambah satu perjalanan bolak-balik ke batas waktu. */
+        var gprompt = 'Lihat gambar ini lalu tentukan sendiri jenisnya.\n\n' +
+          'KALAU INI STRUK BELANJA (satu kali transaksi, ada daftar barang dan TOTAL):\n' +
+          'Balas HANYA JSON: [{"type":"expense","amount":number,"description":"nama toko/item","date":"YYYY-MM-DD","category_id":"id atau null","sub_category_id":"id atau null","wallet_id":"id atau null"}]\n' +
+          'Pakai TOTAL akhir sebagai 1 transaksi. Pilih kategori sespesifik mungkin: kalau cocok dengan salah satu SUB-KATEGORI, isi sub_category_id dengan sub itu dan category_id dengan induknya (lihat penanda [induk:...]).\n\n' +
+          'KALAU INI MUTASI REKENING atau E-WALLET (daftar banyak transaksi berurutan, ada tanggal dan saldo berjalan):\n' +
+          'JANGAN pakai JSON. Balas satu transaksi per baris dengan format persis:\ntipe|nominal|keterangan|tanggal\n' +
+          'tipe: M kalau uang masuk (kredit, CR, +), K kalau uang keluar (debit, DB, -).\n' +
+          'nominal: angka saja tanpa titik atau koma. keterangan: singkat, maksimal 4 kata. tanggal: YYYY-MM-DD.\n' +
+          'Lewati baris saldo dan total. Jangan tulis header atau nomor urut.\n\n' +
+          'Tanggal default ' + today() + '. Kalau tak ada transaksi sama sekali, balas: KOSONG\n' +
+          'Dompet: ' + wList(wallets) + '\nKategori: ' + cList(cats) + '\nSub-Kategori: ' + sList(cats);
+
+        var mentah = await geminiRaw(GKEY, [{ type: 'text', text: gprompt }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }], 3072);
+        // Bentuk balasannya yang menentukan: baris berpipa berarti mutasi.
+        var barisMutasi = parseBaris(mentah);
+        if (barisMutasi.length) { modeMutasi = true; txList = barisMutasi; }
+        else txList = parseJsonArr(mentah);
+
       }
     } else if (text) {
       var tprompt = 'Kamu parser transaksi keuangan Bahasa Indonesia. Ekstrak dari pesan user jadi JSON array. Balas HANYA JSON valid: [{"type":"expense"|"income","amount":number,"description":"singkat","date":"YYYY-MM-DD","category_id":"id atau null","sub_category_id":"id atau null","wallet_id":"id atau null"}].\nATURAN:\n1) uang keluar/beli/bayar = expense; uang masuk/terima/gaji = income.\n2) Cocokkan dompet dari nama yang disebut user.\n3) PENTING: pilih kategori SESPESIFIK mungkin: kalau barang/jasa yang disebut user cocok dengan salah satu SUB-KATEGORI, WAJIB isi sub_category_id dengan sub itu, dan category_id dengan induknya. Contoh: user tulis "kopi" dan ada sub-kategori "Kopi" -> sub_category_id = id sub "Kopi", category_id = id induknya. Jangan biarkan sub_category_id null kalau ada sub yang cocok.\n4) sub_category_id HARUS anak dari category_id yang dipilih (lihat penanda [induk:...]).\n5) description = keterangan tambahan/detail (mis. nama tempat atau merek). Kalau tidak ada detail lain, boleh diisi nama barangnya.\n6) Tanggal default ' + today() + '. Jika bukan transaksi, balas [].\nDompet: ' + wList(wallets) + '\nKategori: ' + cList(cats) + '\nSub-Kategori: ' + sList(cats) + '\n\nPesan: "' + text + '"';
@@ -507,7 +545,7 @@ export default async function handler(req) {
         tombolAksi.push(pilihanKat.map(function (c) { return { text: '→ ' + c.name, callback_data: 'kat:' + txId + ':' + c.id }; }));
       }
     }
-    await reply(TOKEN, chatId, '✅ <b>Tercatat!</b>\n' + summary + (balFailed ? '\n\n⚠️ Transaksi tersimpan, tapi saldo dompet gagal diperbarui. Cek dan sesuaikan manual di app.' : '') + (tombolAksi ? '\n\n<i>Salah kategori? Ketuk salah satu di bawah.</i>' : ''), tombolAksi);
+    await reply(TOKEN, chatId, '✅ <b>Tercatat' + (modeMutasi ? ' dari mutasi' : '') + '!</b>\n' + summary + (balFailed ? '\n\n⚠️ Transaksi tersimpan, tapi saldo dompet gagal diperbarui. Cek dan sesuaikan manual di app.' : '') + (tombolAksi ? '\n\n<i>Salah kategori? Ketuk salah satu di bawah.</i>' : ''), tombolAksi);
   } catch (e) {
     // Batas waktu perlu disebut apa adanya, supaya user tahu memotong mutasinya
     // dan tidak mengira botnya rusak lalu mengirim ulang berkali-kali.
