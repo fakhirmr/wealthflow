@@ -4438,8 +4438,23 @@
         function updSplit(i, k, v) { sSplits(function (arr) { return arr.map(function (r, j) { if (j !== i) return r; var u = Object.assign({}, r); u[k] = v; if (k === 'category_id') u.sub_category_id = ''; return u }) }) }
         function addSplitRow() { sSplits(function (arr) { return arr.concat([{ amount: '', category_id: '', sub_category_id: '' }]) }) }
         function delSplitRow(i) { sSplits(function (arr) { var n = arr.filter(function (r, j) { return j !== i }); return n.length < 2 ? null : n }) }
-        var _ft = useState('all'), fTy = _ft[0], sFT = _ft[1]; var _fw = useState(function () { var w = p.txnWalletRef && p.txnWalletRef.current; return w || 'all' }), fWl = _fw[0], sFW = _fw[1]; var _q = useState(''), q = _q[0], sQ = _q[1];
+        /* Saringan diingat selama sesi. Saat berpindah ke aplikasi lain lalu kembali,
+           browser di ponsel sering membuang halaman dan memuatnya ulang; halaman aktif
+           sudah diingat lewat wf_pg, tapi saringannya dulu ikut hilang sehingga daftar
+           kembali menampilkan semua dompet. Datang dari klik dompet tetap menang,
+           sebab itu maksud yang baru saja dinyatakan user. */
+        var FILT_KEY = 'wf_txn_filter';
+        function _filtSimpan(o) { try { sessionStorage.setItem(FILT_KEY, JSON.stringify(o)) } catch (e) { } }
+        function _filtMuat() { try { return JSON.parse(sessionStorage.getItem(FILT_KEY) || 'null') || {} } catch (e) { return {} } }
+        var _filtAwal = _filtMuat();
+        var _ft = useState(function () { return _filtAwal.ty || 'all' }), fTy = _ft[0], sFT = _ft[1];
+        var _fw = useState(function () {
+          var w = p.txnWalletRef && p.txnWalletRef.current;
+          return w || _filtAwal.wl || 'all';
+        }), fWl = _fw[0], sFW = _fw[1];
+        var _q = useState(function () { return _filtAwal.q || '' }), q = _q[0], sQ = _q[1];
         useEffect(function () { if (p.txnWalletRef) p.txnWalletRef.current = null }, []);
+        useEffect(function () { _filtSimpan({ ty: fTy, wl: fWl, q: q }) }, [fTy, fWl, q]);
         var now2 = new Date(); var _yr = useState(now2.getFullYear()), vYr = _yr[0], sVYr = _yr[1]; var _mn = useState(now2.getMonth()), vMn = _mn[0], sVMn = _mn[1];
         var MOS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
         function prevMo() { if (vMn === 0) { sVMn(11); sVYr(vYr - 1) } else sVMn(vMn - 1) }
@@ -5447,6 +5462,18 @@
             else localStorage.removeItem(PTX_KEY);
           } catch (e) { }
         }, [pendingTx]);
+        /* Menutup form dulu berarti MEMBUANG hasil scan, jadi sekali salah tekan
+           user harus memindai ulang dan kuota AI-nya terbuang. Sekarang menutup
+           hanya menyembunyikan; datanya tetap ada dan bisa dibuka lagi lewat
+           spanduk di halaman AI. Membuang hasil kini harus disengaja. */
+        var _ptxOpen = useState(false), ptxOpen = _ptxOpen[0], sPtxOpen = _ptxOpen[1];
+        var _ptxPrev = useRef(pendingTx.length);
+        useEffect(function () {
+          // Terbuka sendiri hanya ketika ada tambahan baru dari hasil pindai,
+          // bukan saat halaman dimuat ulang, supaya tidak menghadang user.
+          if (pendingTx.length > _ptxPrev.current) sPtxOpen(true);
+          _ptxPrev.current = pendingTx.length;
+        }, [pendingTx.length]);
         var _tab = useState('chat'), tab = _tab[0], sTab = _tab[1];
         var _goals = useState(function () { try { return JSON.parse(localStorage.getItem('wf_goals') || '[]') } catch (e) { return [] } }), goals = _goals[0], sGoals = _goals[1];
         var _anomalies = useState(null), anomalies = _anomalies[0], sAnomalies = _anomalies[1];
@@ -6008,6 +6035,15 @@
             quota ? h('div', { style: { textAlign: 'right', flexShrink: 0 } },
               h('div', { style: { fontSize: '.68rem', color: 'var(--t3)' } }, quota.plan === 'premium' ? '👑 Premium · Sisa bulan ini' : 'Sisa bulan ini'),
               h('div', { style: { fontWeight: 700, fontSize: '.92rem', color: quota.used >= quota.limit ? 'var(--red)' : 'var(--acc)' } }, Math.max(0, quota.limit - quota.used) + '/' + quota.limit)) : null),
+          // Jalan kembali ke hasil pindai yang masih menunggu. Tanpa ini, sekali form
+          // ditutup hasilnya tak bisa dibuka lagi dan user harus memindai ulang.
+          (pendingTx.length > 0 && !ptxOpen) ? h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--accbg)', border: '1px solid var(--acc)', borderRadius: 10, padding: '10px 12px', marginBottom: 10 } },
+            h('span', { style: { fontSize: 18, flexShrink: 0 } }, '📄'),
+            h('div', { style: { flex: 1, minWidth: 0 } },
+              h('div', { style: { fontWeight: 700, fontSize: '.82rem', color: 'var(--acc)' } }, pendingTx.length + ' transaksi menunggu ditinjau'),
+              h('div', { style: { fontSize: '.7rem', color: 'var(--t2)' } }, 'Hasil pindai tersimpan, tak perlu memindai ulang')),
+            h('button', { className: 'btn bp', style: { fontSize: '.75rem', padding: '5px 12px', flexShrink: 0 }, onClick: function () { sPtxOpen(true) } }, 'Buka')) : null,
+
           // Action bar
           h('div', { style: { display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' } },
             [{ id: 'chat', lb: 'Chat' }, { id: 'anomaly', lb: 'Anomali' }, { id: 'forecast', lb: 'Forecast' }, { id: 'goals', lb: 'Goals' }].map(function (tb) {
@@ -6023,8 +6059,10 @@
                 return h('div', { key: i, className: 'chat-msg ' + m.role + (m.role === 'sys' ? _nadaSys(m.text) : ''), style: { whiteSpace: 'pre-wrap' } }, m.text);
               }),
               ld || busy ? h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', color: 'var(--blu)', fontSize: '.8rem' } }, '🤔 ', busy ? 'Menganalisis transaksi...' : 'Menganalisis...') : null),
-            h(Mod, { open: pendingTx.length > 0, onClose: function () { sPendingTx([]); sEditIdx(null) }, title: pendingTx.length + ' transaksi terbaca', footer: h(F, null, h('button', { className: 'btn bs', onClick: function () { sPendingTx([]); sEditIdx(null) } }, 'Batal'), h('button', { className: 'btn bp', onClick: confirmTx }, 'Simpan Semua')) },
-              h('div', { style: { fontSize: '.78rem', color: 'var(--t3)', marginBottom: 6, lineHeight: 1.4 } }, 'Periksa & pilih kategori tiap transaksi sebelum disimpan. Total: ', h('b', { style: { color: 'var(--t1)' } }, fmt(pendingTx.reduce(function (s, t) { return s + (t.type === 'income' ? Number(t.amount) : -Number(t.amount)) }, 0)))),
+            h(Mod, { open: pendingTx.length > 0 && ptxOpen, onClose: function () { sPtxOpen(false); sEditIdx(null) }, title: pendingTx.length + ' transaksi terbaca', footer: h(F, null, h('button', { className: 'btn bs', onClick: function () { sPtxOpen(false); sEditIdx(null) } }, 'Tutup'), h('button', { className: 'btn bp', onClick: confirmTx }, 'Simpan Semua')) },
+              h('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 } },
+                h('div', { style: { flex: 1, fontSize: '.78rem', color: 'var(--t3)', lineHeight: 1.4 } }, 'Periksa & pilih kategori tiap transaksi sebelum disimpan. Total: ', h('b', { style: { color: 'var(--t1)' } }, fmt(pendingTx.reduce(function (s, t) { return s + (t.type === 'income' ? Number(t.amount) : -Number(t.amount)) }, 0)))),
+                h('button', { style: { flexShrink: 0, background: 'none', border: 'none', color: 'var(--red)', fontSize: '.72rem', fontWeight: 600, cursor: 'pointer', padding: '2px 4px' }, onClick: function () { sPendingTx([]); sEditIdx(null); sPtxOpen(false) } }, 'Buang hasil')),
               h('div', { style: { fontSize: '.72rem', color: 'var(--acc)', background: 'var(--accbg)', padding: '6px 10px', borderRadius: 6, marginBottom: 10 } }, 'Tersimpan otomatis, aman kalau kamu pindah ke app bank dulu untuk cek detail.'),
               // Mutasi berasal dari SATU rekening, jadi dompet cukup dipilih sekali di sini
               h('div', { style: { border: '1px solid var(--brd)', borderRadius: 8, padding: '10px 12px', marginBottom: 12 } },
