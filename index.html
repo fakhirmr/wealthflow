@@ -705,12 +705,34 @@
       border-bottom-left-radius: 3px
     }
 
+    /* Dulu rata tengah, mungil, dan memakai warna teks paling pudar (--t3),
+       padahal justru pesan inilah yang memberi tahu user harus berbuat apa.
+       Sekarang berupa kartu pemberitahuan selebar percakapan, dan warnanya
+       mengikuti nada pesan supaya galat langsung terbaca sebagai galat. */
     .chat-msg.sys {
-      align-self: center;
-      color: var(--t3);
-      font-size: .78rem;
-      text-align: center;
-      padding: 6px
+      align-self: stretch;
+      max-width: 100%;
+      text-align: left;
+      font-size: .8rem;
+      line-height: 1.55;
+      color: var(--t2);
+      background: var(--bgi);
+      border: 1px solid var(--brd);
+      border-left: 3px solid var(--t3);
+      border-radius: 8px;
+      padding: 10px 12px
+    }
+
+    .chat-msg.sys.err {
+      background: var(--redbg);
+      border-color: var(--red);
+      color: var(--red)
+    }
+
+    .chat-msg.sys.ok {
+      background: var(--accbg);
+      border-color: var(--acc);
+      color: var(--acc)
     }
 
     .chat-input {
@@ -2284,9 +2306,22 @@
       var TCtx = createContext(function () { });
       function TP(p) { var s = useState([]), ts = s[0], sTs = s[1]; var add = useCallback(function (m, t) { var id = Date.now(); sTs(function (v) { return v.concat({ id: id, m: m, t: t || 'ok' }) }); setTimeout(function () { sTs(function (v) { return v.filter(function (x) { return x.id !== id }) }) }, 3e3) }, []); return h(TCtx.Provider, { value: add }, p.children, h('div', { className: 'tc' }, ts.map(function (t) { return h('div', { key: t.id, className: 'toast ' + (t.t === 'ok' ? 'tok' : 'terr') }, t.t === 'ok' ? '✓' : '✗', ' ', t.m) }))) }
       /* MODAL */
-      function Mod(p) { if (!p.open) return null; return ReactDOM.createPortal(h('div', { className: 'mo', onClick: p.onClose }, h('div', { className: 'moc', onClick: function (e) { e.stopPropagation() } }, h('div', { className: 'moh' }, h('h3', null, p.title), h('button', { className: 'bi', onClick: p.onClose }, h(Ic, { n: 'x' }))), h('div', { className: 'mob' }, p.children), p.footer ? h('div', { className: 'mof' }, p.footer) : null)), document.body) }
+      /* Menutup modal HANYA bila tekanan jari/tetikus DIMULAI di latar.
+         Dulu cukup onClick di latar, dan itu membuat form tertutup sendiri ketika
+         user menyeret pilihan teks dari dalam kolom sampai melewati tepi modal:
+         peristiwa click jatuh ke latar karena latarlah leluhur bersama titik tekan
+         dan titik lepas, jadi stopPropagation di dalam tak pernah kena. */
+      function Mod(p) {
+        var mulaiDiLatar = useRef(false);
+        if (!p.open) return null;
+        return ReactDOM.createPortal(h('div', {
+          className: 'mo',
+          onPointerDown: function (e) { mulaiDiLatar.current = (e.target === e.currentTarget) },
+          onClick: function (e) { if (e.target === e.currentTarget && mulaiDiLatar.current) p.onClose() }
+        }, h('div', { className: 'moc' }, h('div', { className: 'moh' }, h('h3', null, p.title), h('button', { className: 'bi', onClick: p.onClose }, h(Ic, { n: 'x' }))), h('div', { className: 'mob' }, p.children), p.footer ? h('div', { className: 'mof' }, p.footer) : null)), document.body)
+      }
       /* CONFIRM */
-      function useCf() { var s = useState(null), st = s[0], sS = s[1]; var cf = useCallback(function (msg) { return new Promise(function (r) { sS({ msg: msg, r: r }) }) }, []); var el = st ? ReactDOM.createPortal(h('div', { className: 'mo', onClick: function () { st.r(false); sS(null) } }, h('div', { className: 'moc', onClick: function (e) { e.stopPropagation() } }, h('div', { className: 'moh' }, h('h3', null, 'Konfirmasi')), h('div', { className: 'mob' }, h('p', { style: { color: 'var(--t2)', lineHeight: 1.5 } }, st.msg)), h('div', { className: 'mof' }, h('button', { className: 'btn bs', onClick: function () { st.r(false); sS(null) } }, 'Batal'), h('button', { className: 'btn bd', onClick: function () { st.r(true); sS(null) } }, 'Hapus')))), document.body) : null; return [cf, el] }
+      function useCf() { var s = useState(null), st = s[0], sS = s[1]; var mulaiDiLatar = useRef(false); var cf = useCallback(function (msg) { return new Promise(function (r) { sS({ msg: msg, r: r }) }) }, []); var el = st ? ReactDOM.createPortal(h('div', { className: 'mo', onPointerDown: function (e) { mulaiDiLatar.current = (e.target === e.currentTarget) }, onClick: function (e) { if (e.target !== e.currentTarget || !mulaiDiLatar.current) return; st.r(false); sS(null) } }, h('div', { className: 'moc' }, h('div', { className: 'moh' }, h('h3', null, 'Konfirmasi')), h('div', { className: 'mob' }, h('p', { style: { color: 'var(--t2)', lineHeight: 1.5 } }, st.msg)), h('div', { className: 'mof' }, h('button', { className: 'btn bs', onClick: function () { st.r(false); sS(null) } }, 'Batal'), h('button', { className: 'btn bd', onClick: function () { st.r(true); sS(null) } }, 'Hapus')))), document.body) : null; return [cf, el] }
 
       /* ═══════════════════ GOALS ═══════════════════ */
       function GoalsP(p) {
@@ -5676,6 +5711,9 @@
               // artefak JPEG paling merusak justru angka nominalnya.
               var dataUrl = cv.toDataURL('image/jpeg', 0.92);
               var thisYear = new Date().getFullYear();
+              // Dibungkus fungsi agar bisa dipanggil ulang sekali secara otomatis
+              // ketika model membalas dengan gaya yang tak terbaca sama sekali.
+              function kirim(ulang) {
               aiFetch({
                 // Plafon diturunkan lagi setelah formatnya diringkas. Mutasi 40 baris
                 // kini cuma ~500 token, dan plafon rendah membatasi waktu berpikir
@@ -5706,6 +5744,14 @@
                 // Menyuruh user memotret ulang di kasus ini hanya membuang waktunya.
                 var kepanjangan = (pilihan && pilihan.finish_reason === 'length') || potongJson;
                 if (arr.length === 0) {
+                  // Model kadang membalas dengan gaya yang tak terbaca sama sekali, dan
+                  // percobaan berikutnya biasanya berhasil. Selama ini user yang
+                  // mengulang sendiri berkali-kali; sekarang diulang sekali otomatis.
+                  // Tidak diulang bila model memang menyatakan tak ada transaksi,
+                  // supaya screenshot yang benar-benar kosong tak memakan jatah dua kali.
+                  var ringkas = String(content || '').trim().toUpperCase();
+                  var sengajaKosong = ringkas === 'KOSONG' || ringkas === '[]' || ringkas === '';
+                  if (!ulang && !kepanjangan && !sengajaKosong) { kirim(true); return; }
                   var em2 = nm.concat({ role: 'sys', text: kepanjangan
                     ? '⚠️ Mutasinya terlalu panjang untuk sekali baca. Potong jadi beberapa screenshot, sekitar 15 transaksi per gambar.'
                     : '⚠️ Tidak ada transaksi terbaca dari mutasi. Pastikan screenshot jelas & memuat kolom nominal.' });
@@ -5714,6 +5760,8 @@
                 sPendingTx(function (prev) { return prev.concat(arr) });
                 var fm = nm.concat({ role: 'ai', text: '📄 ' + arr.length + ' transaksi terbaca dari mutasi.' + (kepanjangan ? ' Ini baru sebagian, sisanya kepanjangan. Scan bagian bawahnya terpisah.' : '') + ' Tinggal pilih kategori (& dompet) tiap baris lalu simpan 👇' }); sMs(fm); saveMem(fm);
               }).catch(function (e) { sScanBusy(false); var em = nm.concat({ role: 'sys', text: '❌ ' + e.message }); sMs(em); saveMem(em) });
+              }
+              kirim(false);
             };
             img.onerror = function () { sScanBusy(false); sMs(function (prev) { return prev.concat({ role: 'sys', text: '❌ Gagal memuat gambar' }) }); };
             img.src = reader.result;
@@ -5788,6 +5836,15 @@
         function clearChat() { var init = [{ role: 'sys', text: '🔄 Percakapan direset. Memori juga dihapus.' }]; sMs(init); clearMem() }
         function stripThink(t) { return (t || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim() }
 
+        // Nada pesan sistem dibaca dari lambang di awal teks, supaya tiap pemanggil
+        // tak perlu diubah satu per satu (ada belasan tempat yang menulis role 'sys').
+        function _nadaSys(t) {
+          var x = String(t || '').trim();
+          if (/^(\u274c|\u26a0|\u23f1|\ud83d\udeab|\ud83d\udd12|\u2699)/.test(x)) return ' err';
+          if (/^(\u2705|\ud83c\udf89)/.test(x)) return ' ok';
+          return '';
+        }
+
         /* Mengambil array transaksi dari balasan AI, termasuk ketika balasannya
            terpotong di tengah karena kehabisan jatah token. Cara lama memakai
            regex /[^\]]*$/ untuk memangkas ekor: kalau kurung penutup tak pernah
@@ -5826,21 +5883,34 @@
            bedanya ratusan token, cukup untuk menghindari batas waktu 24 detik.
            Bonusnya: tiap baris berdiri sendiri, jadi balasan yang terpotong
            cuma kehilangan baris terakhir, bukan seluruh isinya. */
+        /* Model tidak selalu menurut. Kadang ia membungkus jawabannya jadi tabel
+           markdown ("| K | 25000 | ... |"), menulis kata penuh ("Keluar"/"Masuk"),
+           atau memakai istilah bank (debit/kredit). Versi pertama menuntut persis
+           "K" atau "M" di kolom pertama, jadi jawaban seperti itu dibuang seluruhnya
+           dan user disuruh memotret ulang. Itu sebab gagalnya berganti-ganti:
+           bukan fotonya yang berbeda, melainkan gaya jawaban modelnya. */
+        var _BA_KELUAR = ['K', 'KELUAR', 'D', 'DB', 'DEBIT', 'DEBET', 'EXPENSE', 'PENGELUARAN', '-'];
+        var _BA_MASUK = ['M', 'MASUK', 'C', 'CR', 'KREDIT', 'CREDIT', 'INCOME', 'PEMASUKAN', '+'];
         function parseTxLines(teks) {
           var baris = String(teks || '').split('\n');
           var out = [];
           for (var i = 0; i < baris.length; i++) {
             var b = baris[i].trim();
             if (!b || b.indexOf('|') < 0) continue;
+            // Buang pipa pembuka/penutup gaya tabel markdown, dan baris pemisah |---|
+            b = b.replace(/^\|+/, '').replace(/\|+$/, '').trim();
+            if (!b || /^[\s|:-]+$/.test(b)) continue;
             var f = b.split('|');
             if (f.length < 3) continue;
-            var tipe = f[0].trim().toUpperCase();
-            if (tipe !== 'M' && tipe !== 'K') continue;
+            var tipe = f[0].trim().toUpperCase().replace(/[^A-Z+-]/g, '');
+            var masuk = _BA_MASUK.indexOf(tipe) >= 0;
+            var keluar = _BA_KELUAR.indexOf(tipe) >= 0;
+            if (!masuk && !keluar) continue;
             // Nominal dibersihkan dari titik, koma, dan "Rp" kalau model tetap menulisnya
             var nominal = Number(String(f[1] || '').replace(/[^0-9]/g, ''));
             if (!nominal || nominal <= 0) continue;
             out.push({
-              type: tipe === 'M' ? 'income' : 'expense',
+              type: masuk ? 'income' : 'expense',
               amount: nominal,
               description: (f[2] || '').trim() || 'Mutasi',
               date: safeDate((f[3] || '').trim()),
@@ -5950,7 +6020,7 @@
             h('div', { className: 'chat-msgs', ref: ref, style: { maxHeight: 360, overflowY: 'auto', marginBottom: 8 } },
               ms.map(function (m, i) {
                 if (m.role === 'ai') return h('div', { key: i, className: 'chat-msg ai', dangerouslySetInnerHTML: { __html: renderMd(m.text) } });
-                return h('div', { key: i, className: 'chat-msg ' + m.role, style: { whiteSpace: 'pre-wrap' } }, m.text);
+                return h('div', { key: i, className: 'chat-msg ' + m.role + (m.role === 'sys' ? _nadaSys(m.text) : ''), style: { whiteSpace: 'pre-wrap' } }, m.text);
               }),
               ld || busy ? h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', color: 'var(--blu)', fontSize: '.8rem' } }, '🤔 ', busy ? 'Menganalisis transaksi...' : 'Menganalisis...') : null),
             h(Mod, { open: pendingTx.length > 0, onClose: function () { sPendingTx([]); sEditIdx(null) }, title: pendingTx.length + ' transaksi terbaca', footer: h(F, null, h('button', { className: 'btn bs', onClick: function () { sPendingTx([]); sEditIdx(null) } }, 'Batal'), h('button', { className: 'btn bp', onClick: confirmTx }, 'Simpan Semua')) },
