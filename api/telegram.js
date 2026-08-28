@@ -92,14 +92,14 @@ function sb(url, opts, SB_URL, KEY) {
    pekerjaan dari nol terus-menerus. Lebih baik gagal cepat dan berkata jujur. */
 async function fetchTO(url, opts, ms) {
   var ctrl = new AbortController();
-  var id = setTimeout(function () { ctrl.abort(); }, ms || 18000);
+  var id = setTimeout(function () { ctrl.abort(); }, ms || 20000);
   try { return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal })); }
   finally { clearTimeout(id); }
 }
 
 async function geminiExtract(GKEY, content, maxTok) {
   var body = { model: 'gemini-flash-latest', max_tokens: maxTok || 1500, reasoning_effort: 'low', messages: [{ role: 'user', content: content }] };
-  var r = await fetchTO(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) }, 18000);
+  var r = await fetchTO(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) }, 20000);
   var d = await r.json();
   var txt = '';
   try { txt = d.choices[0].message.content || ''; } catch (e) { txt = ''; }
@@ -129,7 +129,7 @@ function parseBaris(teks) {
     if (!masuk && !keluar) return;
     var nominal = Number(String(f[1] || '').replace(/[^0-9]/g, ''));
     if (!nominal || nominal <= 0) return;
-    out.push({ type: masuk ? 'income' : 'expense', amount: nominal, description: (f[2] || '').trim() || 'Mutasi', date: safeDate((f[3] || '').trim()) });
+    out.push({ type: masuk ? 'income' : 'expense', amount: nominal, description: (f[2] || '').trim() || 'Transaksi', date: safeDate((f[3] || '').trim()), _kat: (f[4] || '').trim() });
   });
   return out;
 }
@@ -140,7 +140,7 @@ function parseBaris(teks) {
    mentah lalu dicoba kedua pembaca. */
 async function geminiRaw(GKEY, content, maxTok) {
   var body = { model: 'gemini-flash-latest', max_tokens: maxTok || 3072, reasoning_effort: 'low', messages: [{ role: 'user', content: content }] };
-  var r = await fetchTO(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) }, 18000);
+  var r = await fetchTO(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) }, 20000);
   var d = await r.json();
   try { return d.choices[0].message.content || ''; } catch (e) { return ''; }
 }
@@ -173,6 +173,49 @@ function sList(cats) {
   if (!subs.length) return '(tidak ada)';
   return subs.map(function (c) { return c.id + '=' + c.name + '[induk:' + c.parent_id + ']'; }).join(', ');
 }
+/* Daftar kategori untuk gambar memakai NAMA, bukan UUID.
+   Sebelumnya tiap entri berbentuk "uuid=Nama[induk:uuid]", sekitar 23 token per
+   sub-kategori; dengan puluhan kategori, daftarnya saja menghabiskan lebih dari
+   seribu token. Lebih berat lagi, model harus MENYALIN ULANG UUID 36 karakter
+   dengan tepat di jawabannya, dan itu memperpanjang waktu berpikir sampai
+   permintaannya menabrak batas waktu. Nama jauh lebih pendek, jauh lebih mudah
+   bagi model, dan pemetaan balik ke id dikerjakan di sini. */
+function namaKatList(cats, tipe) {
+  var indukNama = {};
+  cats.forEach(function (c) { if (!c.parent_id) indukNama[c.id] = c.name; });
+  var out = [];
+  cats.forEach(function (c) {
+    if (tipe && c.type && c.type !== tipe && !c.parent_id) return;
+    if (c.parent_id) { if (indukNama[c.parent_id]) out.push(indukNama[c.parent_id] + ' > ' + c.name); }
+    else out.push(c.name);
+  });
+  return out.length ? out.join(', ') : '(tidak ada)';
+}
+
+function rapi(x) { return String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim(); }
+
+// Mengembalikan {category_id, sub_category_id} dari nama yang ditulis AI.
+// Sub dicari lebih dulu: "Kopi" lebih spesifik daripada induknya.
+function cocokKategori(nama, cats) {
+  var hasil = { category_id: null, sub_category_id: null };
+  var teks = rapi(nama);
+  if (!teks) return hasil;
+  // "Induk > Sub" -> ambil bagian sub-nya saja
+  var potong = String(nama).split('>');
+  var akhir = rapi(potong[potong.length - 1]);
+  var cari = akhir || teks;
+
+  var sub = cats.find(function (c) { return c.parent_id && rapi(c.name) === cari; });
+  if (sub) {
+    hasil.sub_category_id = sub.id;
+    hasil.category_id = sub.parent_id;
+    return hasil;
+  }
+  var induk = cats.find(function (c) { return !c.parent_id && rapi(c.name) === cari; });
+  if (induk) { hasil.category_id = induk.id; return hasil; }
+  return hasil;
+}
+
 // Rapikan hasil AI: pastikan sub benar-benar anak dari kategori terpilih.
 // Kalau sub valid tapi kategori kosong/salah, turunkan kategori dari induk sub tsb.
 function fixCat(tx, cats) {
@@ -434,33 +477,53 @@ export default async function handler(req) {
 
     if (msg.photo && msg.photo.length || docFile) {
       await reply(TOKEN, chatId, '🔍 Membaca gambar...');
-      var fileId = docFile || msg.photo[msg.photo.length - 1].file_id;
+      /* Telegram menyediakan beberapa ukuran. Yang terbesar memperbesar unggahan
+         ke AI tanpa menambah ketepatan baca, dan waktunya terpakai percuma.
+         Diambil ukuran terbesar yang masih di bawah 1600px. */
+      var pilihFoto = null;
+      if (!docFile && msg.photo && msg.photo.length) {
+        var urut = msg.photo.slice().sort(function (a, b) { return (a.width || 0) - (b.width || 0); });
+        for (var pi = 0; pi < urut.length; pi++) {
+          if ((urut[pi].width || 0) <= 1600) pilihFoto = urut[pi];
+        }
+        if (!pilihFoto) pilihFoto = urut[0];
+      }
+      var fileId = docFile || (pilihFoto && pilihFoto.file_id) || msg.photo[msg.photo.length - 1].file_id;
       var gf = await tgCall(TOKEN, 'getFile', { file_id: fileId });
       var gfj = await gf.json();
       var filePath = gfj.result && gfj.result.file_path;
       if (filePath) {
         var img = await fetch('https://api.telegram.org/file/bot' + TOKEN + '/' + filePath);
         var b64 = b64FromBuffer(await img.arrayBuffer());
-        /* Satu panggilan untuk kedua jenis. Memisahkannya jadi dua panggilan
-           (satu untuk mengenali, satu untuk membaca) menghabiskan dua jatah AI
-           dan menambah satu perjalanan bolak-balik ke batas waktu. */
-        var gprompt = 'Lihat gambar ini lalu tentukan sendiri jenisnya.\n\n' +
-          'KALAU INI STRUK BELANJA (satu kali transaksi, ada daftar barang dan TOTAL):\n' +
-          'Balas HANYA JSON: [{"type":"expense","amount":number,"description":"nama toko/item","date":"YYYY-MM-DD","category_id":"id atau null","sub_category_id":"id atau null","wallet_id":"id atau null"}]\n' +
-          'Pakai TOTAL akhir sebagai 1 transaksi. Pilih kategori sespesifik mungkin: kalau cocok dengan salah satu SUB-KATEGORI, isi sub_category_id dengan sub itu dan category_id dengan induknya (lihat penanda [induk:...]).\n\n' +
-          'KALAU INI MUTASI REKENING atau E-WALLET (daftar banyak transaksi berurutan, ada tanggal dan saldo berjalan):\n' +
-          'JANGAN pakai JSON. Balas satu transaksi per baris dengan format persis:\ntipe|nominal|keterangan|tanggal\n' +
-          'tipe: M kalau uang masuk (kredit, CR, +), K kalau uang keluar (debit, DB, -).\n' +
-          'nominal: angka saja tanpa titik atau koma. keterangan: singkat, maksimal 4 kata. tanggal: YYYY-MM-DD.\n' +
-          'Lewati baris saldo dan total. Jangan tulis header atau nomor urut.\n\n' +
-          'Tanggal default ' + today() + '. Kalau tak ada transaksi sama sekali, balas: KOSONG\n' +
-          'Dompet: ' + wList(wallets) + '\nKategori: ' + cList(cats) + '\nSub-Kategori: ' + sList(cats);
+        /* Satu format untuk kedua jenis gambar. Struk menghasilkan satu baris,
+           mutasi menghasilkan banyak. Percabangan dua-format kemarin membuat model
+           harus memutuskan bentuk jawaban lebih dulu, dan itu menambah waktu
+           berpikir tepat pada bagian yang sudah mepet batas waktu. */
+        var gprompt = 'Baca gambar ini. Bisa struk belanja (tulis SATU baris berisi totalnya) atau mutasi rekening/e-wallet (tulis SEMUA transaksinya).\n\n' +
+          'Satu transaksi per baris, format persis:\ntipe|nominal|keterangan|tanggal|kategori\n\n' +
+          'tipe: M kalau uang masuk, K kalau uang keluar.\n' +
+          'nominal: angka saja, tanpa titik/koma/Rp.\n' +
+          'keterangan: singkat, maksimal 4 kata.\n' +
+          'tanggal: YYYY-MM-DD. Kalau tak terlihat pakai ' + today() + '.\n' +
+          'kategori: pilih SATU nama dari daftar di bawah, salin persis. Kalau tak ada yang cocok, kosongkan.\n\n' +
+          'Lewati baris saldo dan total. Jangan tulis header, nomor urut, atau penjelasan apa pun.\n' +
+          'Kalau tak ada transaksi, balas: KOSONG\n\n' +
+          'Kategori: ' + namaKatList(cats);
 
-        var mentah = await geminiRaw(GKEY, [{ type: 'text', text: gprompt }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }], 3072);
-        // Bentuk balasannya yang menentukan: baris berpipa berarti mutasi.
-        var barisMutasi = parseBaris(mentah);
-        if (barisMutasi.length) { modeMutasi = true; txList = barisMutasi; }
-        else txList = parseJsonArr(mentah);
+        var mentah = await geminiRaw(GKEY, [{ type: 'text', text: gprompt }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }], 2048);
+        txList = parseBaris(mentah);
+        // Sesekali model tetap menjawab JSON walau diminta baris
+        if (!txList.length) txList = parseJsonArr(mentah);
+        // Lebih dari satu baris berarti ini daftar mutasi, bukan struk
+        modeMutasi = txList.length > 1;
+        // Nama kategori dari AI dipetakan ke id di sini
+        txList.forEach(function (tx) {
+          if (!tx._kat) return;
+          var cc = cocokKategori(tx._kat, cats);
+          if (cc.category_id) { tx.category_id = cc.category_id; tx.sub_category_id = cc.sub_category_id; }
+          delete tx._kat;
+        });
+
 
       }
     } else if (text) {
