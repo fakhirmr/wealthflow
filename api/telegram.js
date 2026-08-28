@@ -14,10 +14,15 @@ export const config = { runtime: 'edge' };
 
 var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
 
+/* Disusun per potongan 32KB. Versi sebelumnya menyambung string byte demi byte,
+   jadi gambar 3MB berarti tiga juta iterasi penyambungan sebelum permintaan ke
+   AI bahkan dimulai. */
 function b64FromBuffer(buf) {
-  var bytes = new Uint8Array(buf), bin = '';
-  for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
+  var bytes = new Uint8Array(buf), potong = 0x8000, bagian = [];
+  for (var i = 0; i < bytes.length; i += potong) {
+    bagian.push(String.fromCharCode.apply(null, bytes.subarray(i, i + potong)));
+  }
+  return btoa(bagian.join(''));
 }
 function fmtRp(n) {
   try { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0); }
@@ -420,6 +425,26 @@ export default async function handler(req) {
       return new Response('ok');
     }
 
+    /* Menguji AI dengan gambar 1 piksel. Kalau ini pun lambat, masalahnya ada di
+       layanan AI-nya (mis. kunci masih tier gratis yang diantre), bukan di ukuran
+       gambar atau prompt. Tanpa alat ini kita cuma bisa menebak. */
+    if (/^\/diag\b/i.test(text)) {
+      var px = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+      var t0 = Date.now(); var hasilDiag = '', galatDiag = '';
+      try {
+        hasilDiag = await geminiRaw(GKEY, [{ type: 'text', text: 'Balas satu kata: OK' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,' + px } }], 32);
+      } catch (eD) { galatDiag = String(eD && eD.message || eD); }
+      var lama = Date.now() - t0;
+      await reply(TOKEN, chatId, '🩺 <b>Uji kecepatan AI</b>\n\n' +
+        'Gambar uji: 1 piksel (70 byte)\n' +
+        'Waktu: <b>' + lama + 'ms</b>\n' +
+        'Balasan: <code>' + (hasilDiag || galatDiag || '(kosong)').slice(0, 60).replace(/[<>&]/g, '') + '</code>\n\n' +
+        (lama > 8000
+          ? '⚠️ Lambat sekali untuk gambar sekecil ini. Berarti layanan AI-nya yang lambat, bukan ukuran gambarmu.'
+          : '✅ Layanan AI normal. Kalau gambar besar tetap kelamaan, penyebabnya di ukuran gambar.'));
+      return new Response('ok');
+    }
+
     if (/^\/(bantuan|perintah)\b/i.test(text)) {
       await reply(TOKEN, chatId, '📖 <b>Yang bisa dilakukan</b>\n\n' +
         '<b>Mencatat</b>\n• Ketik langsung: <i>beli kopi 25rb pakai gopay</i>\n• Kirim foto struk 📷\n\n' +
@@ -456,6 +481,7 @@ export default async function handler(req) {
 
     // 4) Ekstrak transaksi (foto struk atau teks)
     var txList = [];
+    var jam = null;
     /* Gambar bisa datang sebagai photo (terkompresi) atau document (dikirim
        sebagai berkas, kualitas asli). Dulu hanya photo yang diterima, sehingga
        mutasi yang dikirim sebagai berkas tak pernah terbaca. */
@@ -477,6 +503,8 @@ export default async function handler(req) {
 
     if (msg.photo && msg.photo.length || docFile) {
       await reply(TOKEN, chatId, '🔍 Membaca gambar...');
+      // Diukur supaya kalau lambat, kita tahu tahap MANA yang lambat.
+      jam = { mulai: Date.now(), unduh: 0, siap: 0, ai: 0, kb: 0 };
       /* Telegram menyediakan beberapa ukuran. Yang terbesar memperbesar unggahan
          ke AI tanpa menambah ketepatan baca, dan waktunya terpakai percuma.
          Diambil ukuran terbesar yang masih di bawah 1600px. */
@@ -493,8 +521,14 @@ export default async function handler(req) {
       var gfj = await gf.json();
       var filePath = gfj.result && gfj.result.file_path;
       if (filePath) {
-        var img = await fetch('https://api.telegram.org/file/bot' + TOKEN + '/' + filePath);
-        var b64 = b64FromBuffer(await img.arrayBuffer());
+        var tUnduh = Date.now();
+        var img = await fetchTO('https://api.telegram.org/file/bot' + TOKEN + '/' + filePath, {}, 15000);
+        var bufGambar = await img.arrayBuffer();
+        jam.unduh = Date.now() - tUnduh;
+        jam.kb = Math.round(bufGambar.byteLength / 1024);
+        var tSiap = Date.now();
+        var b64 = b64FromBuffer(bufGambar);
+        jam.siap = Date.now() - tSiap;
         /* Satu format untuk kedua jenis gambar. Struk menghasilkan satu baris,
            mutasi menghasilkan banyak. Percabangan dua-format kemarin membuat model
            harus memutuskan bentuk jawaban lebih dulu, dan itu menambah waktu
@@ -510,7 +544,9 @@ export default async function handler(req) {
           'Kalau tak ada transaksi, balas: KOSONG\n\n' +
           'Kategori: ' + namaKatList(cats);
 
+        var tAI = Date.now();
         var mentah = await geminiRaw(GKEY, [{ type: 'text', text: gprompt }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }], 2048);
+        jam.ai = Date.now() - tAI;
         txList = parseBaris(mentah);
         // Sesekali model tetap menjawab JSON walau diminta baris
         if (!txList.length) txList = parseJsonArr(mentah);
@@ -612,9 +648,16 @@ export default async function handler(req) {
   } catch (e) {
     // Batas waktu perlu disebut apa adanya, supaya user tahu memotong mutasinya
     // dan tidak mengira botnya rusak lalu mengirim ulang berkali-kali.
+    var rinci = '';
+    try {
+      if (typeof jam !== 'undefined' && jam && jam.mulai) {
+        rinci = '\n\n<code>gambar ' + jam.kb + 'KB · unduh ' + jam.unduh + 'ms · siapkan ' + jam.siap +
+          'ms · AI ' + (jam.ai || ('>' + (Date.now() - jam.mulai - jam.unduh - jam.siap))) + 'ms</code>';
+      }
+    } catch (e3) { }
     var pesanGagal = /abort|timeout|timed out/i.test(String(e && e.message || e))
-      ? '⏱️ Kelamaan membaca gambarnya. Kalau ini mutasi panjang, potong jadi beberapa screenshot lalu kirim lagi.'
-      : '❌ Ada kesalahan memproses. Coba lagi sebentar.';
+      ? '⏱️ Kelamaan membaca gambarnya. Kalau ini mutasi panjang, potong jadi beberapa screenshot lalu kirim lagi.' + rinci
+      : '❌ Ada kesalahan memproses. Coba lagi sebentar.' + rinci;
     try { await reply(TOKEN, chatId, pesanGagal); } catch (e2) { }
   }
   return new Response('ok');
