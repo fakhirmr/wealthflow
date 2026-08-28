@@ -16,7 +16,9 @@ var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/c
 /* Model pembaca gambar. Lite dipilih karena tugasnya ekstraksi berformat tetap,
    bukan penalaran, dan lite menjawab jauh lebih cepat. Bisa ditimpa lewat env
    kalau ternyata ketepatannya kurang. */
-var MODEL_GAMBAR = process.env.GEMINI_IMAGE_MODEL || 'gemini-flash-lite-latest';
+/* Bawaannya model STABIL, bukan alias -latest. Alias itulah yang ditolak Google
+   dengan "experiencing high traffic". Masih bisa ditimpa lewat env kalau perlu. */
+var MODEL_GAMBAR = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-lite';
 
 /* Disusun per potongan 32KB. Versi sebelumnya menyambung string byte demi byte,
    jadi gambar 3MB berarti tiga juta iterasi penyambungan sebelum permintaan ke
@@ -138,7 +140,7 @@ function pesanGalatAI(e) {
   if (kode === 429 || m.indexOf('quota') >= 0 || m.indexOf('rate limit') >= 0 || m.indexOf('exhaust') >= 0) {
     return '🚫 <b>Jatah AI di Google habis atau kena batas laju.</b>\n\nBukan salah tulisanmu. Tunggu beberapa menit, atau aktifkan penagihan di Google AI Studio kalau ini sering terjadi.';
   }
-  if (kode >= 500 || m.indexOf('penuh') >= 0 || m.indexOf('overload') >= 0 || m.indexOf('unavailable') >= 0) {
+  if (kode >= 500 || m.indexOf('penuh') >= 0 || m.indexOf('overload') >= 0 || m.indexOf('unavailable') >= 0 || m.indexOf('high traffic') >= 0) {
     return '🌧 <b>Server AI Google menolak: model sedang penuh.</b>\n\nSudah dicoba dua kali dengan model berbeda. Ini dari pihak Google, bukan dari tulisanmu.\n\n<code>' +
       String(e.message).slice(0, 180).replace(/[<>&]/g, '') + '</code>\n\n' +
       'Kalau ini terus terjadi, model yang dipakai mungkin bermasalah. Ketik /model untuk melihat model apa saja yang tersedia di kunci ini.';
@@ -190,7 +192,21 @@ function parseBaris(teks) {
    keterangan yang diketik pengguna, melainkan ditentukan AI sendiri; balasannya
    bisa berupa JSON (struk) atau baris berpipa (mutasi), jadi teksnya diambil
    mentah lalu dicoba kedua pembaca. */
-var MODEL_CADANGAN = 'gemini-flash-latest';
+/* Rantai model, dicoba berurutan. Alias -latest ditaruh PALING BELAKANG:
+   Google membalas "This model is currently experiencing high traffic" untuknya,
+   sebab alias itu menunjuk model terbaru yang kapasitasnya paling diperebutkan.
+   Model stabil bernomor versi biasanya jauh lebih lega.
+
+   Kandidat yang namanya tidak dikenal (404) DILEWATI, bukan dianggap gagal, jadi
+   rantainya tetap jalan walau salah satu nama sudah dipensiunkan Google. Dengan
+   begitu kode tak bergantung pada satu nama yang kebetulan benar hari ini. */
+/* Hanya tiga percobaan yang muat di bawah batas Vercel, jadi isinya harus terpilih:
+   satu model stabil, lalu alias -latest sebagai jaring terakhir. Alias itu memang
+   yang penuh, TAPI ia satu-satunya yang terbukti ada (balasannya 503, bukan 404),
+   sementara nama stabil di atas belum terverifikasi. Menyingkirkannya berarti
+   bertaruh pada nama yang mungkin salah. */
+var RANTAI_MODEL = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
+var MODEL_CADANGAN = RANTAI_MODEL[0];
 function tidur(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
 /* HTTP 5xx dari Google berarti servernya sedang penuh, bukan permintaan kita yang
@@ -206,11 +222,11 @@ async function panggilAI(GKEY, content, maxTok, opsi) {
   var galatMentah = '';
   var utama = opsi.model || MODEL_GAMBAR;
   var urutan = [utama];
-  // Selalu ada percobaan kedua. Kalau model cadangannya berbeda, itu yang dipakai;
-  // kalau sama (jalur teks memang sudah memakai flash), model yang sama diulang,
-  // sebab 5xx itu galat sementara dan percobaan kedua biasanya lolos.
-  if (!opsi.tanpaCadangan) urutan.push(utama !== MODEL_CADANGAN ? MODEL_CADANGAN : utama);
-  var batas = opsi.batas || 9000;
+  if (!opsi.tanpaCadangan) {
+    RANTAI_MODEL.forEach(function (m) { if (urutan.indexOf(m) < 0) urutan.push(m); });
+    urutan = urutan.slice(0, 3);   // tiga percobaan, masih muat di bawah batas Vercel
+  }
+  var batas = opsi.batas || 7000;
   var galat = null;
 
   for (var i = 0; i < urutan.length; i++) {
@@ -237,10 +253,18 @@ async function panggilAI(GKEY, content, maxTok, opsi) {
         galat.dariAI = true; galat.kode = r.status; galat.sementara = true;
         throw galat;
       }
+      // Nama model tak dikenal: lanjut ke kandidat berikutnya, jangan menyerah
+      if (r.status === 404) {
+        // Pesan asli Google ikut dibawa; tanpa itu sebabnya hilang saat ditelusuri
+        var kataGoogle = (d && d.error && d.error.message) ? (': ' + d.error.message) : '';
+        galat = new Error('model ' + urutan[i] + ' tidak dikenal' + kataGoogle);
+        galat.dariAI = true; galat.kode = 404; galat.sementara = true;
+        throw galat;
+      }
       return bacaBalasanAI(d, r.status);
     } catch (e) {
       galat = e;
-      var bolehUlang = !!e.sementara || (e.kode >= 500) || /abort/i.test(String(e && e.message || ''));
+      var bolehUlang = !!e.sementara || (e.kode >= 500) || e.kode === 404 || /abort/i.test(String(e && e.message || ''));
       if (i < urutan.length - 1 && bolehUlang) { await tidur(600); continue; }
       throw e;
     }

@@ -52,10 +52,21 @@ function tidur(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
    muat di bawah batas Vercel; satu percobaan 24 detik tak menyisakan ruang.
    Galat yang bukan sementara (kunci, kuota) tidak diulang, sebab hasilnya pasti
    sama dan hanya membuang waktu pengguna. */
+/* Rantai model, sama alasannya dengan di bot: Google menolak alias -latest dengan
+   "This model is currently experiencing high traffic", sebab alias menunjuk model
+   terbaru yang kapasitasnya paling diperebutkan. Model stabil didahulukan, dan
+   kandidat bernama asing (404) dilewati supaya rantainya tetap jalan. */
+/* Hanya tiga percobaan yang muat di bawah batas Vercel, jadi isinya harus terpilih:
+   satu model stabil, lalu alias -latest sebagai jaring terakhir. Alias itu memang
+   yang penuh, TAPI ia satu-satunya yang terbukti ada (balasannya 503, bukan 404),
+   sementara nama stabil di atas belum terverifikasi. Menyingkirkannya berarti
+   bertaruh pada nama yang mungkin salah. */
+var RANTAI_MODEL = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
+
 async function panggilGemini(GKEY, body) {
-  var utama = body.model;
-  var lain = utama === 'gemini-flash-lite-latest' ? 'gemini-flash-latest' : 'gemini-flash-lite-latest';
-  var urutan = [utama, lain];
+  var urutan = [body.model];
+  RANTAI_MODEL.forEach(function (m) { if (urutan.indexOf(m) < 0) urutan.push(m); });
+  urutan = urutan.slice(0, 3);
   var akhir = null;
 
   for (var i = 0; i < urutan.length; i++) {
@@ -65,9 +76,12 @@ async function panggilGemini(GKEY, body) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY },
         body: JSON.stringify(kirim)
-      }, 10000);
+      }, 7000);
       var teks = await r.text();
-      if (r.status < 500) return { teks: teks, status: r.status, ok: r.ok };
+      // 404 berarti nama modelnya tak dikenal: lanjut, bukan menyerah
+      if (r.status === 404) { akhir = { teks: teks, status: 404, ok: false }; }
+      else if (r.status < 500) return { teks: teks, status: r.status, ok: r.ok };
+      else
       akhir = { teks: teks, status: r.status, ok: false };
     } catch (e) {
       akhir = { teks: '', status: 0, ok: false, galat: String(e && e.message || e) };
@@ -174,7 +188,9 @@ export default async function handler(req) {
       var body = await req.json();
       if (!body) return json({ error: 'bad_request' }, 400);
       // Normalisasi model: apa pun yang diminta client dipetakan ke Gemini Flash (tahan beda-versi & cegah model mahal)
-      body.model = (String(body.model || '').indexOf('lite') >= 0) ? 'gemini-flash-lite-latest' : 'gemini-flash-latest';
+      // Model dipetakan ke keluarga Flash yang STABIL. Sebelumnya dipetakan ke alias
+      // -latest, dan justru alias itu yang ditolak Google karena kapasitasnya penuh.
+      body.model = (String(body.model || '').indexOf('lite') >= 0) ? 'gemini-2.5-flash-lite' : 'gemini-2.5-flash';
       if (body.max_tokens && body.max_tokens > MAX_TOKENS_CAP) body.max_tokens = MAX_TOKENS_CAP;
       body.reasoning_effort = 'low'; // kurangi thinking Gemini (nilai valid); 'none' tidak didukung -> hang
       var hasil = await panggilGemini(GKEY, body);
@@ -189,6 +205,7 @@ export default async function handler(req) {
         if (!pesanGoogle && hasil.galat) pesanGoogle = hasil.galat;
         var kodeKita = 'ai_gagal';
         if (outStatus >= 500 || outStatus === 0) kodeKita = 'ai_penuh';
+        else if (/high traffic|overload/i.test(pesanGoogle)) kodeKita = 'ai_penuh';
         else if (outStatus === 429 || /quota|rate|exhaust/i.test(pesanGoogle)) kodeKita = 'ai_kuota';
         else if (outStatus === 401 || outStatus === 403) kodeKita = 'ai_kunci';
         else if (outStatus === 404 || /model/i.test(pesanGoogle)) kodeKita = 'ai_model';
