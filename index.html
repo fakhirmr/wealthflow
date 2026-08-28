@@ -5462,6 +5462,14 @@
           if (d.error === 'unauthorized') return '🔒 Sesi habis. Silakan login ulang.';
           if (d.error === 'server_misconfig') return '⚙️ AI belum dikonfigurasi. Hubungi admin.';
           if (d.error === 'model_not_allowed') return '⚠️ Model tidak didukung.';
+          /* Kode-kode ini dikirim api/ai.js setelah menerjemahkan galat Google.
+             Sebelumnya balasan mentah diteruskan apa adanya, dan karena badan 503
+             sering kosong, yang sampai ke pengguna cuma "respons kosong". */
+          if (d.error === 'ai_penuh') return '🌧 Server AI Google sedang penuh. Sudah dicoba dua kali dengan model berbeda. Ini dari pihak Google, bukan datamu. Tunggu sebentar lalu coba lagi.';
+          if (d.error === 'ai_kuota') return '⏳ Jatah AI di Google penuh sesaat. Tunggu ~1 menit lalu coba lagi.';
+          if (d.error === 'ai_kunci') return '🔑 Kunci AI ditolak Google. Hubungi admin untuk memeriksa GEMINI_API_KEY.';
+          if (d.error === 'ai_model') return '⚠️ Model AI tidak tersedia' + (d.detail ? ': ' + d.detail : '') + '.';
+          if (d.error === 'ai_gagal') return '❌ AI menolak permintaan' + (d.detail ? ': ' + d.detail : '') + '.';
           if (d.error === 'upstream_failed') {
             var det = String(d.detail || '');
             // Batas waktu proxy 24 detik, paling sering kena saat mutasi panjang.
@@ -5617,7 +5625,7 @@
             messages: [{ role: 'system', content: sysPrompt }].concat(hist)
           }).then(pj).then(function (d) {
             sLd(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
-            if (!d.choices || !d.choices[0] || !d.choices[0].message) { var emc = nm.concat({ role: 'sys', text: '❌ Respons AI kosong atau terpotong. Coba lagi.' }); sMs(emc); saveMem(emc); return }
+            if (!d.choices || !d.choices[0] || !d.choices[0].message) { var emc = nm.concat({ role: 'sys', text: '❌ AI tidak mengirim jawaban. Coba lagi sebentar; kalau berulang, layanan AI-nya sedang bermasalah.' }); sMs(emc); saveMem(emc); return }
             var raw = stripThink(d.choices[0].message.content);
             var txRegex = /\[TX\]([\s\S]*?)(?:\[\/TX\]|\/TX\])/gi; var txList = []; var txM;
             while ((txM = txRegex.exec(raw)) !== null) {
@@ -5716,6 +5724,7 @@
           }).then(pj).then(function (d) {
             sBusy(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
             try {
+              if (!d.choices || !d.choices[0] || !d.choices[0].message) throw new Error('AI tidak mengirim jawaban');
               var tx = JSON.parse(d.choices[0].message.content.replace(/```json|```/g, '').trim());
               if (tx.wallet_id && String(tx.wallet_id).indexOf(',') > -1) tx.wallet_id = String(tx.wallet_id).split(',')[0].trim() || null;
               if (tx.category_id && String(tx.category_id).indexOf(',') > -1) tx.category_id = String(tx.category_id).split(',')[0].trim() || null;
@@ -5753,6 +5762,7 @@
               }).then(pj).then(function (d) {
                 sScanBusy(false);
                 var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
+                if (!d.choices || !d.choices[0] || !d.choices[0].message) { var emr = nm.concat({ role: 'sys', text: '❌ AI tidak mengirim jawaban. Fotomu tidak bermasalah, layanan AI-nya yang sedang gagal. Coba lagi sebentar.' }); sMs(emr); saveMem(emr); return }
                 var content = d.choices && d.choices[0] && d.choices[0].message ? stripThink(d.choices[0].message.content) : '';
                 var arr = parseTxArray(content).arr;
                 if (arr.length === 0) { var em2 = nm.concat({ role: 'sys', text: '⚠️ Tidak ada transaksi terbaca dari struk. Coba foto yang lebih jelas & tegak.' }); sMs(em2); saveMem(em2); return }
@@ -5802,6 +5812,9 @@
                 sScanBusy(false);
                 var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
                 var pilihan = d.choices && d.choices[0] ? d.choices[0] : null;
+                // Tanpa choices berarti AI tak menjawab sama sekali. Menyalahkan mutu
+                // screenshot di kasus ini membuat user memotret ulang tanpa guna.
+                if (!pilihan || !pilihan.message) { var emk = nm.concat({ role: 'sys', text: '❌ AI tidak mengirim jawaban. Gambarmu tidak bermasalah, layanan AI-nya yang sedang gagal. Coba lagi sebentar.' }); sMs(emk); saveMem(emk); return }
                 var content = pilihan && pilihan.message ? stripThink(pilihan.message.content) : '';
                 var arr = parseTxLines(content);
                 var potongJson = false;
@@ -5883,7 +5896,7 @@
           aiFetch({ model: 'gemini-flash-latest', max_tokens: 4096, messages: [{ role: 'system', content: 'Kamu WealthFlow AI, asisten keuangan pribadi. Bahasa Indonesia natural. Analisis secara mendalam dan spesifik. Gunakan HANYA angka dari data. Beri rekomendasi yang actionable.\n\n' + buildCtx() }].concat(hist) })
             .then(pj).then(function (d) {
               sLd(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
-              if (!d.choices || !d.choices[0] || !d.choices[0].message) { var emc = nm.concat({ role: 'sys', text: '❌ Respons AI kosong atau terpotong. Coba lagi.' }); sMs(emc); saveMem(emc); return }
+              if (!d.choices || !d.choices[0] || !d.choices[0].message) { var emc = nm.concat({ role: 'sys', text: '❌ AI tidak mengirim jawaban. Coba lagi sebentar; kalau berulang, layanan AI-nya sedang bermasalah.' }); sMs(emc); saveMem(emc); return }
               var fm = nm.concat({ role: 'ai', text: stripThink(d.choices[0].message.content) }); sMs(fm); saveMem(fm);
             }).catch(function () { sLd(false) })
         }
@@ -5901,7 +5914,7 @@
             messages: [{ role: 'system', content: 'Kamu WealthFlow AI. Buat weekly digest keuangan yang tajam dan informatif dalam Bahasa Indonesia. Gunakan angka spesifik dari data. Saran harus actionable.\n\nFormat OUTPUT wajib menggunakan markdown:\n- Judul section pakai ## (contoh: ## 📊 Pemasukan & Pengeluaran)\n- Sub-poin pakai **teks tebal** untuk angka/highlight\n- Daftar saran pakai 1. 2. 3.\n- Jangan pakai *** atau ___ sebagai pemisah\n\n' + buildCtx() + '\n\n' + wkCtx }, { role: 'user', content: 'Buat weekly digest minggu ini. Sertakan: 1) Total pemasukan & pengeluaran minggu ini, 2) Kategori pengeluaran terbesar dengan angka, 3) Transaksi atau pola yang perlu diperhatikan, 4) Perbandingan dengan tren bulanan, 5) 2-3 saran konkret untuk minggu depan.' }]
           }).then(pj).then(function (d) {
             sLd(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
-            if (!d.choices || !d.choices[0] || !d.choices[0].message) { var emc = nm.concat({ role: 'sys', text: '❌ Respons AI kosong atau terpotong. Coba lagi.' }); sMs(emc); saveMem(emc); return }
+            if (!d.choices || !d.choices[0] || !d.choices[0].message) { var emc = nm.concat({ role: 'sys', text: '❌ AI tidak mengirim jawaban. Coba lagi sebentar; kalau berulang, layanan AI-nya sedang bermasalah.' }); sMs(emc); saveMem(emc); return }
             var fm = nm.concat({ role: 'ai', text: stripThink(d.choices[0].message.content) }); sMs(fm); saveMem(fm);
           }).catch(function () { sLd(false) })
         }

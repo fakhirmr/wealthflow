@@ -39,6 +39,45 @@ async function fetchTO(url, opts, ms) {
   finally { clearTimeout(id); }
 }
 
+function tidur(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+/* HTTP 5xx dari Google berarti servernya sedang penuh, bukan permintaan kita yang
+   salah. Sebelumnya proxy menyerah di percobaan pertama dan meneruskan balasan
+   503 apa adanya ke peramban, yang lalu menampilkannya sebagai "Respons AI kosong
+   atau terpotong" — pesan yang menyesatkan sebab responsnya tidak kosong,
+   melainkan tak pernah ada.
+
+   Dua percobaan, yang kedua memakai model lain sebab yang penuh biasanya satu
+   model tertentu. Batas per percobaan 10 detik supaya keduanya plus jeda tetap
+   muat di bawah batas Vercel; satu percobaan 24 detik tak menyisakan ruang.
+   Galat yang bukan sementara (kunci, kuota) tidak diulang, sebab hasilnya pasti
+   sama dan hanya membuang waktu pengguna. */
+async function panggilGemini(GKEY, body) {
+  var utama = body.model;
+  var lain = utama === 'gemini-flash-lite-latest' ? 'gemini-flash-latest' : 'gemini-flash-lite-latest';
+  var urutan = [utama, lain];
+  var akhir = null;
+
+  for (var i = 0; i < urutan.length; i++) {
+    var kirim = Object.assign({}, body, { model: urutan[i] });
+    try {
+      var r = await fetchTO(GEMINI_BASE + '/openai/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY },
+        body: JSON.stringify(kirim)
+      }, 10000);
+      var teks = await r.text();
+      if (r.status < 500) return { teks: teks, status: r.status, ok: r.ok };
+      akhir = { teks: teks, status: r.status, ok: false };
+    } catch (e) {
+      akhir = { teks: '', status: 0, ok: false, galat: String(e && e.message || e) };
+      // Batas waktu tercapai: percobaan kedua boleh, tapi jangan lebih
+    }
+    if (i < urutan.length - 1) await tidur(500);
+  }
+  return akhir;
+}
+
 export default async function handler(req) {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
@@ -120,7 +159,7 @@ export default async function handler(req) {
       };
       var ar = await fetchTO(GEMINI_BASE + '/models/' + AUDIO_MODEL + ':generateContent?key=' + GKEY, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(gBody)
-      }, 24000);
+      }, 20000);
       var aj = await ar.json();
       providerOk = ar.ok; outStatus = ar.status;
       if (!ar.ok) {
@@ -138,10 +177,24 @@ export default async function handler(req) {
       body.model = (String(body.model || '').indexOf('lite') >= 0) ? 'gemini-flash-lite-latest' : 'gemini-flash-latest';
       if (body.max_tokens && body.max_tokens > MAX_TOKENS_CAP) body.max_tokens = MAX_TOKENS_CAP;
       body.reasoning_effort = 'low'; // kurangi thinking Gemini (nilai valid); 'none' tidak didukung -> hang
-      var cr = await fetchTO(GEMINI_BASE + '/openai/chat/completions', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body)
-      }, 24000);
-      outText = await cr.text(); providerOk = cr.ok; outStatus = cr.status;
+      var hasil = await panggilGemini(GKEY, body);
+      outText = hasil.teks; providerOk = hasil.ok; outStatus = hasil.status || 502;
+
+      /* Galat penyedia diterjemahkan ke kode yang dikenali peramban. Meneruskan
+         balasan mentah membuat peramban kehilangan sebabnya: badan 503 sering
+         kosong, dan yang sampai ke pengguna cuma "respons kosong". */
+      if (!providerOk) {
+        var pesanGoogle = '';
+        try { var pj2 = JSON.parse(outText || '{}'); pesanGoogle = (pj2.error && (pj2.error.message || pj2.error.status)) || ''; } catch (e2) { }
+        if (!pesanGoogle && hasil.galat) pesanGoogle = hasil.galat;
+        var kodeKita = 'ai_gagal';
+        if (outStatus >= 500 || outStatus === 0) kodeKita = 'ai_penuh';
+        else if (outStatus === 429 || /quota|rate|exhaust/i.test(pesanGoogle)) kodeKita = 'ai_kuota';
+        else if (outStatus === 401 || outStatus === 403) kodeKita = 'ai_kunci';
+        else if (outStatus === 404 || /model/i.test(pesanGoogle)) kodeKita = 'ai_model';
+        outText = JSON.stringify({ error: kodeKita, http: outStatus, detail: String(pesanGoogle).slice(0, 200) });
+        outStatus = 502;
+      }
     }
   } catch (e) {
     return json({ error: 'upstream_failed', detail: String(e && e.message || e) }, 502);
