@@ -108,12 +108,50 @@ async function fetchTO(url, opts, ms) {
   finally { clearTimeout(id); }
 }
 
+/* Membaca balasan penyedia AI, dan MELEMPARKAN galatnya kalau ada.
+
+   Sebelumnya isinya diambil dengan try/catch yang mengubah galat apa pun jadi
+   string kosong. Akibatnya, saat Google menolak karena kuota habis atau kena
+   batas laju, bot menyimpulkan 'tidak ada transaksi terdeteksi' lalu menyuruh
+   pengguna menulis lebih jelas, padahal tulisannya sudah benar. Galat penyedia
+   harus terlihat apa adanya; kalau tidak, setiap penelusuran jadi menebak. */
+function bacaBalasanAI(d, status) {
+  var e;
+  if (d && d.error) {
+    var pesan = d.error.message || d.error.status || JSON.stringify(d.error);
+    e = new Error(String(pesan).slice(0, 250));
+    e.dariAI = true; e.kode = d.error.code || status || 0;
+    throw e;
+  }
+  if (!d || !d.choices || !d.choices[0] || !d.choices[0].message) {
+    e = new Error('balasan tanpa isi' + (status ? ' (HTTP ' + status + ')' : ''));
+    e.dariAI = true; e.kode = status || 0;
+    throw e;
+  }
+  return d.choices[0].message.content || '';
+}
+
+// Menerjemahkan galat penyedia jadi kalimat yang bisa ditindaklanjuti.
+function pesanGalatAI(e) {
+  var m = String(e && e.message || '').toLowerCase();
+  var kode = (e && e.kode) || 0;
+  if (kode === 429 || m.indexOf('quota') >= 0 || m.indexOf('rate limit') >= 0 || m.indexOf('exhaust') >= 0) {
+    return '🚫 <b>Jatah AI di Google habis atau kena batas laju.</b>\n\nBukan salah tulisanmu. Tunggu beberapa menit, atau aktifkan penagihan di Google AI Studio kalau ini sering terjadi.';
+  }
+  if (kode === 401 || kode === 403 || m.indexOf('api key') >= 0 || m.indexOf('permission') >= 0) {
+    return '🔑 <b>Kunci AI ditolak Google.</b> Periksa GEMINI_API_KEY di Vercel.';
+  }
+  if (m.indexOf('not found') >= 0 || m.indexOf('model') >= 0) {
+    return '⚠️ <b>Model AI tidak tersedia.</b>\n\n<code>' + String(e.message).slice(0, 120).replace(/[<>&]/g, '') + '</code>';
+  }
+  return '❌ <b>AI menolak permintaan.</b>\n\n<code>' + String(e.message).slice(0, 160).replace(/[<>&]/g, '') + '</code>';
+}
+
 async function geminiExtract(GKEY, content, maxTok) {
   var body = { model: 'gemini-flash-latest', max_tokens: maxTok || 1500, reasoning_effort: 'low', messages: [{ role: 'user', content: content }] };
   var r = await fetchTO(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) }, 20000);
   var d = await r.json();
-  var txt = '';
-  try { txt = d.choices[0].message.content || ''; } catch (e) { txt = ''; }
+  var txt = bacaBalasanAI(d, r.status);
   txt = txt.replace(/```json/gi, '').replace(/```/g, '').replace(/^[^\[]*/, '').replace(/[^\]]*$/, '').trim();
   var arr = [];
   try { arr = JSON.parse(txt); } catch (e) { arr = []; }
@@ -156,7 +194,7 @@ async function geminiRaw(GKEY, content, maxTok, opsi) {
   if (!opsi.tanpaPikir) body.reasoning_effort = opsi.pikir || 'low';
   var r = await fetchTO(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) }, opsi.batas || 20000);
   var d = await r.json();
-  try { return d.choices[0].message.content || ''; } catch (e) { return ''; }
+  return bacaBalasanAI(d, r.status);
 }
 
 function parseJsonArr(teks) {
@@ -759,7 +797,7 @@ export default async function handler(req) {
     }).filter(function (r) { return r.amount > 0; });
 
     if (!rows.length) {
-      await reply(TOKEN, chatId, '⚠️ Tidak terdeteksi transaksi. Coba lebih jelas, mis: <i>beli makan 30rb pakai cash</i>');
+      await reply(TOKEN, chatId, '⚠️ Tidak terdeteksi transaksi dari pesan itu.\n\nCoba sebut nominalnya jelas, mis: <i>beli makan 30rb pakai cash</i>. Kalau tulisanmu sudah jelas dan ini terus terjadi, ketik /diag untuk memeriksa layanan AI-nya.');
       return new Response('ok');
     }
 
@@ -779,7 +817,14 @@ export default async function handler(req) {
       var pRows = [];
       try { pRows = await pr.json(); } catch (e) { }
       if (!pr.ok || !Array.isArray(pRows) || !pRows[0] || !pRows[0].id) {
-        await reply(TOKEN, chatId, '❌ Gagal menyiapkan daftar. Coba kirim ulang gambarnya.');
+        // Sebutkan alasan aslinya. Paling sering: tabel telegram_pending belum
+        // dipasang, dan itu mustahil ditebak dari pesan yang serba umum.
+        var alasan = '';
+        try { alasan = JSON.stringify(pRows).slice(0, 200); } catch (e5) { }
+        var kurangTabel = /telegram_pending|does not exist|schema cache/i.test(alasan);
+        await reply(TOKEN, chatId, kurangTabel
+          ? '⚙️ <b>Fitur konfirmasi belum siap di server.</b>\n\nJalankan <code>supabase-telegram-konfirmasi-setup.sql</code> di Supabase, lalu coba lagi.'
+          : '❌ Gagal menyiapkan daftar.\n\n<code>' + alasan.replace(/[<>&]/g, '') + '</code>');
         return new Response('ok');
       }
       await sb('/rest/v1/rpc/increment_ai_usage', { method: 'POST', body: JSON.stringify({ p_user: uid, p_period: period }) }, SB_URL, KEY);
@@ -836,6 +881,12 @@ export default async function handler(req) {
           'ms · AI ' + (jam.ai || ('>' + (Date.now() - jam.mulai - jam.unduh - jam.siap))) + 'ms</code>';
       }
     } catch (e3) { }
+    // Galat dari penyedia AI punya sebab yang jelas; jangan disamarkan jadi
+    // 'ada kesalahan' yang tak bisa ditindaklanjuti siapa pun.
+    if (e && e.dariAI) {
+      try { await reply(TOKEN, chatId, pesanGalatAI(e)); } catch (e4) { }
+      return new Response('ok');
+    }
     var pesanGagal = /abort|timeout|timed out/i.test(String(e && e.message || e))
       ? '⏱️ Kelamaan membaca gambarnya. Kalau ini mutasi panjang, potong jadi beberapa screenshot lalu kirim lagi.' + rinci
       : '❌ Ada kesalahan memproses. Coba lagi sebentar.' + rinci;
