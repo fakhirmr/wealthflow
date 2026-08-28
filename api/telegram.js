@@ -138,6 +138,9 @@ function pesanGalatAI(e) {
   if (kode === 429 || m.indexOf('quota') >= 0 || m.indexOf('rate limit') >= 0 || m.indexOf('exhaust') >= 0) {
     return '🚫 <b>Jatah AI di Google habis atau kena batas laju.</b>\n\nBukan salah tulisanmu. Tunggu beberapa menit, atau aktifkan penagihan di Google AI Studio kalau ini sering terjadi.';
   }
+  if (kode >= 500 || m.indexOf('penuh') >= 0 || m.indexOf('overload') >= 0 || m.indexOf('unavailable') >= 0) {
+    return '🌧 <b>Server AI Google sedang penuh.</b>\n\nSudah dicoba dua kali dengan model berbeda, dua-duanya penuh. Ini dari pihak Google, bukan dari tulisanmu. Tunggu sebentar lalu kirim lagi.';
+  }
   if (kode === 401 || kode === 403 || m.indexOf('api key') >= 0 || m.indexOf('permission') >= 0) {
     return '🔑 <b>Kunci AI ditolak Google.</b> Periksa GEMINI_API_KEY di Vercel.';
   }
@@ -148,10 +151,8 @@ function pesanGalatAI(e) {
 }
 
 async function geminiExtract(GKEY, content, maxTok) {
-  var body = { model: 'gemini-flash-latest', max_tokens: maxTok || 1500, reasoning_effort: 'low', messages: [{ role: 'user', content: content }] };
-  var r = await fetchTO(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) }, 20000);
-  var d = await r.json();
-  var txt = bacaBalasanAI(d, r.status);
+  // Jalur teks ikut dapat coba-ulang; dulu ia menyerah begitu Google membalas 503.
+  var txt = await panggilAI(GKEY, content, maxTok || 1500, { model: MODEL_CADANGAN });
   txt = txt.replace(/```json/gi, '').replace(/```/g, '').replace(/^[^\[]*/, '').replace(/[^\]]*$/, '').trim();
   var arr = [];
   try { arr = JSON.parse(txt); } catch (e) { arr = []; }
@@ -187,14 +188,58 @@ function parseBaris(teks) {
    keterangan yang diketik pengguna, melainkan ditentukan AI sendiri; balasannya
    bisa berupa JSON (struk) atau baris berpipa (mutasi), jadi teksnya diambil
    mentah lalu dicoba kedua pembaca. */
-async function geminiRaw(GKEY, content, maxTok, opsi) {
+var MODEL_CADANGAN = 'gemini-flash-latest';
+function tidur(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+/* HTTP 5xx dari Google berarti servernya sedang penuh, bukan permintaan kita yang
+   salah. Menyerah di percobaan pertama membuat bot terasa rusak padahal cukup
+   diulang sebentar. Percobaan kedua sengaja memakai model lain, sebab yang penuh
+   biasanya satu model tertentu, bukan seluruh layanan.
+
+   Batas waktu per percobaan dipersingkat jadi 9 detik supaya dua percobaan plus
+   jeda tetap muat di bawah batas Vercel; satu percobaan 20 detik justru tak
+   menyisakan ruang untuk mencoba lagi. */
+async function panggilAI(GKEY, content, maxTok, opsi) {
   opsi = opsi || {};
-  var body = { model: opsi.model || MODEL_GAMBAR, max_tokens: maxTok || 3072, messages: [{ role: 'user', content: content }] };
-  // reasoning_effort bisa dimatikan sepenuhnya lewat opsi.tanpaPikir, dipakai /diag
-  if (!opsi.tanpaPikir) body.reasoning_effort = opsi.pikir || 'low';
-  var r = await fetchTO(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) }, opsi.batas || 20000);
-  var d = await r.json();
-  return bacaBalasanAI(d, r.status);
+  var utama = opsi.model || MODEL_GAMBAR;
+  var urutan = [utama];
+  // Selalu ada percobaan kedua. Kalau model cadangannya berbeda, itu yang dipakai;
+  // kalau sama (jalur teks memang sudah memakai flash), model yang sama diulang,
+  // sebab 5xx itu galat sementara dan percobaan kedua biasanya lolos.
+  if (!opsi.tanpaCadangan) urutan.push(utama !== MODEL_CADANGAN ? MODEL_CADANGAN : utama);
+  var batas = opsi.batas || 9000;
+  var galat = null;
+
+  for (var i = 0; i < urutan.length; i++) {
+    try {
+      var body = { model: urutan[i], max_tokens: maxTok || 3072, messages: [{ role: 'user', content: content }] };
+      if (!opsi.tanpaPikir) body.reasoning_effort = opsi.pikir || 'low';
+      var r = await fetchTO(GEMINI_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY },
+        body: JSON.stringify(body)
+      }, batas);
+      var d = null;
+      try { d = await r.json(); } catch (e2) { d = null; }
+
+      if (r.status >= 500) {
+        galat = new Error('server AI sedang penuh (HTTP ' + r.status + ')');
+        galat.dariAI = true; galat.kode = r.status; galat.sementara = true;
+        throw galat;
+      }
+      return bacaBalasanAI(d, r.status);
+    } catch (e) {
+      galat = e;
+      var bolehUlang = !!e.sementara || (e.kode >= 500) || /abort/i.test(String(e && e.message || ''));
+      if (i < urutan.length - 1 && bolehUlang) { await tidur(600); continue; }
+      throw e;
+    }
+  }
+  throw galat;
+}
+
+async function geminiRaw(GKEY, content, maxTok, opsi) {
+  return panggilAI(GKEY, content, maxTok, opsi);
 }
 
 function parseJsonArr(teks) {
@@ -631,9 +676,9 @@ export default async function handler(req) {
       var px = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
       var isi = [{ type: 'text', text: 'Balas satu kata: OK' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,' + px } }];
       var uji = [
-        { nama: 'flash + pikir low', o: { model: 'gemini-flash-latest', pikir: 'low', batas: 6000 } },
-        { nama: 'lite + pikir low', o: { model: 'gemini-flash-lite-latest', pikir: 'low', batas: 6000 } },
-        { nama: 'lite tanpa pikir', o: { model: 'gemini-flash-lite-latest', tanpaPikir: true, batas: 6000 } }
+        { nama: 'flash + pikir low', o: { model: 'gemini-flash-latest', pikir: 'low', batas: 6000, tanpaCadangan: true } },
+        { nama: 'lite + pikir low', o: { model: 'gemini-flash-lite-latest', pikir: 'low', batas: 6000, tanpaCadangan: true } },
+        { nama: 'lite tanpa pikir', o: { model: 'gemini-flash-lite-latest', tanpaPikir: true, batas: 6000, tanpaCadangan: true } }
       ];
       var barisUji = [];
       for (var ui = 0; ui < uji.length; ui++) {
