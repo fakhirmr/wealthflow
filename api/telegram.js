@@ -139,7 +139,9 @@ function pesanGalatAI(e) {
     return '🚫 <b>Jatah AI di Google habis atau kena batas laju.</b>\n\nBukan salah tulisanmu. Tunggu beberapa menit, atau aktifkan penagihan di Google AI Studio kalau ini sering terjadi.';
   }
   if (kode >= 500 || m.indexOf('penuh') >= 0 || m.indexOf('overload') >= 0 || m.indexOf('unavailable') >= 0) {
-    return '🌧 <b>Server AI Google sedang penuh.</b>\n\nSudah dicoba dua kali dengan model berbeda, dua-duanya penuh. Ini dari pihak Google, bukan dari tulisanmu. Tunggu sebentar lalu kirim lagi.';
+    return '🌧 <b>Server AI Google menolak: model sedang penuh.</b>\n\nSudah dicoba dua kali dengan model berbeda. Ini dari pihak Google, bukan dari tulisanmu.\n\n<code>' +
+      String(e.message).slice(0, 180).replace(/[<>&]/g, '') + '</code>\n\n' +
+      'Kalau ini terus terjadi, model yang dipakai mungkin bermasalah. Ketik /model untuk melihat model apa saja yang tersedia di kunci ini.';
   }
   if (kode === 401 || kode === 403 || m.indexOf('api key') >= 0 || m.indexOf('permission') >= 0) {
     return '🔑 <b>Kunci AI ditolak Google.</b> Periksa GEMINI_API_KEY di Vercel.';
@@ -201,6 +203,7 @@ function tidur(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
    menyisakan ruang untuk mencoba lagi. */
 async function panggilAI(GKEY, content, maxTok, opsi) {
   opsi = opsi || {};
+  var galatMentah = '';
   var utama = opsi.model || MODEL_GAMBAR;
   var urutan = [utama];
   // Selalu ada percobaan kedua. Kalau model cadangannya berbeda, itu yang dipakai;
@@ -219,11 +222,18 @@ async function panggilAI(GKEY, content, maxTok, opsi) {
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY },
         body: JSON.stringify(body)
       }, batas);
+      // Badan balasan hanya boleh dibaca SEKALI. Diambil sebagai teks dulu supaya
+      // cuplikannya masih bisa dilaporkan saat penguraian JSON gagal.
+      var mentahTeks = '';
+      try { mentahTeks = await r.text(); } catch (e2) { mentahTeks = ''; }
       var d = null;
-      try { d = await r.json(); } catch (e2) { d = null; }
+      try { d = mentahTeks ? JSON.parse(mentahTeks) : null; } catch (e2b) { d = null; }
 
       if (r.status >= 500) {
-        galat = new Error('server AI sedang penuh (HTTP ' + r.status + ')');
+        // Cuplikan badan balasan disimpan; 503 dari Google sering berbadan kosong,
+        // dan mengetahui KOSONG atau berisi apa itu justru petunjuk yang berguna.
+        galatMentah = urutan[i] + ' -> HTTP ' + r.status + ' ' + (mentahTeks ? mentahTeks.slice(0, 90) : '(badan kosong)');
+        galat = new Error('server AI sedang penuh (' + galatMentah + ')');
         galat.dariAI = true; galat.kode = r.status; galat.sementara = true;
         throw galat;
       }
@@ -672,6 +682,38 @@ export default async function handler(req) {
        soal ukuran gambar sudah gugur (65KB pun kena batas waktu), jadi yang perlu
        dibuktikan sekarang: model mana dan tingkat berpikir mana yang cepat.
        Batas per percobaan 6 detik supaya ketiganya muat dalam satu permintaan. */
+    /* Menanyakan langsung ke Google model apa yang tersedia untuk kunci ini.
+       Selama ini nama model dipilih dari ingatan dan alias -latest bisa menunjuk
+       ke model yang sedang dipensiunkan; menebak-nebak namanya tak ada gunanya
+       kalau daftar sebenarnya bisa ditanyakan. */
+    if (/^\/model\b/i.test(text)) {
+      try {
+        var mr = await fetchTO('https://generativelanguage.googleapis.com/v1beta/models?key=' + GKEY + '&pageSize=200', {}, 12000);
+        var mj = await mr.json();
+        if (!mr.ok || !mj || !Array.isArray(mj.models)) {
+          await reply(TOKEN, chatId, '❌ Gagal mengambil daftar model (HTTP ' + mr.status + ').\n\n<code>' + JSON.stringify(mj || {}).slice(0, 200).replace(/[<>&]/g, '') + '</code>');
+          return new Response('ok');
+        }
+        var bisaChat = mj.models.filter(function (mm) {
+          return (mm.supportedGenerationMethods || []).indexOf('generateContent') >= 0;
+        }).map(function (mm) { return String(mm.name || '').replace('models/', ''); });
+        // Yang relevan buat kita: keluarga flash, itu yang dipakai membaca gambar
+        var flash = bisaChat.filter(function (x) { return x.indexOf('flash') >= 0; });
+        var adaUtama = bisaChat.indexOf(MODEL_GAMBAR) >= 0;
+        var adaCadangan = bisaChat.indexOf(MODEL_CADANGAN) >= 0;
+        await reply(TOKEN, chatId,
+          '🧭 <b>Model tersedia di kunci ini</b>\n\n' +
+          'Dipakai sekarang: <code>' + MODEL_GAMBAR + '</code> ' + (adaUtama ? '✅ ada' : '❌ TIDAK ADA') + '\n' +
+          'Cadangan: <code>' + MODEL_CADANGAN + '</code> ' + (adaCadangan ? '✅ ada' : '❌ TIDAK ADA') + '\n\n' +
+          '<b>Keluarga flash (' + flash.length + '):</b>\n' + (flash.slice(0, 25).join('\n') || '(tidak ada)') +
+          '\n\nTotal model chat: ' + bisaChat.length +
+          '\n\n<i>Kalau yang dipakai bertanda TIDAK ADA, itu sebab kegagalannya. Setel env GEMINI_IMAGE_MODEL di Vercel ke salah satu nama di atas.</i>');
+      } catch (eM) {
+        await reply(TOKEN, chatId, '❌ Gagal menghubungi Google: <code>' + String(eM && eM.message || eM).slice(0, 150).replace(/[<>&]/g, '') + '</code>');
+      }
+      return new Response('ok');
+    }
+
     if (/^\/diag\b/i.test(text)) {
       var px = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
       var isi = [{ type: 'text', text: 'Balas satu kata: OK' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,' + px } }];
@@ -705,6 +747,8 @@ export default async function handler(req) {
         '/saldo — saldo semua dompet\n' +
         '/sisa — sisa anggaran &amp; jatah harian\n' +
         '/notif — atur notifikasi\n' +
+        '/model — model AI yang tersedia\n' +
+        '/diag — uji kecepatan AI\n' +
         '/bantuan — pesan ini');
       return new Response('ok');
     }
