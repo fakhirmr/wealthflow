@@ -66,8 +66,10 @@ function reply(token, chatId, text, tombol) {
 function jawabTombol(token, id, teks) {
   return tgCall(token, 'answerCallbackQuery', { callback_query_id: id, text: teks || '' }).catch(function () { });
 }
-function ubahPesan(token, chatId, msgId, teks) {
-  return tgCall(token, 'editMessageText', { chat_id: chatId, message_id: msgId, text: teks, parse_mode: 'HTML' }).catch(function () { });
+function ubahPesan(token, chatId, msgId, teks, tombol) {
+  var b = { chat_id: chatId, message_id: msgId, text: teks, parse_mode: 'HTML' };
+  if (tombol && tombol.length) b.reply_markup = { inline_keyboard: tombol };
+  return tgCall(token, 'editMessageText', b).catch(function () { });
 }
 
 async function rpc(nama, argumen, SB_URL, KEY) {
@@ -240,6 +242,52 @@ function ringkas(rows, wallets, cats) {
   }).join('\n');
 }
 
+/* Menyusun layar konfirmasi. Dipakai saat pertama tampil DAN tiap kali user
+   memilih dompet atau kategori, supaya isinya selalu satu sumber.
+
+   Tombol memakai NOMOR URUT dompet/kategori, bukan UUID: callback_data Telegram
+   dibatasi 64 byte, sedangkan 'dompet:' + uuid titipan + ':' + uuid dompet sudah
+   80 byte. Urutannya dijaga tetap lewat order=name.asc saat mengambil datanya. */
+function layarPratinjau(rows, wallets, cats, pendingId, dariMutasi) {
+  var total = rows.reduce(function (a, r) { return a + (r.type === 'income' ? Number(r.amount) : -Number(r.amount)); }, 0);
+  var tanpaDompet = rows.filter(function (r) { return !r.wallet_id; }).length;
+  var tanpaKat = rows.filter(function (r) { return !r.category_id; }).length;
+
+  var teks = '📋 <b>' + rows.length + ' transaksi terbaca' + (dariMutasi ? ' dari mutasi' : ' dari struk') + '</b>' +
+    '\n<i>Belum disimpan. Periksa dulu.</i>\n\n' + ringkas(rows, wallets, cats) +
+    '\n\nSelisih: <b>' + fmtRp(total) + '</b>';
+
+  if (tanpaDompet) teks += '\n\n⚠️ <b>' + tanpaDompet + ' transaksi belum berdompet.</b> Saldo tak akan berubah untuk yang itu. Pilih dompetnya di bawah.';
+  else teks += '\n✅ Dompet sudah dipilih, saldo akan menyesuaikan.';
+  if (tanpaKat) teks += '\n' + (tanpaKat === rows.length ? 'Kategori belum diisi' : tanpaKat + ' belum berkategori') + '. Boleh dipilih di bawah, atau atur nanti di app.';
+
+  var tombol = [];
+  if (tanpaDompet && wallets.length) {
+    tombol.push([{ text: '— Semua transaksi masuk dompet —', callback_data: 'noop' }]);
+    var barisW = [];
+    wallets.slice(0, 6).forEach(function (w, i) {
+      barisW.push({ text: w.name, callback_data: 'dompet:' + pendingId + ':' + i });
+      if (barisW.length === 2) { tombol.push(barisW); barisW = []; }
+    });
+    if (barisW.length) tombol.push(barisW);
+  }
+  if (tanpaKat) {
+    var indukPas = cats.filter(function (c) { return !c.parent_id; });
+    if (indukPas.length) {
+      tombol.push([{ text: '— Semua ke kategori —', callback_data: 'noop' }]);
+      var barisK = [];
+      indukPas.slice(0, 6).forEach(function (c, i) {
+        barisK.push({ text: c.name, callback_data: 'katsemua:' + pendingId + ':' + i });
+        if (barisK.length === 2) { tombol.push(barisK); barisK = []; }
+      });
+      if (barisK.length) tombol.push(barisK);
+    }
+  }
+  tombol.push([{ text: '✅ Simpan semua', callback_data: 'simpan:' + pendingId },
+               { text: '❌ Buang', callback_data: 'buang:' + pendingId }]);
+  return { teks: teks, tombol: tombol };
+}
+
 // Rapikan hasil AI: pastikan sub benar-benar anak dari kategori terpilih.
 // Kalau sub valid tapi kategori kosong/salah, turunkan kategori dari induk sub tsb.
 function fixCat(tx, cats) {
@@ -328,6 +376,49 @@ export default async function handler(req) {
         } else {
           await jawabTombol(TOKEN, cq.id, (hx && hx.pesan) || 'Gagal');
         }
+        return new Response('ok');
+      }
+
+      if (data[0] === 'noop') { await jawabTombol(TOKEN, cq.id, ''); return new Response('ok'); }
+
+      /* Memilih dompet atau kategori untuk SELURUH daftar, lalu layarnya digambar
+         ulang. Menyetel per baris lewat chat tak masuk akal untuk mutasi berisi
+         puluhan transaksi; yang per baris tetap tersedia di aplikasi. */
+      if ((data[0] === 'dompet' || data[0] === 'katsemua') && data[1] && data[2] != null) {
+        var pr3 = await sb('/rest/v1/telegram_pending?id=eq.' + encodeURIComponent(data[1]) + '&user_id=eq.' + cuid + '&select=baris', {}, SB_URL, KEY);
+        var pj3 = [];
+        try { pj3 = await pr3.json(); } catch (e) { }
+        var isiTitipan = (Array.isArray(pj3) && pj3[0] && Array.isArray(pj3[0].baris)) ? pj3[0].baris : null;
+        if (!isiTitipan) { await jawabTombol(TOKEN, cq.id, 'Daftarnya sudah tidak ada'); return new Response('ok'); }
+
+        var wr3 = await sb('/rest/v1/wallets?user_id=eq.' + cuid + '&select=id,name,balance&order=name.asc', {}, SB_URL, KEY);
+        var wall3 = await wr3.json(); if (!Array.isArray(wall3)) wall3 = [];
+        var cr3 = await sb('/rest/v1/categories?user_id=eq.' + cuid + '&select=id,name,type,parent_id&order=name.asc', {}, SB_URL, KEY);
+        var cats3 = await cr3.json(); if (!Array.isArray(cats3)) cats3 = [];
+
+        var idx = parseInt(data[2], 10);
+        var namaPilihan = '';
+        if (data[0] === 'dompet') {
+          var wp = wall3[idx];
+          if (!wp) { await jawabTombol(TOKEN, cq.id, 'Dompet tak dikenal'); return new Response('ok'); }
+          isiTitipan.forEach(function (r) { r.wallet_id = wp.id; });
+          namaPilihan = wp.name;
+        } else {
+          var indukList = cats3.filter(function (c) { return !c.parent_id; });
+          var cp = indukList[idx];
+          if (!cp) { await jawabTombol(TOKEN, cq.id, 'Kategori tak dikenal'); return new Response('ok'); }
+          // Hanya yang belum berkategori yang diisi; hasil baca AI jangan ditimpa
+          isiTitipan.forEach(function (r) { if (!r.category_id) { r.category_id = cp.id; r.sub_category_id = null; } });
+          namaPilihan = cp.name;
+        }
+
+        await sb('/rest/v1/telegram_pending?id=eq.' + encodeURIComponent(data[1]), {
+          method: 'PATCH', body: JSON.stringify({ baris: isiTitipan })
+        }, SB_URL, KEY);
+
+        var layar3 = layarPratinjau(isiTitipan, wall3, cats3, data[1], isiTitipan.length > 1);
+        await jawabTombol(TOKEN, cq.id, namaPilihan);
+        if (cMsg) await ubahPesan(TOKEN, cChat, cMsg, layar3.teks, layar3.tombol);
         return new Response('ok');
       }
 
@@ -553,9 +644,10 @@ export default async function handler(req) {
     }
 
     // 3) Ambil dompet + kategori untuk konteks parsing
-    var wr = await sb('/rest/v1/wallets?user_id=eq.' + uid + '&select=id,name,balance', {}, SB_URL, KEY);
+    // order dijaga tetap: nomor urut pada tombol harus menunjuk barang yang sama
+    var wr = await sb('/rest/v1/wallets?user_id=eq.' + uid + '&select=id,name,balance&order=name.asc', {}, SB_URL, KEY);
     var wallets = await wr.json(); if (!Array.isArray(wallets)) wallets = [];
-    var cr = await sb('/rest/v1/categories?user_id=eq.' + uid + '&select=id,name,type,parent_id', {}, SB_URL, KEY);
+    var cr = await sb('/rest/v1/categories?user_id=eq.' + uid + '&select=id,name,type,parent_id&order=name.asc', {}, SB_URL, KEY);
     var cats = await cr.json(); if (!Array.isArray(cats)) cats = [];
 
     // 4) Ekstrak transaksi (foto struk atau teks)
@@ -692,15 +784,8 @@ export default async function handler(req) {
       }
       await sb('/rest/v1/rpc/increment_ai_usage', { method: 'POST', body: JSON.stringify({ p_user: uid, p_period: period }) }, SB_URL, KEY);
 
-      var totalBaca = rows.reduce(function (a, r) { return a + (r.type === 'income' ? r.amount : -r.amount); }, 0);
-      var belumBerdompet = rows.filter(function (r) { return !r.wallet_id; }).length;
-      await reply(TOKEN, chatId,
-        '📋 <b>' + rows.length + ' transaksi terbaca' + (modeMutasi ? ' dari mutasi' : ' dari struk') + '</b>\n' +
-        '<i>Belum disimpan. Periksa dulu.</i>\n\n' + ringkas(rows, wallets, cats) +
-        '\n\nSelisih: <b>' + fmtRp(totalBaca) + '</b>' +
-        (belumBerdompet ? '\n⚠️ ' + belumBerdompet + ' transaksi belum berdompet, saldo tak akan berubah untuk yang itu. Sebut nama dompet di keterangan gambar, atau atur nanti di app.' : ''),
-        [[{ text: '✅ Simpan semua', callback_data: 'simpan:' + pRows[0].id },
-          { text: '❌ Buang', callback_data: 'buang:' + pRows[0].id }]]);
+      var layar = layarPratinjau(rows, wallets, cats, pRows[0].id, modeMutasi);
+      await reply(TOKEN, chatId, layar.teks, layar.tombol);
       return new Response('ok');
     }
 
