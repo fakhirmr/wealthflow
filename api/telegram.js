@@ -228,6 +228,18 @@ function cocokKategori(nama, cats) {
   return hasil;
 }
 
+// Menyusun daftar transaksi jadi teks yang enak dibaca di chat.
+function ringkas(rows, wallets, cats) {
+  return rows.map(function (r) {
+    var c = cats.find(function (x) { return x.id === r.category_id; });
+    var sub = cats.find(function (x) { return x.id === r.sub_category_id; });
+    var w = wallets.find(function (x) { return x.id === r.wallet_id; });
+    var catTxt = c ? (' · ' + c.name + (sub ? ' › ' + sub.name : '')) : '';
+    var dateTxt = r.date !== today() ? ('\n   🗓 ' + r.date) : '';
+    return (r.type === 'income' ? '📥' : '📤') + ' <b>' + fmtRp(r.amount) + '</b> ' + (r.description || '-') + catTxt + (w ? ' · ' + w.name : '') + dateTxt;
+  }).join('\n');
+}
+
 // Rapikan hasil AI: pastikan sub benar-benar anak dari kategori terpilih.
 // Kalau sub valid tapi kategori kosong/salah, turunkan kategori dari induk sub tsb.
 function fixCat(tx, cats) {
@@ -315,6 +327,53 @@ export default async function handler(req) {
           if (cMsg) await ubahPesan(TOKEN, cChat, cMsg, '🗑 <b>Dibatalkan.</b> ' + fmtRp(hx.jumlah) + ' ' + (hx.ket || '') + '\nSaldo dompet sudah dikembalikan.');
         } else {
           await jawabTombol(TOKEN, cq.id, (hx && hx.pesan) || 'Gagal');
+        }
+        return new Response('ok');
+      }
+
+      if (data[0] === 'simpan' && data[1]) {
+        var hs = await rpc('simpan_batch_bot', { p_user: cuid, p_pending: data[1] }, SB_URL, KEY);
+        if (hs && hs.ok) {
+          await jawabTombol(TOKEN, cq.id, hs.jumlah + ' transaksi disimpan');
+          var idsBaru = (hs.ids || []).join(',').slice(0, 40);
+          if (cMsg) await ubahPesan(TOKEN, cChat, cMsg, '✅ <b>' + hs.jumlah + ' transaksi tersimpan.</b>\n\nSalah? Ketuk Batalkan semua di bawah.');
+          // Id transaksi tak muat di callback_data (64 byte), jadi pembatalan
+          // borongan memakai id titipannya yang sudah dicatat di riwayat.
+          if ((hs.ids || []).length) {
+            await sb('/rest/v1/telegram_pending', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ user_id: cuid, chat_id: cChat, baris: hs.ids }) }, SB_URL, KEY)
+              .then(function (rr) { return rr.json(); })
+              .then(function (rw) {
+                if (Array.isArray(rw) && rw[0] && rw[0].id) {
+                  return reply(TOKEN, cChat, '↩️ Bisa dibatalkan kalau ada yang keliru.', [[{ text: '↩️ Batalkan semua', callback_data: 'urungkan:' + rw[0].id }]]);
+                }
+              }).catch(function () { });
+          }
+        } else {
+          await jawabTombol(TOKEN, cq.id, (hs && hs.pesan) || 'Gagal menyimpan');
+        }
+        return new Response('ok');
+      }
+
+      if (data[0] === 'buang' && data[1]) {
+        await sb('/rest/v1/telegram_pending?id=eq.' + encodeURIComponent(data[1]) + '&user_id=eq.' + cuid, { method: 'DELETE' }, SB_URL, KEY);
+        await jawabTombol(TOKEN, cq.id, 'Dibuang');
+        if (cMsg) await ubahPesan(TOKEN, cChat, cMsg, '🗑 <b>Dibuang.</b> Tidak ada yang disimpan.');
+        return new Response('ok');
+      }
+
+      if (data[0] === 'urungkan' && data[1]) {
+        var pr2 = await sb('/rest/v1/telegram_pending?id=eq.' + encodeURIComponent(data[1]) + '&user_id=eq.' + cuid + '&select=baris', {}, SB_URL, KEY);
+        var pj2 = [];
+        try { pj2 = await pr2.json(); } catch (e) { }
+        var daftarId = (Array.isArray(pj2) && pj2[0] && Array.isArray(pj2[0].baris)) ? pj2[0].baris : [];
+        if (!daftarId.length) { await jawabTombol(TOKEN, cq.id, 'Sudah tak bisa dibatalkan'); return new Response('ok'); }
+        var hu = await rpc('batalkan_transaksi_batch', { p_user: cuid, p_ids: daftarId }, SB_URL, KEY);
+        await sb('/rest/v1/telegram_pending?id=eq.' + encodeURIComponent(data[1]), { method: 'DELETE' }, SB_URL, KEY);
+        if (hu && hu.ok) {
+          await jawabTombol(TOKEN, cq.id, hu.jumlah + ' dibatalkan');
+          if (cMsg) await ubahPesan(TOKEN, cChat, cMsg, '↩️ <b>' + hu.jumlah + ' transaksi dibatalkan.</b>\nSaldo dompet sudah dikembalikan.');
+        } else {
+          await jawabTombol(TOKEN, cq.id, 'Gagal membatalkan');
         }
         return new Response('ok');
       }
@@ -612,8 +671,40 @@ export default async function handler(req) {
       return new Response('ok');
     }
 
+    /* Gambar TIDAK langsung masuk catatan. Hasil bacanya dititipkan dulu, lalu
+       user menyetujui lewat tombol. Sebelumnya bot menyimpan sendiri tanpa bertanya,
+       dan kalau bacaannya keliru, membereskannya berarti menghapus satu per satu
+       sambil membetulkan saldo. Pesan teks biasa tetap langsung disimpan: isinya
+       ditulis sendiri oleh user, jadi tak ada yang perlu dikonfirmasi. */
+    var dariGambar = !!(msg.photo && msg.photo.length || docFile);
+
+    if (dariGambar) {
+      var pr = await sb('/rest/v1/telegram_pending', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ user_id: uid, chat_id: chatId, baris: rows })
+      }, SB_URL, KEY);
+      var pRows = [];
+      try { pRows = await pr.json(); } catch (e) { }
+      if (!pr.ok || !Array.isArray(pRows) || !pRows[0] || !pRows[0].id) {
+        await reply(TOKEN, chatId, '❌ Gagal menyiapkan daftar. Coba kirim ulang gambarnya.');
+        return new Response('ok');
+      }
+      await sb('/rest/v1/rpc/increment_ai_usage', { method: 'POST', body: JSON.stringify({ p_user: uid, p_period: period }) }, SB_URL, KEY);
+
+      var totalBaca = rows.reduce(function (a, r) { return a + (r.type === 'income' ? r.amount : -r.amount); }, 0);
+      var belumBerdompet = rows.filter(function (r) { return !r.wallet_id; }).length;
+      await reply(TOKEN, chatId,
+        '📋 <b>' + rows.length + ' transaksi terbaca' + (modeMutasi ? ' dari mutasi' : ' dari struk') + '</b>\n' +
+        '<i>Belum disimpan. Periksa dulu.</i>\n\n' + ringkas(rows, wallets, cats) +
+        '\n\nSelisih: <b>' + fmtRp(totalBaca) + '</b>' +
+        (belumBerdompet ? '\n⚠️ ' + belumBerdompet + ' transaksi belum berdompet, saldo tak akan berubah untuk yang itu. Sebut nama dompet di keterangan gambar, atau atur nanti di app.' : ''),
+        [[{ text: '✅ Simpan semua', callback_data: 'simpan:' + pRows[0].id },
+          { text: '❌ Buang', callback_data: 'buang:' + pRows[0].id }]]);
+      return new Response('ok');
+    }
+
     // Jangan pernah bilang "tercatat" tanpa memastikan benar-benar tersimpan
-    // Prefer return=representation: id baris dibutuhkan untuk tombol Batal & ganti kategori
     var insRes = await sb('/rest/v1/transactions', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(rows) }, SB_URL, KEY);
     if (!insRes.ok) {
       var errTxt = '';
@@ -627,8 +718,6 @@ export default async function handler(req) {
 
     await sb('/rest/v1/rpc/increment_ai_usage', { method: 'POST', body: JSON.stringify({ p_user: uid, p_period: period }) }, SB_URL, KEY);
 
-    // Update saldo dompet — HANYA dijalankan setelah insert dipastikan berhasil,
-    // supaya saldo tak pernah berubah untuk transaksi yang gagal tersimpan.
     var deltas = {}; var balFailed = false;
     rows.forEach(function (r) { if (r.wallet_id) deltas[r.wallet_id] = (deltas[r.wallet_id] || 0) + (r.type === 'income' ? r.amount : -r.amount); });
     for (var wid in deltas) {
@@ -639,32 +728,19 @@ export default async function handler(req) {
       }
     }
 
-    // 6) Balas ringkasan
-    var summary = rows.map(function (r) {
-      var c = cats.find(function (x) { return x.id === r.category_id; });
-      var s = cats.find(function (x) { return x.id === r.sub_category_id; });
-      var w = wallets.find(function (x) { return x.id === r.wallet_id; });
-      var catTxt = c ? (' · ' + c.name + (s ? ' › ' + s.name : '')) : '';
-      // Tanggal ditampilkan: kalau struk bertanggal bulan lalu, transaksi tak muncul di
-      // tampilan bulan berjalan — user perlu tahu supaya tak mengira gagal tersimpan
-      var dateTxt = r.date !== today() ? ('\n   🗓 ' + r.date) : '';
-      return (r.type === 'income' ? '📥' : '📤') + ' <b>' + fmtRp(r.amount) + '</b> ' + (r.description || '-') + catTxt + (w ? ' · ' + w.name : '') + dateTxt;
-    }).join('\n');
-    /* Tombol aksi hanya dipasang untuk pencatatan tunggal. Untuk banyak transaksi
-       sekaligus (mis. struk panjang), satu tombol Batal akan ambigu: yang mana yang
-       dibatalkan. Kasus itu diarahkan ke app saja. */
+    var summary = ringkas(rows, wallets, cats);
     var tombolAksi = null;
     if (tersimpan.length === 1 && tersimpan[0] && tersimpan[0].id) {
       var txId = tersimpan[0].id;
       var jenis = rows[0].type === 'income' ? 'income' : 'expense';
-      // Tiga kategori terdekat sebagai pintasan koreksi; sisanya lewat app.
       var pilihanKat = cats.filter(function (c) { return !c.parent_id && c.type === jenis && c.id !== rows[0].category_id; }).slice(0, 3);
       tombolAksi = [[{ text: '↩️ Batalkan', callback_data: 'batal:' + txId }]];
       if (pilihanKat.length) {
         tombolAksi.push(pilihanKat.map(function (c) { return { text: '→ ' + c.name, callback_data: 'kat:' + txId + ':' + c.id }; }));
       }
     }
-    await reply(TOKEN, chatId, '✅ <b>Tercatat' + (modeMutasi ? ' dari mutasi' : '') + '!</b>\n' + summary + (balFailed ? '\n\n⚠️ Transaksi tersimpan, tapi saldo dompet gagal diperbarui. Cek dan sesuaikan manual di app.' : '') + (tombolAksi ? '\n\n<i>Salah kategori? Ketuk salah satu di bawah.</i>' : ''), tombolAksi);
+    await reply(TOKEN, chatId, '✅ <b>Tercatat!</b>\n' + summary + (balFailed ? '\n\n⚠️ Transaksi tersimpan, tapi saldo dompet gagal diperbarui. Cek dan sesuaikan manual di app.' : '') + (tombolAksi ? '\n\n<i>Salah kategori? Ketuk salah satu di bawah.</i>' : ''), tombolAksi);
+
   } catch (e) {
     // Batas waktu perlu disebut apa adanya, supaya user tahu memotong mutasinya
     // dan tidak mengira botnya rusak lalu mengirim ulang berkali-kali.
