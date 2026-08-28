@@ -5380,22 +5380,67 @@
             })()) : null,
           h('div', { className: 'cd' }, h('h3', { style: { fontSize: '.9rem', fontWeight: 700, marginBottom: 14 } }, 'Breakdown'),
             cs.length === 0 ? h('div', { className: 'empty' }, h('p', null, 'Tidak ada data')) :
+              /* Rincian kategori. Susunan lama menaruh garis bawah di SETIAP baris
+                 sub-kategori dan membungkus daftar transaksi dengan kotak abu-abu tebal,
+                 sehingga yang terlihat lebih dulu justru gurat-gurat pemisahnya, bukan
+                 angkanya. Sekarang pemisah dihapus, jarak yang memisahkan, dan semua
+                 nominal dibuat rata kanan dengan angka selebar sama supaya digitnya
+                 sejajar dan mudah dibandingkan sekilas. */
               cs.map(function (c) {
                 var pct = actTot > 0 ? (c.total / actTot * 100) : 0; var isO = ex === c.id;
-                return h('div', { key: c.id },
-                  h('div', { style: { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 6px', borderRadius: 6, cursor: 'pointer', background: isO ? 'var(--bgc2)' : '' }, onClick: function () { sEx(isO ? null : c.id); sSd(null) } },
-                    h('span', { style: { fontSize: 16, width: 24, textAlign: 'center' } }, c.icon),
-                    h('div', { style: { flex: 1 } }, h('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 2 } }, h('span', { style: { fontWeight: 600, fontSize: '.82rem' } }, c.name), h('span', { style: { fontWeight: 700, fontSize: '.84rem', color: tab === 'expense' ? 'var(--red)' : 'var(--acc)' } }, fmt(c.total))), h('div', { style: { display: 'flex', alignItems: 'center', gap: 6 } }, h('div', { style: { flex: 1, height: 4, background: 'var(--bgi)', borderRadius: 2, overflow: 'hidden' } }, h('div', { style: { height: '100%', width: pct + '%', background: c.color, borderRadius: 2 } })), h('span', { style: { fontSize: '.68rem', color: 'var(--t3)' } }, pct.toFixed(1) + '%'))),
-                    h('span', { style: { fontSize: '.68rem', color: 'var(--t3)', background: 'var(--bgi)', padding: '1px 6px', borderRadius: 8 } }, c.count), c.subs.length > 0 ? h('span', { style: { fontSize: '.65rem', color: 'var(--t3)', marginLeft: 2 } }, isO ? '▼' : '▶') : null),
-                  isO && c.subs.length > 0 ? h('div', { style: { marginLeft: 32, borderLeft: '2px solid ' + (c.color || 'var(--brd)'), paddingLeft: 12, paddingBottom: 2 } },
-                    c.subs.map(function (s) {
-                      var sp = c.total > 0 ? (s.total / c.total * 100) : 0; var isSel = sd && sd.sid === s.id && sd.cid === c.id;
-                      return h('div', { key: s.id, style: { padding: '5px 6px', borderRadius: 4, cursor: 'pointer', background: isSel ? 'var(--blubg)' : '', borderBottom: '1px solid var(--brd)' }, onClick: function () { sSd(isSel ? null : { cid: c.id, sid: s.id, sn: s.name }) } },
-                        h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, fontSize: '.8rem' } }, h('span', { style: { fontSize: 12 } }, s.icon), h('span', { style: { flex: 1, fontWeight: 500 } }, s.name), h('span', { style: { fontWeight: 600, color: tab === 'expense' ? 'var(--red)' : 'var(--acc)' } }, fmt(s.total)), h('span', { style: { fontSize: '.68rem', color: 'var(--t3)' } }, sp.toFixed(0) + '%')))
+                var warnaNilai = tab === 'expense' ? 'var(--red)' : 'var(--acc)';
+                return h('div', { key: c.id, style: { marginBottom: 2 } },
+
+                  h('div', {
+                    style: { display: 'flex', alignItems: 'center', gap: 11, padding: '10px 8px', borderRadius: 10, cursor: 'pointer', background: isO ? 'var(--bgi)' : 'transparent' },
+                    onClick: function () { sEx(isO ? null : c.id); sSd(null) }
+                  },
+                    h('span', { style: { width: 32, height: 32, borderRadius: 9, background: 'var(--bgi)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 } }, c.icon),
+                    h('div', { style: { flex: 1, minWidth: 0 } },
+                      h('div', { style: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 6 } },
+                        h('span', { style: { fontWeight: 600, fontSize: '.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, c.name),
+                        h('span', { style: { fontWeight: 700, fontSize: '.85rem', flexShrink: 0, fontVariantNumeric: 'tabular-nums' } }, fmt(c.total))),
+                      h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+                        h('div', { style: { flex: 1, height: 3, background: 'var(--bgi)', borderRadius: 2, overflow: 'hidden' } },
+                          h('div', { style: { height: '100%', width: pct + '%', background: c.color, borderRadius: 2 } })),
+                        h('span', { style: { fontSize: '.66rem', color: 'var(--t3)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 } }, pct.toFixed(1) + '%'),
+                        h('span', { style: { fontSize: '.66rem', color: 'var(--t3)', flexShrink: 0 } }, c.count + '\u00d7'))),
+                    c.subs.length > 0
+                      ? h('span', { style: { fontSize: '.58rem', color: 'var(--t3)', flexShrink: 0, width: 12, textAlign: 'center', transform: isO ? 'rotate(90deg)' : 'none', transition: 'transform .15s' } }, '\u25b6')
+                      : null),
+
+                  isO && c.subs.length > 0 ? h('div', { style: { margin: '0 0 8px 43px' } },
+                    c.subs.map(function (sub) {
+                      var sp = c.total > 0 ? (sub.total / c.total * 100) : 0;
+                      var isSel = sd && sd.sid === sub.id && sd.cid === c.id;
+                      return h('div', {
+                        key: sub.id,
+                        style: { display: 'flex', alignItems: 'center', gap: 9, padding: '7px 9px', borderRadius: 8, cursor: 'pointer', background: isSel ? 'var(--bgi)' : 'transparent' },
+                        onClick: function () { sSd(isSel ? null : { cid: c.id, sid: sub.id, sn: sub.name }) }
+                      },
+                        h('span', { style: { fontSize: 13, width: 18, textAlign: 'center', flexShrink: 0 } }, sub.icon),
+                        h('span', { style: { flex: 1, minWidth: 0, fontSize: '.8rem', fontWeight: isSel ? 600 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, sub.name),
+                        h('span', { style: { width: 34, height: 3, background: 'var(--bgi)', borderRadius: 2, overflow: 'hidden', flexShrink: 0 } },
+                          h('div', { style: { height: '100%', width: sp + '%', background: c.color, borderRadius: 2 } })),
+                        h('span', { style: { fontSize: '.66rem', color: 'var(--t3)', width: 28, textAlign: 'right', fontVariantNumeric: 'tabular-nums', flexShrink: 0 } }, sp.toFixed(0) + '%'),
+                        h('span', { style: { fontSize: '.8rem', fontWeight: 600, color: warnaNilai, fontVariantNumeric: 'tabular-nums', flexShrink: 0, minWidth: 76, textAlign: 'right' } }, fmt(sub.total)));
                     }),
-                    sd && sd.cid === c.id ? h('div', { style: { marginTop: 6, background: 'var(--bgi)', borderRadius: 6, padding: 10 } },
-                      h('div', { style: { fontSize: '.8rem', fontWeight: 600, color: 'var(--blu)', marginBottom: 8 } }, '📋 ', sd.sn, ' (', dtl.length, ')'),
-                      dtl.map(function (tx) { return h('div', { key: tx.id, style: { display: 'flex', gap: 6, padding: '4px 0', borderBottom: '1px solid var(--brd)', fontSize: '.78rem' } }, h('span', { style: { color: 'var(--t3)', minWidth: 60 } }, fdt(tx.date)), h('span', { style: { flex: 1, fontWeight: 500 } }, tx.description || '-'), h('span', { style: { fontWeight: 600, color: tab === 'expense' ? 'var(--red)' : 'var(--acc)' } }, fmt(tx.amount))) })) : null
+
+                    sd && sd.cid === c.id ? h('div', { style: { marginTop: 5, border: '1px solid var(--brd)', borderRadius: 10, overflow: 'hidden' } },
+                      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '8px 11px', background: 'var(--bgi)' } },
+                        h('span', { style: { fontSize: '.74rem', fontWeight: 600 } }, sd.sn),
+                        h('span', { style: { fontSize: '.68rem', color: 'var(--t3)' } }, dtl.length + ' transaksi')),
+                      dtl.length === 0
+                        ? h('div', { style: { padding: '12px 11px', fontSize: '.75rem', color: 'var(--t3)' } }, 'Belum ada transaksi')
+                        : dtl.map(function (tx, i) {
+                          // Keterangan kosong diisi nama dompet, jauh lebih berguna
+                          // daripada tanda hubung yang selama ini cuma jadi derau.
+                          var ket = tx.description || wn(W, tx.wallet_id) || '';
+                          return h('div', { key: tx.id, style: { display: 'flex', alignItems: 'center', gap: 10, padding: '7px 11px', fontSize: '.76rem', borderTop: i ? '1px solid var(--brd)' : 'none' } },
+                            h('span', { style: { color: 'var(--t3)', width: 60, flexShrink: 0, fontVariantNumeric: 'tabular-nums' } }, fdt(tx.date)),
+                            h('span', { style: { flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: tx.description ? 'var(--t1)' : 'var(--t3)' } }, ket),
+                            h('span', { style: { fontWeight: 600, color: warnaNilai, fontVariantNumeric: 'tabular-nums', flexShrink: 0 } }, fmt(tx.amount)));
+                        })) : null
                   ) : null)
               })))
       }
