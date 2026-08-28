@@ -13,6 +13,10 @@
 export const config = { runtime: 'edge' };
 
 var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+/* Model pembaca gambar. Lite dipilih karena tugasnya ekstraksi berformat tetap,
+   bukan penalaran, dan lite menjawab jauh lebih cepat. Bisa ditimpa lewat env
+   kalau ternyata ketepatannya kurang. */
+var MODEL_GAMBAR = process.env.GEMINI_IMAGE_MODEL || 'gemini-flash-lite-latest';
 
 /* Disusun per potongan 32KB. Versi sebelumnya menyambung string byte demi byte,
    jadi gambar 3MB berarti tiga juta iterasi penyambungan sebelum permintaan ke
@@ -143,9 +147,12 @@ function parseBaris(teks) {
    keterangan yang diketik pengguna, melainkan ditentukan AI sendiri; balasannya
    bisa berupa JSON (struk) atau baris berpipa (mutasi), jadi teksnya diambil
    mentah lalu dicoba kedua pembaca. */
-async function geminiRaw(GKEY, content, maxTok) {
-  var body = { model: 'gemini-flash-latest', max_tokens: maxTok || 3072, reasoning_effort: 'low', messages: [{ role: 'user', content: content }] };
-  var r = await fetchTO(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) }, 20000);
+async function geminiRaw(GKEY, content, maxTok, opsi) {
+  opsi = opsi || {};
+  var body = { model: opsi.model || MODEL_GAMBAR, max_tokens: maxTok || 3072, messages: [{ role: 'user', content: content }] };
+  // reasoning_effort bisa dimatikan sepenuhnya lewat opsi.tanpaPikir, dipakai /diag
+  if (!opsi.tanpaPikir) body.reasoning_effort = opsi.pikir || 'low';
+  var r = await fetchTO(GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY }, body: JSON.stringify(body) }, opsi.batas || 20000);
   var d = await r.json();
   try { return d.choices[0].message.content || ''; } catch (e) { return ''; }
 }
@@ -428,22 +435,35 @@ export default async function handler(req) {
     /* Menguji AI dengan gambar 1 piksel. Kalau ini pun lambat, masalahnya ada di
        layanan AI-nya (mis. kunci masih tier gratis yang diantre), bukan di ukuran
        gambar atau prompt. Tanpa alat ini kita cuma bisa menebak. */
+    /* Membandingkan beberapa konfigurasi dengan gambar 1 piksel. Semua tebakan
+       soal ukuran gambar sudah gugur (65KB pun kena batas waktu), jadi yang perlu
+       dibuktikan sekarang: model mana dan tingkat berpikir mana yang cepat.
+       Batas per percobaan 6 detik supaya ketiganya muat dalam satu permintaan. */
     if (/^\/diag\b/i.test(text)) {
       var px = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
-      var t0 = Date.now(); var hasilDiag = '', galatDiag = '';
-      try {
-        hasilDiag = await geminiRaw(GKEY, [{ type: 'text', text: 'Balas satu kata: OK' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,' + px } }], 32);
-      } catch (eD) { galatDiag = String(eD && eD.message || eD); }
-      var lama = Date.now() - t0;
-      await reply(TOKEN, chatId, '🩺 <b>Uji kecepatan AI</b>\n\n' +
-        'Gambar uji: 1 piksel (70 byte)\n' +
-        'Waktu: <b>' + lama + 'ms</b>\n' +
-        'Balasan: <code>' + (hasilDiag || galatDiag || '(kosong)').slice(0, 60).replace(/[<>&]/g, '') + '</code>\n\n' +
-        (lama > 8000
-          ? '⚠️ Lambat sekali untuk gambar sekecil ini. Berarti layanan AI-nya yang lambat, bukan ukuran gambarmu.'
-          : '✅ Layanan AI normal. Kalau gambar besar tetap kelamaan, penyebabnya di ukuran gambar.'));
+      var isi = [{ type: 'text', text: 'Balas satu kata: OK' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,' + px } }];
+      var uji = [
+        { nama: 'flash + pikir low', o: { model: 'gemini-flash-latest', pikir: 'low', batas: 6000 } },
+        { nama: 'lite + pikir low', o: { model: 'gemini-flash-lite-latest', pikir: 'low', batas: 6000 } },
+        { nama: 'lite tanpa pikir', o: { model: 'gemini-flash-lite-latest', tanpaPikir: true, batas: 6000 } }
+      ];
+      var barisUji = [];
+      for (var ui = 0; ui < uji.length; ui++) {
+        var t0 = Date.now(), tanda = '';
+        try {
+          var jw = await geminiRaw(GKEY, isi, 32, uji[ui].o);
+          tanda = jw ? '✅' : '⚠️ kosong';
+        } catch (eD) {
+          tanda = /abort/i.test(String(eD && eD.message || eD)) ? '⏱️ >6s' : '❌ galat';
+        }
+        barisUji.push(uji[ui].nama + ': <b>' + (Date.now() - t0) + 'ms</b> ' + tanda);
+      }
+      await reply(TOKEN, chatId, '🩺 <b>Uji kecepatan AI</b>\nGambar uji 1 piksel (70 byte)\n\n' + barisUji.join('\n') +
+        '\n\nDipakai sekarang: <code>' + MODEL_GAMBAR + '</code>' +
+        '\n\n<i>Kalau ketiganya lambat, yang bermasalah layanan AI-nya, bukan gambar atau prompt.</i>');
       return new Response('ok');
     }
+
 
     if (/^\/(bantuan|perintah)\b/i.test(text)) {
       await reply(TOKEN, chatId, '📖 <b>Yang bisa dilakukan</b>\n\n' +
