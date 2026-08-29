@@ -69,14 +69,22 @@ async function panggilGemini(GKEY, body) {
   urutan = urutan.slice(0, 3);
   var akhir = null;
 
+  /* Anggaran waktu dibagi menurut sisa, sama alasannya dengan di bot: penolakan
+     503 datang cepat, sedangkan panggilan yang bekerja perlu belasan detik. */
+  var mulai = Date.now();
+  var anggaran = 21000;
+
   for (var i = 0; i < urutan.length; i++) {
+    var sisa = anggaran - (Date.now() - mulai);
+    if (sisa < 3000) break;
+    var batasKini = Math.min(12000, sisa);
     var kirim = Object.assign({}, body, { model: urutan[i] });
     try {
       var r = await fetchTO(GEMINI_BASE + '/openai/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY },
         body: JSON.stringify(kirim)
-      }, 7000);
+      }, batasKini);
       var teks = await r.text();
       // 404 berarti nama modelnya tak dikenal: lanjut, bukan menyerah
       if (r.status === 404) { akhir = { teks: teks, status: 404, ok: false }; }

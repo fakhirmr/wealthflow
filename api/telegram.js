@@ -226,10 +226,28 @@ async function panggilAI(GKEY, content, maxTok, opsi) {
     RANTAI_MODEL.forEach(function (m) { if (urutan.indexOf(m) < 0) urutan.push(m); });
     urutan = urutan.slice(0, 3);   // tiga percobaan, masih muat di bawah batas Vercel
   }
-  var batas = opsi.batas || 7000;
+  /* Anggaran waktu dibagi menurut SISA, bukan dipatok mati per percobaan.
+
+     Versi sebelumnya memberi 7 detik ke tiap percobaan seolah semuanya pasti
+     memakannya habis. Kenyataannya penolakan 503 datang dalam waktu di bawah
+     satu detik, sedangkan panggilan yang benar-benar bekerja perlu 10-15 detik.
+     Akibatnya percobaan yang sehat justru dicekik dan permintaan teks sesederhana
+     "beli kopi 21rb" pun ikut gagal.
+
+     Sekarang tiap percobaan boleh memakai sampai 12 detik, tapi tak pernah
+     melebihi sisa anggaran keseluruhan, jadi rangkaiannya tetap berhenti sebelum
+     batas Vercel. Kandidat yang ditolak cepat menyisakan waktu untuk kandidat
+     berikutnya, persis yang dibutuhkan saat model pertama sedang penuh. */
+  var mulai = Date.now();
+  var anggaran = opsi.total || 21000;
+  var batasSatuan = opsi.batas || 12000;
   var galat = null;
 
   for (var i = 0; i < urutan.length; i++) {
+    var sisa = anggaran - (Date.now() - mulai);
+    // Kurang dari 3 detik tak cukup untuk apa pun; berhenti daripada gagal percuma
+    if (sisa < 3000) break;
+    var batas = Math.min(batasSatuan, sisa);
     try {
       var body = { model: urutan[i], max_tokens: maxTok || 3072, messages: [{ role: 'user', content: content }] };
       if (!opsi.tanpaPikir) body.reasoning_effort = opsi.pikir || 'low';
@@ -1000,8 +1018,14 @@ export default async function handler(req) {
       try { await reply(TOKEN, chatId, pesanGalatAI(e)); } catch (e4) { }
       return new Response('ok');
     }
+    // Pesan batas waktu dulu selalu berbunyi "membaca gambarnya", padahal pesan
+    // teks biasa juga bisa kena. Menyuruh memotong screenshot untuk seseorang yang
+    // cuma mengetik "beli kopi 21rb" jelas membingungkan.
+    var adaGambar = !!(msg && (msg.photo || msg.document));
     var pesanGagal = /abort|timeout|timed out/i.test(String(e && e.message || e))
-      ? '⏱️ Kelamaan membaca gambarnya. Kalau ini mutasi panjang, potong jadi beberapa screenshot lalu kirim lagi.' + rinci
+      ? (adaGambar
+          ? '⏱️ Kelamaan membaca gambarnya. Kalau ini mutasi panjang, potong jadi beberapa screenshot lalu kirim lagi.'
+          : '⏱️ AI kelamaan menjawab. Layanannya sedang lambat, bukan tulisanmu yang salah. Coba kirim lagi sebentar.') + rinci
       : '❌ Ada kesalahan memproses. Coba lagi sebentar.' + rinci;
     try { await reply(TOKEN, chatId, pesanGagal); } catch (e2) { }
   }
