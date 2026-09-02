@@ -492,12 +492,39 @@ export default async function handler(req) {
   var GKEY = process.env.GEMINI_API_KEY;
   var SB_URL = process.env.SUPABASE_URL;
   var KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!TOKEN || !GKEY || !SB_URL || !KEY) return new Response('misconfig', { status: 500 });
+  /* Env yang kosong dulu dijawab 500 tanpa sepatah kata pun ke pengguna, jadi
+     botnya diam total dan tak ada cara menebak sebabnya dari sisi chat. Selama
+     tokennya sendiri ada, kita masih bisa MEMBALAS, dan diam itu diubah jadi
+     diagnosa. Yang disebut hanya NAMA env-nya, tak pernah isinya. */
+  var kurang = [];
+  if (!GKEY) kurang.push('GEMINI_API_KEY');
+  if (!SB_URL) kurang.push('SUPABASE_URL');
+  if (!KEY) kurang.push('SUPABASE_SERVICE_ROLE_KEY');
+  if (!SECRET) kurang.push('TELEGRAM_WEBHOOK_SECRET');
 
-  // Verifikasi WAJIB, tak boleh dilewati. Sebelumnya, bila env secret lupa diisi,
-  // pemeriksaan ini dilompati sepenuhnya — siapa pun yang tahu alamat webhook bisa
-  // mengirim pesan palsu dan menyisipkan transaksi ke akun orang lain.
-  if (!SECRET) return new Response('misconfig: webhook secret belum diset', { status: 500 });
+  // Tanpa token, membalas pun mustahil
+  if (!TOKEN) return new Response('misconfig: TELEGRAM_BOT_TOKEN kosong', { status: 500 });
+
+  if (kurang.length) {
+    try {
+      var uAwal = await req.json();
+      var chatAwal = (uAwal && uAwal.message && uAwal.message.chat && uAwal.message.chat.id)
+        || (uAwal && uAwal.callback_query && uAwal.callback_query.message && uAwal.callback_query.message.chat && uAwal.callback_query.message.chat.id);
+      if (chatAwal) {
+        await reply(TOKEN, chatAwal,
+          '⚙️ <b>Bot belum siap.</b>\n\nPengaturan berikut kosong di Vercel:\n<code>' + kurang.join('\n') + '</code>\n\n' +
+          'Isi di Settings → Environment Variables, lalu Redeploy.');
+      }
+    } catch (e0) { }
+    // 200 supaya Telegram tak mengirim ulang terus-menerus untuk keadaan yang
+    // tak akan berubah sampai env-nya diperbaiki
+    return new Response('misconfig', { status: 200 });
+  }
+
+  /* Verifikasi WAJIB, tak boleh dilewati. Bila env secret lupa diisi, pemeriksaan
+     ini dulu dilompati sepenuhnya, dan siapa pun yang tahu alamat webhook bisa
+     mengirim pesan palsu lalu menyisipkan transaksi ke akun orang lain. Sampai di
+     sini SECRET dipastikan ada oleh pemeriksaan di atas. */
   if (req.headers.get('x-telegram-bot-api-secret-token') !== SECRET) return new Response('forbidden', { status: 403 });
 
   var update;
