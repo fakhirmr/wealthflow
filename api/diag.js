@@ -42,6 +42,8 @@ export default async function handler(req) {
 
   var hasil = {
     waktu_server: new Date().toISOString(),
+    // Penanda bangunan. Tanpa ini, tak ada cara memastikan perbaikan sudah tayang.
+    versi_terpasang: '2026-09-02c-failopen',
     env: {
       TELEGRAM_BOT_TOKEN: petunjuk(TOKEN),
       TELEGRAM_WEBHOOK_SECRET: petunjuk(process.env.TELEGRAM_WEBHOOK_SECRET),
@@ -72,7 +74,14 @@ export default async function handler(req) {
           menunggu_diproses: w.pending_update_count || 0,
           pakai_secret: !!w.has_custom_certificate || undefined,
           galat_terakhir: w.last_error_message || '(tidak ada)',
-          waktu_galat_terakhir: w.last_error_date ? new Date(w.last_error_date * 1000).toISOString() : '(tidak ada)'
+          waktu_galat_terakhir: w.last_error_date ? new Date(w.last_error_date * 1000).toISOString() : '(tidak ada)',
+          /* allowed_updates hanya muncul bila webhook didaftarkan dengan daftar
+             terbatas. Kalau daftarnya tak memuat "message", Telegram TIDAK PERNAH
+             mengirim pesan teks, dan itu tak meninggalkan galat maupun antrean
+             sehingga tampak sehat sempurna. Bidang ini dulu tak ditampilkan. */
+          jenis_update_diizinkan: w.allowed_updates || '(bawaan: semua kecuali beberapa)',
+          // Sisanya ditampilkan apa adanya, supaya tak ada lagi yang tersaring diam-diam
+          mentah: w
         };
         // Terjemahkan galat yang paling sering, supaya tak perlu ditafsirkan sendiri
         var lem = String(w.last_error_message || '');
@@ -82,6 +91,8 @@ export default async function handler(req) {
         else if (!w.url) hasil.telegram.artinya = 'Webhook belum didaftarkan sama sekali, jadi Telegram tak pernah mengirim apa pun ke server.';
         else if (/50[24]/.test(lem)) hasil.telegram.artinya = 'Pernah kehabisan waktu (50x): fungsi melewati batas Vercel sebelum sempat membalas.';
         else if ((w.pending_update_count || 0) > 0) hasil.telegram.artinya = 'Ada pesan menumpuk yang belum berhasil diproses.';
+        else if (Array.isArray(w.allowed_updates) && w.allowed_updates.indexOf('message') < 0)
+          hasil.telegram.artinya = 'Webhook TIDAK diizinkan menerima "message". Telegram tak pernah mengirim pesan teks ke server, jadi bot mustahil membalas. Daftarkan ulang webhook tanpa membatasi allowed_updates.';
         else hasil.telegram.artinya = 'Webhook sehat.';
         /* Galat yang sudah lewat lebih dari sejam adalah jejak masa lalu, bukan
            keadaan sekarang. Tanpa pembeda ini, galat lama terus terbaca seolah
