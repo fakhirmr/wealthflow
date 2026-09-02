@@ -152,7 +152,7 @@ function bacaBalasanAI(d, status) {
    modelnya ada sehingga penolakannya benar-benar dari sisi kapasitas Google. */
 async function periksaKunci(GKEY) {
   try {
-    var r = await fetchTO('https://generativelanguage.googleapis.com/v1beta/models?key=' + GKEY + '&pageSize=200', {}, 8000);
+    var r = await fetchTO('https://generativelanguage.googleapis.com/v1beta/models?key=' + GKEY + '&pageSize=200', {}, 4000);
     var j = await r.json();
     if (!r.ok || !j || !Array.isArray(j.models)) {
       var pesan = (j && j.error && j.error.message) || ('HTTP ' + r.status);
@@ -272,7 +272,12 @@ async function panggilAI(GKEY, content, maxTok, opsi) {
      batas Vercel. Kandidat yang ditolak cepat menyisakan waktu untuk kandidat
      berikutnya, persis yang dibutuhkan saat model pertama sedang penuh. */
   var mulai = Date.now();
-  var anggaran = opsi.total || 21000;
+  /* 18 detik, bukan 21. Sisanya disediakan untuk MEMBALAS dan untuk pemeriksaan
+     kunci saat semuanya gagal. Versi sebelumnya memakai 21 detik lalu menambah
+     pemeriksaan 8 detik sesudahnya, totalnya melewati batas Vercel, dan fungsinya
+     dibunuh sebelum sempat mengirim apa pun. Diagnostiknya justru membunuh
+     balasan yang mau didiagnosis. */
+  var anggaran = opsi.total || 18000;
   var batasSatuan = opsi.batas || 12000;
   var galat = null;
 
@@ -1054,27 +1059,40 @@ export default async function handler(req) {
     // Galat dari penyedia AI punya sebab yang jelas; jangan disamarkan jadi
     // 'ada kesalahan' yang tak bisa ditindaklanjuti siapa pun.
     if (e && e.dariAI) {
+      /* Pesan utama dikirim LEBIH DULU, sebelum diagnosa apa pun. Kalau diagnosa
+         gagal atau kehabisan waktu, user tetap sudah menerima balasan. Sebelumnya
+         semuanya disusun dalam satu blok, dan satu kegagalan di dalamnya membuat
+         bot diam total, keadaan terburuk dari semua kemungkinan. */
+      var pesanUtama = '❌ AI gagal.';
+      try { pesanUtama = pesanGalatAI(e); } catch (e5) { }
       try {
-        var pesan = pesanGalatAI(e);
         if (e.jejak && e.jejak.length) {
-          pesan += '\n\n<b>Yang dicoba:</b>\n<code>' + e.jejak.join('\n').replace(/[<>&]/g, '') + '</code>';
+          pesanUtama += '\n\n<b>Yang dicoba:</b>\n<code>' + e.jejak.join('\n').replace(/[<>&]/g, '') + '</code>';
         }
-        // Semua kandidat tumbang: periksa kuncinya sekalian, jangan biarkan user menebak
-        if (e.jejak && e.jejak.length >= 2) {
+      } catch (e6) { }
+      try { await reply(TOKEN, chatId, pesanUtama); } catch (e7) { }
+
+      // Diagnosa dikirim terpisah; kegagalannya tak lagi bisa membungkam bot
+      if (e.jejak && e.jejak.length >= 2) {
+        try {
           var pk = await periksaKunci(GKEY);
+          var lanjut;
           if (!pk.ok) {
-            pesan += '\n\n🔑 <b>Kuncinya sendiri ditolak Google:</b>\n<code>' + String(pk.pesan).slice(0, 140).replace(/[<>&]/g, '') + '</code>\n\nBerarti masalahnya di GEMINI_API_KEY, bukan kapasitas.';
+            lanjut = '🔑 <b>Kuncinya sendiri ditolak Google:</b>\n<code>' + String(pk.pesan || '').slice(0, 140).replace(/[<>&]/g, '') + '</code>\n\nBerarti masalahnya di GEMINI_API_KEY, bukan kapasitas.';
           } else {
-            var adaSemua = e.jejak.every(function (b) { return pk.model.indexOf(String(b).split(':')[0]) >= 0; });
-            pesan += '\n\n✅ Kunci sah, ' + pk.model.length + ' model tersedia.' +
+            var punya = pk.model || [];
+            var namaDicoba = (e.jejak || []).map(function (b) { return String(b).split(':')[0]; });
+            var adaSemua = namaDicoba.every(function (nm) { return punya.indexOf(nm) >= 0; });
+            var pilihan = punya.filter(function (x) { return x.indexOf('flash') >= 0 || x.indexOf('pro') >= 0; }).slice(0, 12);
+            lanjut = '✅ Kunci sah, ' + punya.length + ' model tersedia.\n' +
               (adaSemua
-                ? ' Semua model di atas memang ada, jadi penolakannya benar-benar soal kapasitas Google.'
-                : ' Tapi sebagian nama di atas TIDAK ada di daftarnya.') +
-              '\n\n<b>Yang tersedia:</b>\n<code>' + pk.model.filter(function (x) { return x.indexOf('flash') >= 0 || x.indexOf('pro') >= 0; }).slice(0, 12).join('\n').replace(/[<>&]/g, '') + '</code>';
+                ? 'Semua model yang dicoba memang ada, jadi penolakannya benar-benar soal kapasitas Google.'
+                : '⚠️ Sebagian nama yang dicoba TIDAK ada di daftar ini.') +
+              '\n\n<b>Yang tersedia:</b>\n<code>' + pilihan.join('\n').replace(/[<>&]/g, '') + '</code>';
           }
-        }
-        await reply(TOKEN, chatId, pesan);
-      } catch (e4) { }
+          await reply(TOKEN, chatId, lanjut);
+        } catch (e8) { }
+      }
       return new Response('ok');
     }
     // Pesan batas waktu dulu selalu berbunyi "membaca gambarnya", padahal pesan
