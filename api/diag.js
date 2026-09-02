@@ -64,6 +64,18 @@ export default async function handler(req) {
     hasil.telegram = { error: 'TELEGRAM_BOT_TOKEN kosong, tak bisa diperiksa.' };
   } else {
     try {
+      /* Kalau token di env ternyata milik bot LAIN daripada yang diajak bicara,
+         semua gejalanya persis sama dengan bot bungkam: webhook terdaftar, uji
+         kirim berhasil, tapi tak satu pun balasan sampai. Nama botnya disebut di
+         sini supaya dugaan itu bisa dicoret dalam sedetik. */
+      try {
+        var mr = await fetchTO('https://api.telegram.org/bot' + TOKEN + '/getMe', {}, 5000);
+        var mj = await mr.json();
+        hasil.bot = (mj && mj.ok && mj.result)
+          ? { nama: mj.result.first_name, username: '@' + mj.result.username, id: mj.result.id,
+              cocokkan: 'Pastikan @' + mj.result.username + ' ADALAH bot yang kamu ajak bicara. Kalau bukan, token di env milik bot lain.' }
+          : { error: (mj && mj.description) || 'getMe gagal' };
+      } catch (eM2) { hasil.bot = { error: String(eM2 && eM2.message || eM2) }; }
       var wr = await fetchTO('https://api.telegram.org/bot' + TOKEN + '/getWebhookInfo', {}, 6000);
       var wj = await wr.json();
       if (wj && wj.ok && wj.result) {
