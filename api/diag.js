@@ -43,7 +43,7 @@ export default async function handler(req) {
   var hasil = {
     waktu_server: new Date().toISOString(),
     // Penanda bangunan. Tanpa ini, tak ada cara memastikan perbaikan sudah tayang.
-    versi_terpasang: '2026-09-02e-jejakmasuk',
+    versi_terpasang: '2026-09-02f-jenisupdate',
     env: {
       TELEGRAM_BOT_TOKEN: petunjuk(TOKEN),
       TELEGRAM_WEBHOOK_SECRET: petunjuk(process.env.TELEGRAM_WEBHOOK_SECRET),

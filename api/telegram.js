@@ -712,8 +712,24 @@ export default async function handler(req) {
     return new Response('ok');
   }
 
-  var msg = update.message || update.edited_message;
-  if (!msg || !msg.chat) return new Response('ok');
+  /* Telegram mengirim banyak jenis update selain message. Jenis yang tak dikenali
+     dulu dibuang tanpa jejak, dan itu satu-satunya jalan keluar yang tak membalas
+     apa pun. Kalau bot tampak bungkam padahal webhook jelas dijalankan, di sinilah
+     pesannya berakhir. Sekarang jenisnya dilaporkan ke chat yang tertaut, supaya
+     keadaan ini tak lagi kasat mata. */
+  var msg = update.message || update.edited_message || update.business_message || update.channel_post;
+  if (!msg || !msg.chat) {
+    try {
+      var jenis = Object.keys(update || {}).filter(function (k) { return k !== 'update_id'; });
+      var lrX = await sb('/rest/v1/telegram_links?linked=eq.true&select=chat_id&limit=1', {}, SB_URL, KEY);
+      var lxs = await lrX.json();
+      if (Array.isArray(lxs) && lxs[0] && lxs[0].chat_id) {
+        await reply(TOKEN, lxs[0].chat_id,
+          '🔎 <b>Update tak dikenali.</b>\n\nTelegram mengirim jenis: <code>' + (jenis.join(', ') || '(kosong)') + '</code>\n\nPesan teks biasa seharusnya berjenis <code>message</code>. Kirimkan baris ini ke pengembang.');
+      }
+    } catch (eU) { }
+    return new Response('ok');
+  }
   var chatId = msg.chat.id;
   var text = (msg.text || msg.caption || '').trim();
 
