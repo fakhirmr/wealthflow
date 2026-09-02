@@ -537,15 +537,26 @@ export default async function handler(req) {
      yang datang bersamaan pun hanya satu yang lolos. */
   if (update && update.update_id != null) {
     try {
-      var ir = await sb('/rest/v1/telegram_updates', {
+      /* Penjagaan ini GAGAL-TERBUKA. Versi sebelumnya menyimpulkan "kiriman ulang"
+         dari insert yang mengembalikan array kosong, dan itu keliru: PostgREST tidak
+         selalu mengembalikan barisnya saat resolution=ignore-duplicates digabung
+         dengan return=representation. Akibatnya SETIAP pesan dianggap kiriman ulang
+         dan bot keluar diam-diam, tanpa galat, tanpa balasan, tanpa jejak apa pun.
+
+         Sekarang pesan hanya dilewati bila barisnya BENAR-BENAR ditemukan lebih
+         dulu. Ragu berarti diproses: memproses dua kali jauh lebih ringan akibatnya
+         daripada bot yang membisu selamanya. */
+      var cek = await sb('/rest/v1/telegram_updates?update_id=eq.' + encodeURIComponent(update.update_id) + '&select=update_id', {}, SB_URL, KEY);
+      var sudah = [];
+      try { sudah = await cek.json(); } catch (e) { sudah = []; }
+      if (cek.ok && Array.isArray(sudah) && sudah.length > 0) return new Response('ok');
+
+      // Catat penandanya; gagal mencatat tak boleh menghalangi pemrosesan
+      await sb('/rest/v1/telegram_updates', {
         method: 'POST',
-        headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
+        headers: { Prefer: 'resolution=ignore-duplicates' },
         body: JSON.stringify({ update_id: update.update_id })
-      }, SB_URL, KEY);
-      var baru = [];
-      try { baru = await ir.json(); } catch (e) { baru = []; }
-      // Array kosong berarti barisnya sudah ada: ini kiriman ulang.
-      if (ir.ok && Array.isArray(baru) && baru.length === 0) return new Response('ok');
+      }, SB_URL, KEY).catch(function () { });
     } catch (e) { /* tabel belum dipasang: jangan halangi bot bekerja */ }
   }
   /* Tombol di dalam pesan datang sebagai callback_query, bukan message.
