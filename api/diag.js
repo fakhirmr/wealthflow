@@ -43,7 +43,7 @@ export default async function handler(req) {
   var hasil = {
     waktu_server: new Date().toISOString(),
     // Penanda bangunan. Tanpa ini, tak ada cara memastikan perbaikan sudah tayang.
-    versi_terpasang: '2026-09-02d-ujikirim',
+    versi_terpasang: '2026-09-02e-jejakmasuk',
     env: {
       TELEGRAM_BOT_TOKEN: petunjuk(TOKEN),
       TELEGRAM_WEBHOOK_SECRET: petunjuk(process.env.TELEGRAM_WEBHOOK_SECRET),
@@ -143,6 +143,33 @@ export default async function handler(req) {
         }
       }
     } catch (e) { hasil.uji_kirim.push({ error: String(e && e.message || e) }); }
+  }
+
+  /* Bukti apakah webhook BENAR-BENAR dijalankan. Tiap update yang diproses
+     mencatat penanda di telegram_updates. Kalau ada baris baru beberapa menit
+     terakhir, fungsinya jelas berjalan dan masalahnya di dalam pemrosesan.
+     Kalau kosong padahal pesan sudah dikirim, Telegram tak pernah memanggil
+     kita, dan seluruh penelusuran di sisi kode ini sia-sia. */
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      var SBU2 = process.env.SUPABASE_URL, SBK2 = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      var ur = await fetchTO(SBU2 + '/rest/v1/telegram_updates?select=update_id,created_at&order=created_at.desc&limit=5', { headers: { apikey: SBK2, Authorization: 'Bearer ' + SBK2 } }, 6000);
+      var urows = await ur.json();
+      if (!ur.ok) {
+        hasil.webhook_dipanggil = { error: (urows && urows.message) || ('HTTP ' + ur.status), artinya: 'Tabel telegram_updates tak terbaca. Jalankan supabase-telegram-notif-setup.sql.' };
+      } else if (!Array.isArray(urows) || !urows.length) {
+        hasil.webhook_dipanggil = { jumlah: 0, artinya: 'BELUM PERNAH ada update tercatat. Kalau kamu sudah mengirim pesan, berarti Telegram tak pernah memanggil server ini.' };
+      } else {
+        var terbaru = new Date(urows[0].created_at).getTime();
+        var menit = Math.round((Date.now() - terbaru) / 60000);
+        hasil.webhook_dipanggil = {
+          terakhir: urows[0].created_at,
+          umur: menit < 60 ? menit + ' menit lalu' : Math.round(menit / 60) + ' jam lalu',
+          lima_terakhir: urows.map(function (x) { return x.update_id }),
+          artinya: menit < 30 ? 'Webhook BARU SAJA dijalankan, jadi pesan memang masuk dan masalahnya di dalam pemrosesan.' : 'Update terakhir sudah lama; pesan terbaru tampaknya tak sampai ke server.'
+        };
+      }
+    } catch (e) { hasil.webhook_dipanggil = { error: String(e && e.message || e) }; }
   }
 
   // ── Kunci & model Gemini ──
