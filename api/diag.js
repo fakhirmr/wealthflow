@@ -80,8 +80,19 @@ export default async function handler(req) {
         else if (/500/.test(lem)) hasil.telegram.artinya = 'Server membalas 500: biasanya ada env yang kosong. Lihat bagian env di atas.';
         else if (/404/.test(lem)) hasil.telegram.artinya = 'Alamat webhook tidak ditemukan: URL-nya salah atau deploy gagal.';
         else if (!w.url) hasil.telegram.artinya = 'Webhook belum didaftarkan sama sekali, jadi Telegram tak pernah mengirim apa pun ke server.';
+        else if (/50[24]/.test(lem)) hasil.telegram.artinya = 'Pernah kehabisan waktu (50x): fungsi melewati batas Vercel sebelum sempat membalas.';
         else if ((w.pending_update_count || 0) > 0) hasil.telegram.artinya = 'Ada pesan menumpuk yang belum berhasil diproses.';
         else hasil.telegram.artinya = 'Webhook sehat.';
+        /* Galat yang sudah lewat lebih dari sejam adalah jejak masa lalu, bukan
+           keadaan sekarang. Tanpa pembeda ini, galat lama terus terbaca seolah
+           masalahnya masih berlangsung. */
+        if (w.last_error_date) {
+          var umurJam = (Date.now() / 1000 - w.last_error_date) / 3600;
+          hasil.telegram.umur_galat = umurJam < 1 ? Math.round(umurJam * 60) + ' menit lalu' : Math.round(umurJam) + ' jam lalu';
+          if (umurJam > 1 && (w.pending_update_count || 0) === 0) {
+            hasil.telegram.artinya = 'Galat terakhir sudah lama (' + hasil.telegram.umur_galat + ') dan tak ada pesan menumpuk, jadi webhook-nya sekarang sehat. Galat itu jejak masa lalu.';
+          }
+        }
       } else {
         hasil.telegram = { error: (wj && wj.description) || 'Telegram menolak permintaan.' };
       }
@@ -101,7 +112,7 @@ export default async function handler(req) {
         var chat = mj.models.filter(function (m) {
           return (m.supportedGenerationMethods || []).indexOf('generateContent') >= 0;
         }).map(function (m) { return String(m.name || '').replace('models/', ''); });
-        var dipakai = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
+        var dipakai = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
         hasil.gemini = {
           kunci_sah: true,
           jumlah_model_chat: chat.length,

@@ -72,7 +72,7 @@ function tidur(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
    yang penuh, TAPI ia satu-satunya yang terbukti ada (balasannya 503, bukan 404),
    sementara nama stabil di atas belum terverifikasi. Menyingkirkannya berarti
    bertaruh pada nama yang mungkin salah. */
-var RANTAI_MODEL = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
+var RANTAI_MODEL = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
 
 async function panggilGemini(GKEY, body) {
   var urutan = [body.model];
@@ -220,7 +220,7 @@ export default async function handler(req) {
       // Normalisasi model: apa pun yang diminta client dipetakan ke Gemini Flash (tahan beda-versi & cegah model mahal)
       // Model dipetakan ke keluarga Flash yang STABIL. Sebelumnya dipetakan ke alias
       // -latest, dan justru alias itu yang ditolak Google karena kapasitasnya penuh.
-      body.model = (String(body.model || '').indexOf('lite') >= 0) ? 'gemini-2.5-flash-lite' : 'gemini-2.5-flash';
+      body.model = (String(body.model || '').indexOf('lite') >= 0) ? 'gemini-3.5-flash-lite' : 'gemini-3.5-flash';
       if (body.max_tokens && body.max_tokens > MAX_TOKENS_CAP) body.max_tokens = MAX_TOKENS_CAP;
       body.reasoning_effort = 'low'; // kurangi thinking Gemini (nilai valid); 'none' tidak didukung -> hang
       var hasil = await panggilGemini(GKEY, body);

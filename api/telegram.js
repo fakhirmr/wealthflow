@@ -18,7 +18,7 @@ var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/c
    kalau ternyata ketepatannya kurang. */
 /* Bawaannya model STABIL, bukan alias -latest. Alias itulah yang ditolak Google
    dengan "experiencing high traffic". Masih bisa ditimpa lewat env kalau perlu. */
-var MODEL_GAMBAR = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-lite';
+var MODEL_GAMBAR = process.env.GEMINI_IMAGE_MODEL || 'gemini-3.5-flash-lite';
 
 /* Disusun per potongan 32KB. Versi sebelumnya menyambung string byte demi byte,
    jadi gambar 3MB berarti tiga juta iterasi penyambungan sebelum permintaan ke
@@ -235,7 +235,7 @@ function parseBaris(teks) {
    yang penuh, TAPI ia satu-satunya yang terbukti ada (balasannya 503, bukan 404),
    sementara nama stabil di atas belum terverifikasi. Menyingkirkannya berarti
    bertaruh pada nama yang mungkin salah. */
-var RANTAI_MODEL = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-flash-latest'];
+var RANTAI_MODEL = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
 var MODEL_CADANGAN = RANTAI_MODEL[0];
 function tidur(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
