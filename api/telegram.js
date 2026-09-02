@@ -145,6 +145,26 @@ function bacaBalasanAI(d, status) {
   return d.choices[0].message.content || '';
 }
 
+/* Saat SEMUA kandidat gagal, kunci diperiksa langsung ke Google. Endpoint daftar
+   model memakai jatah berbeda dari endpoint chat, jadi ia tetap menjawab walau
+   chat ditolak. Hasilnya memisahkan tiga kemungkinan yang selama ini tercampur:
+   kunci memang tak sah, kunci sah tapi nama modelnya tak ada, atau kunci sah dan
+   modelnya ada sehingga penolakannya benar-benar dari sisi kapasitas Google. */
+async function periksaKunci(GKEY) {
+  try {
+    var r = await fetchTO('https://generativelanguage.googleapis.com/v1beta/models?key=' + GKEY + '&pageSize=200', {}, 8000);
+    var j = await r.json();
+    if (!r.ok || !j || !Array.isArray(j.models)) {
+      var pesan = (j && j.error && j.error.message) || ('HTTP ' + r.status);
+      return { ok: false, pesan: pesan };
+    }
+    var chat = j.models.filter(function (mm) {
+      return (mm.supportedGenerationMethods || []).indexOf('generateContent') >= 0;
+    }).map(function (mm) { return String(mm.name || '').replace('models/', ''); });
+    return { ok: true, model: chat };
+  } catch (e) { return { ok: false, pesan: String(e && e.message || e) }; }
+}
+
 // Menerjemahkan galat penyedia jadi kalimat yang bisa ditindaklanjuti.
 function pesanGalatAI(e) {
   var m = String(e && e.message || '').toLowerCase();
@@ -153,9 +173,7 @@ function pesanGalatAI(e) {
     return '🚫 <b>Jatah AI di Google habis atau kena batas laju.</b>\n\nBukan salah tulisanmu. Tunggu beberapa menit, atau aktifkan penagihan di Google AI Studio kalau ini sering terjadi.';
   }
   if (kode >= 500 || m.indexOf('penuh') >= 0 || m.indexOf('overload') >= 0 || m.indexOf('unavailable') >= 0 || m.indexOf('high traffic') >= 0) {
-    return '🌧 <b>Server AI Google menolak: model sedang penuh.</b>\n\nSudah dicoba dua kali dengan model berbeda. Ini dari pihak Google, bukan dari tulisanmu.\n\n<code>' +
-      String(e.message).slice(0, 180).replace(/[<>&]/g, '') + '</code>\n\n' +
-      'Kalau ini terus terjadi, model yang dipakai mungkin bermasalah. Ketik /model untuk melihat model apa saja yang tersedia di kunci ini.';
+    return '🌧 <b>Semua model AI menolak.</b>\n\nGoogle membalas bahwa modelnya sedang penuh. Ini dari pihak Google, bukan dari tulisanmu.';
   }
   if (kode === 401 || kode === 403 || m.indexOf('api key') >= 0 || m.indexOf('permission') >= 0) {
     return '🔑 <b>Kunci AI ditolak Google.</b> Periksa GEMINI_API_KEY di Vercel.';
@@ -231,7 +249,10 @@ function tidur(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
    menyisakan ruang untuk mencoba lagi. */
 async function panggilAI(GKEY, content, maxTok, opsi) {
   opsi = opsi || {};
-  var galatMentah = '';
+  /* Jejak SETIAP percobaan dicatat. Sebelumnya hanya percobaan terakhir yang
+     dilaporkan, sehingga tak bisa dibedakan antara "ketiganya dicoba dan semua
+     ditolak" dengan "baru satu yang dicoba". Tanpa itu penelusuran cuma menebak. */
+  var jejak = [];
   var utama = opsi.model || MODEL_GAMBAR;
   var urutan = [utama];
   if (!opsi.tanpaCadangan) {
@@ -278,8 +299,10 @@ async function panggilAI(GKEY, content, maxTok, opsi) {
       if (r.status >= 500) {
         // Cuplikan badan balasan disimpan; 503 dari Google sering berbadan kosong,
         // dan mengetahui KOSONG atau berisi apa itu justru petunjuk yang berguna.
-        galatMentah = urutan[i] + ' -> HTTP ' + r.status + ' ' + (mentahTeks ? mentahTeks.slice(0, 90) : '(badan kosong)');
-        galat = new Error('server AI sedang penuh (' + galatMentah + ')');
+        var pesanG = '';
+        try { var db2 = bukaBungkus(JSON.parse(mentahTeks || '{}')); pesanG = (db2 && db2.error && db2.error.message) || ''; } catch (eJ) { }
+        jejak.push(urutan[i] + ': ' + r.status + (pesanG ? ' ' + pesanG.slice(0, 60) : ''));
+        galat = new Error('server AI sedang penuh');
         galat.dariAI = true; galat.kode = r.status; galat.sementara = true;
         throw galat;
       }
@@ -288,6 +311,7 @@ async function panggilAI(GKEY, content, maxTok, opsi) {
         // Pesan asli Google ikut dibawa; tanpa itu sebabnya hilang saat ditelusuri
         var db = bukaBungkus(d);
         var kataGoogle = (db && db.error && db.error.message) ? (': ' + db.error.message) : '';
+        jejak.push(urutan[i] + ': 404 tidak dikenal');
         galat = new Error('model ' + urutan[i] + ' tidak dikenal' + kataGoogle);
         galat.dariAI = true; galat.kode = 404; galat.sementara = true;
         throw galat;
@@ -295,6 +319,8 @@ async function panggilAI(GKEY, content, maxTok, opsi) {
       return bacaBalasanAI(d, r.status);
     } catch (e) {
       galat = e;
+      if (/abort/i.test(String(e && e.message || ''))) jejak.push(urutan[i] + ': kehabisan waktu');
+      e.jejak = jejak.slice();
       var bolehUlang = !!e.sementara || (e.kode >= 500) || e.kode === 404 || /abort/i.test(String(e && e.message || ''));
       if (i < urutan.length - 1 && bolehUlang) { await tidur(600); continue; }
       throw e;
@@ -1028,7 +1054,27 @@ export default async function handler(req) {
     // Galat dari penyedia AI punya sebab yang jelas; jangan disamarkan jadi
     // 'ada kesalahan' yang tak bisa ditindaklanjuti siapa pun.
     if (e && e.dariAI) {
-      try { await reply(TOKEN, chatId, pesanGalatAI(e)); } catch (e4) { }
+      try {
+        var pesan = pesanGalatAI(e);
+        if (e.jejak && e.jejak.length) {
+          pesan += '\n\n<b>Yang dicoba:</b>\n<code>' + e.jejak.join('\n').replace(/[<>&]/g, '') + '</code>';
+        }
+        // Semua kandidat tumbang: periksa kuncinya sekalian, jangan biarkan user menebak
+        if (e.jejak && e.jejak.length >= 2) {
+          var pk = await periksaKunci(GKEY);
+          if (!pk.ok) {
+            pesan += '\n\n🔑 <b>Kuncinya sendiri ditolak Google:</b>\n<code>' + String(pk.pesan).slice(0, 140).replace(/[<>&]/g, '') + '</code>\n\nBerarti masalahnya di GEMINI_API_KEY, bukan kapasitas.';
+          } else {
+            var adaSemua = e.jejak.every(function (b) { return pk.model.indexOf(String(b).split(':')[0]) >= 0; });
+            pesan += '\n\n✅ Kunci sah, ' + pk.model.length + ' model tersedia.' +
+              (adaSemua
+                ? ' Semua model di atas memang ada, jadi penolakannya benar-benar soal kapasitas Google.'
+                : ' Tapi sebagian nama di atas TIDAK ada di daftarnya.') +
+              '\n\n<b>Yang tersedia:</b>\n<code>' + pk.model.filter(function (x) { return x.indexOf('flash') >= 0 || x.indexOf('pro') >= 0; }).slice(0, 12).join('\n').replace(/[<>&]/g, '') + '</code>';
+          }
+        }
+        await reply(TOKEN, chatId, pesan);
+      } catch (e4) { }
       return new Response('ok');
     }
     // Pesan batas waktu dulu selalu berbunyi "membaca gambarnya", padahal pesan
