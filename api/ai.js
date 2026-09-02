@@ -39,6 +39,17 @@ async function fetchTO(url, opts, ms) {
   finally { clearTimeout(id); }
 }
 
+/* Endpoint kompatibel-OpenAI milik Gemini kadang MEMBUNGKUS balasannya dalam
+   array: [{ "error": {...} }] dan, pada sebagian jalur, [{ "choices": [...] }].
+   Seluruh kode di sini memeriksa d.error dan d.choices seolah balasannya objek,
+   dan pada array keduanya undefined. Akibatnya galat asli Google tak pernah
+   terbaca, dan balasan yang SUKSES pun dianggap kosong. Bungkusnya dibuka di
+   satu tempat supaya tak ada lagi pemeriksaan yang salah sasaran. */
+function bukaBungkus(d) {
+  if (Array.isArray(d)) return d.length ? d[0] : null;
+  return d;
+}
+
 function tidur(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 
 /* HTTP 5xx dari Google berarti servernya sedang penuh, bukan permintaan kita yang
@@ -88,7 +99,18 @@ async function panggilGemini(GKEY, body) {
       var teks = await r.text();
       // 404 berarti nama modelnya tak dikenal: lanjut, bukan menyerah
       if (r.status === 404) { akhir = { teks: teks, status: 404, ok: false }; }
-      else if (r.status < 500) return { teks: teks, status: r.status, ok: r.ok };
+      else if (r.status < 500) {
+        /* Balasan SUKSES ikut dinormalkan sebelum diteruskan. Kalau array-nya
+           diteruskan apa adanya, peramban memeriksa d.choices pada array,
+           mendapat undefined, lalu menyimpulkan "AI tidak mengirim jawaban"
+           padahal jawabannya ada di dalam bungkus itu. */
+        var rapi = teks;
+        try {
+          var isi = JSON.parse(teks);
+          if (Array.isArray(isi)) rapi = JSON.stringify(bukaBungkus(isi) || {});
+        } catch (eN) { }
+        return { teks: rapi, status: r.status, ok: r.ok };
+      }
       else
       akhir = { teks: teks, status: r.status, ok: false };
     } catch (e) {
@@ -209,7 +231,7 @@ export default async function handler(req) {
          kosong, dan yang sampai ke pengguna cuma "respons kosong". */
       if (!providerOk) {
         var pesanGoogle = '';
-        try { var pj2 = JSON.parse(outText || '{}'); pesanGoogle = (pj2.error && (pj2.error.message || pj2.error.status)) || ''; } catch (e2) { }
+        try { var pj2 = bukaBungkus(JSON.parse(outText || '{}')); pesanGoogle = (pj2 && pj2.error && (pj2.error.message || pj2.error.status)) || ''; } catch (e2) { }
         if (!pesanGoogle && hasil.galat) pesanGoogle = hasil.galat;
         var kodeKita = 'ai_gagal';
         if (outStatus >= 500 || outStatus === 0) kodeKita = 'ai_penuh';

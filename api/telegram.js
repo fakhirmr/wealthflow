@@ -117,7 +117,19 @@ async function fetchTO(url, opts, ms) {
    batas laju, bot menyimpulkan 'tidak ada transaksi terdeteksi' lalu menyuruh
    pengguna menulis lebih jelas, padahal tulisannya sudah benar. Galat penyedia
    harus terlihat apa adanya; kalau tidak, setiap penelusuran jadi menebak. */
+/* Endpoint kompatibel-OpenAI milik Gemini kadang MEMBUNGKUS balasannya dalam
+   array: [{ "error": {...} }] dan, pada sebagian jalur, [{ "choices": [...] }].
+   Seluruh kode di sini memeriksa d.error dan d.choices seolah balasannya objek,
+   dan pada array keduanya undefined. Akibatnya galat asli Google tak pernah
+   terbaca, dan balasan yang SUKSES pun dianggap kosong. Bungkusnya dibuka di
+   satu tempat supaya tak ada lagi pemeriksaan yang salah sasaran. */
+function bukaBungkus(d) {
+  if (Array.isArray(d)) return d.length ? d[0] : null;
+  return d;
+}
+
 function bacaBalasanAI(d, status) {
+  d = bukaBungkus(d);
   var e;
   if (d && d.error) {
     var pesan = d.error.message || d.error.status || JSON.stringify(d.error);
@@ -274,7 +286,8 @@ async function panggilAI(GKEY, content, maxTok, opsi) {
       // Nama model tak dikenal: lanjut ke kandidat berikutnya, jangan menyerah
       if (r.status === 404) {
         // Pesan asli Google ikut dibawa; tanpa itu sebabnya hilang saat ditelusuri
-        var kataGoogle = (d && d.error && d.error.message) ? (': ' + d.error.message) : '';
+        var db = bukaBungkus(d);
+        var kataGoogle = (db && db.error && db.error.message) ? (': ' + db.error.message) : '';
         galat = new Error('model ' + urutan[i] + ' tidak dikenal' + kataGoogle);
         galat.dariAI = true; galat.kode = 404; galat.sementara = true;
         throw galat;

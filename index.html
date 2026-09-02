@@ -5500,7 +5500,16 @@
             return fetch('/api/ai', { method: 'POST', headers: { 'Authorization': 'Bearer ' + tok }, body: fd }).then(function (r) { syncQuota(r); return r });
           });
         }
-        function pj(r) { return r.text().then(function (t) { try { return JSON.parse(t) } catch (e) { return { error: { message: 'Server sibuk atau timeout. Coba lagi sebentar.' } } } }) }
+        /* Jaring terakhir: balasan Gemini kadang terbungkus array. Proxy sudah
+           membukanya, tapi pemeriksaan di sini dibuat tak bergantung pada itu. */
+        function pj(r) {
+          return r.text().then(function (t) {
+            try {
+              var d = JSON.parse(t);
+              return Array.isArray(d) ? (d.length ? d[0] : {}) : d;
+            } catch (e) { return { error: { message: 'Server sibuk atau timeout. Coba lagi sebentar.' } } }
+          });
+        }
         function aiErrMsg(d) {
           if (!d || !d.error) return null;
           if (d.error === 'quota_exceeded') return '🚫 Jatah AI bulan ini habis (' + d.used + '/' + d.limit + '). Kuota reset awal bulan depan.';
