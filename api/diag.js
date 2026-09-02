@@ -43,7 +43,7 @@ export default async function handler(req) {
   var hasil = {
     waktu_server: new Date().toISOString(),
     // Penanda bangunan. Tanpa ini, tak ada cara memastikan perbaikan sudah tayang.
-    versi_terpasang: '2026-09-02c-failopen',
+    versi_terpasang: '2026-09-02d-ujikirim',
     env: {
       TELEGRAM_BOT_TOKEN: petunjuk(TOKEN),
       TELEGRAM_WEBHOOK_SECRET: petunjuk(process.env.TELEGRAM_WEBHOOK_SECRET),
@@ -112,6 +112,39 @@ export default async function handler(req) {
     }
   }
 
+  /* Uji KIRIM sungguhan. Selama ini seluruh penelusuran memeriksa apakah pesan
+     MASUK, tak pernah apakah bot bisa MENGIRIM. Padahal sendMessage bisa ditolak
+     Telegram karena chat diblokir, chat_id keliru, atau bot dikeluarkan dari
+     percakapan, dan penolakan itu tak meninggalkan jejak di getWebhookInfo
+     maupun di antrean. Dijalankan hanya bila diminta lewat &kirim=1. */
+  if (new URL(req.url).searchParams.get('kirim') === '1' && TOKEN && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    hasil.uji_kirim = [];
+    try {
+      var SBU = process.env.SUPABASE_URL, SBK = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      var lr = await fetchTO(SBU + '/rest/v1/telegram_links?linked=eq.true&select=chat_id,user_id', { headers: { apikey: SBK, Authorization: 'Bearer ' + SBK } }, 6000);
+      var links = await lr.json();
+      if (!Array.isArray(links) || !links.length) {
+        hasil.uji_kirim.push({ catatan: 'Tidak ada akun Telegram yang tertaut di basis data. Bot tak punya siapa pun untuk dibalas.' });
+      } else {
+        for (var li = 0; li < links.length && li < 5; li++) {
+          var cid = links[li].chat_id;
+          var sr = await fetchTO('https://api.telegram.org/bot' + TOKEN + '/sendMessage', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: cid, text: '🧪 Uji kirim dari halaman diagnosa. Kalau pesan ini sampai, bot bisa mengirim dengan normal.' })
+          }, 8000);
+          var sj = await sr.json();
+          hasil.uji_kirim.push({
+            chat_id: cid,
+            berhasil: !!(sj && sj.ok),
+            http: sr.status,
+            jawaban_telegram: (sj && sj.ok) ? 'terkirim' : ((sj && sj.description) || 'tak diketahui'),
+            kode: (sj && sj.error_code) || undefined
+          });
+        }
+      }
+    } catch (e) { hasil.uji_kirim.push({ error: String(e && e.message || e) }); }
+  }
+
   // ── Kunci & model Gemini ──
   if (!GKEY) {
     hasil.gemini = { error: 'GEMINI_API_KEY kosong, tak bisa diperiksa.' };
@@ -155,6 +188,12 @@ export default async function handler(req) {
   if (hasil.telegram && hasil.telegram.artinya && hasil.telegram.artinya !== 'Webhook sehat.') catatan.push('Telegram: ' + hasil.telegram.artinya);
   if (hasil.gemini && hasil.gemini.artinya && hasil.gemini.kunci_sah !== true) catatan.push('Gemini: ' + hasil.gemini.artinya);
   else if (hasil.gemini && hasil.gemini.artinya && /TIDAK ada/.test(hasil.gemini.artinya)) catatan.push('Gemini: ' + hasil.gemini.artinya);
+  if (Array.isArray(hasil.uji_kirim)) {
+    hasil.uji_kirim.forEach(function (u) {
+      if (u.catatan) catatan.push('Kirim: ' + u.catatan);
+      else if (u.berhasil === false) catatan.push('Kirim ke chat ' + u.chat_id + ' DITOLAK Telegram: ' + u.jawaban_telegram);
+    });
+  }
   hasil.kesimpulan = catatan.length ? catatan : ['Tidak ada masalah yang terdeteksi dari sisi pengaturan.'];
 
   return new Response(JSON.stringify(hasil, null, 2), {
