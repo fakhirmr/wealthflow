@@ -57,10 +57,90 @@ function safeDate(d) {
 async function tgCall(token, method, body) {
   return fetch('https://api.telegram.org/bot' + token + '/' + method, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 }
-function reply(token, chatId, text, tombol) {
-  var body = { chat_id: chatId, text: text, parse_mode: 'HTML', disable_web_page_preview: true };
-  if (tombol && tombol.length) body.reply_markup = { inline_keyboard: tombol };
-  return tgCall(token, 'sendMessage', body);
+/* Telegram menolak permintaan yang cacat dengan HTTP 400, dan penolakan itu tiba
+   sebagai respons yang SUKSES menurut fetch. Versi sebelumnya tak pernah
+   memeriksanya, jadi pesan yang ditolak lenyap tanpa galat dan tanpa jejak:
+   pekerjaannya beres, transaksinya tersimpan, tapi bot tampak bungkam total.
+   Tiga hal lazim memicu penolakan itu, dan ketiganya soal bentuk, bukan isi:
+   callback_data di atas 64 byte, HTML yang tak seimbang, dan teks di atas 4096
+   karakter.
+
+   Sekarang tiap balasan diperiksa lalu diturunkan derajatnya sampai sampai:
+   tombol bermasalah dibuang, lalu HTML ditanggalkan seluruhnya. Kehilangan
+   tombol jauh lebih ringan akibatnya daripada kehilangan seluruh pesan. */
+var BATAS_CBDATA = 64;   // batas callback_data Telegram, dihitung dalam byte
+var BATAS_TEKS = 4000;   // batas pesan 4096, disisakan ruang untuk penanda potong
+
+function ukuranByte(x) { return new TextEncoder().encode(String(x == null ? '' : x)).length; }
+
+/* Dua UUID dalam satu callback_data memakan 77 byte, di atas batas 64, dan itu
+   membuat Telegram menolak seluruh pesannya. UUID sebenarnya cuma 16 byte data;
+   ditulis sebagai base64url ia jadi 22 karakter, bukan 36. Dua di antaranya plus
+   awalan masih di bawah 50 byte, jadi persoalannya hilang tanpa perlu menyimpan
+   status apa pun di basis data. */
+function uuidRingkas(u) {
+  var hex = String(u || '').replace(/-/g, '');
+  if (!/^[0-9a-fA-F]{32}$/.test(hex)) return String(u || '');
+  var bin = '';
+  for (var i = 0; i < 32; i += 2) bin += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function uuidPanjang(r) {
+  var s = String(r || '');
+  if (s.length === 36) return s;              // sudah utuh, mungkin tombol versi lama
+  var t = s.replace(/-/g, '+').replace(/_/g, '/');
+  while (t.length % 4) t += '=';
+  var bin;
+  try { bin = atob(t); } catch (e) { return s; }
+  if (bin.length !== 16) return s;
+  var hex = '';
+  for (var j = 0; j < 16; j++) hex += ('0' + bin.charCodeAt(j).toString(16)).slice(-2);
+  return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
+}
+
+// Satu tombol kepanjangan membatalkan SELURUH pesan, jadi tombolnya yang gugur.
+function tombolAman(tombol) {
+  if (!tombol || !tombol.length) return null;
+  var bersih = [];
+  for (var i = 0; i < tombol.length; i++) {
+    var baris = (tombol[i] || []).filter(function (b) {
+      return b && (!b.callback_data || ukuranByte(b.callback_data) <= BATAS_CBDATA);
+    });
+    if (baris.length) bersih.push(baris);
+  }
+  return bersih.length ? bersih : null;
+}
+
+function tanpaTag(x) {
+  return String(x == null ? '' : x)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+
+async function reply(token, chatId, text, tombol) {
+  var teks = String(text == null ? '' : text);
+  if (teks.length > BATAS_TEKS) teks = teks.slice(0, BATAS_TEKS) + '\n\n<i>… dipotong</i>';
+  var markup = tombolAman(tombol);
+
+  var urutan = [{ teks: teks, html: true, markup: markup }];
+  if (markup) urutan.push({ teks: teks, html: true, markup: null });
+  urutan.push({ teks: tanpaTag(teks), html: false, markup: null });
+
+  var sebab = null;
+  for (var i = 0; i < urutan.length; i++) {
+    var c = urutan[i];
+    var body = { chat_id: chatId, text: c.teks, disable_web_page_preview: true };
+    if (c.html) body.parse_mode = 'HTML';
+    if (c.markup) body.reply_markup = { inline_keyboard: c.markup };
+    var r = null;
+    try { r = await tgCall(token, 'sendMessage', body); } catch (e) { sebab = String(e && e.message || e); continue; }
+    if (r && r.ok) return r;
+    try { sebab = ((await r.text()) || '').slice(0, 300); } catch (e2) { }
+  }
+  // Sampai di sini pengguna memang tak bisa dijangkau; setidaknya tinggalkan jejak.
+  console.error('sendMessage gagal ke chat ' + chatId + ': ' + sebab);
+  return { ok: false, sebab: sebab };
 }
 
 // Telegram menampilkan jam pasir pada tombol sampai callback dijawab; tanpa ini
@@ -687,7 +767,7 @@ export default async function handler(req) {
       }
 
       if (data[0] === 'kat' && data[1] && data[2]) {
-        var hk = await rpc('set_kategori_bot', { p_user: cuid, p_txn: data[1], p_cat: data[2] }, SB_URL, KEY);
+        var hk = await rpc('set_kategori_bot', { p_user: cuid, p_txn: uuidPanjang(data[1]), p_cat: uuidPanjang(data[2]) }, SB_URL, KEY);
         if (hk && hk.ok) await jawabTombol(TOKEN, cq.id, 'Kategori → ' + hk.nama);
         else await jawabTombol(TOKEN, cq.id, (hk && hk.pesan) || 'Gagal');
         return new Response('ok');
@@ -1095,7 +1175,7 @@ export default async function handler(req) {
       var pilihanKat = cats.filter(function (c) { return !c.parent_id && c.type === jenis && c.id !== rows[0].category_id; }).slice(0, 3);
       tombolAksi = [[{ text: '↩️ Batalkan', callback_data: 'batal:' + txId }]];
       if (pilihanKat.length) {
-        tombolAksi.push(pilihanKat.map(function (c) { return { text: '→ ' + c.name, callback_data: 'kat:' + txId + ':' + c.id }; }));
+        tombolAksi.push(pilihanKat.map(function (c) { return { text: '→ ' + c.name, callback_data: 'kat:' + uuidRingkas(txId) + ':' + uuidRingkas(c.id) }; }));
       }
     }
     await reply(TOKEN, chatId, '✅ <b>Tercatat!</b>\n' + summary + (balFailed ? '\n\n⚠️ Transaksi tersimpan, tapi saldo dompet gagal diperbarui. Cek dan sesuaikan manual di app.' : '') + (tombolAksi ? '\n\n<i>Salah kategori? Ketuk salah satu di bawah.</i>' : ''), tombolAksi);
