@@ -1793,6 +1793,31 @@
               h('div', { style: { fontSize: '.74rem' } }, '© ', new Date().getFullYear(), ' WealthFlow'))));
       }
 
+      /* Galat Supabase dulu diteruskan mentah-mentah ke layar, jadi orang yang
+         baru mau mendaftar disambut kalimat Inggris seperti "email rate limit
+         exceeded": tidak dimengerti, dan lebih buruk lagi, terbaca seolah
+         kesalahannya ada pada dia. Padahal itu batas kiriman email di sisi kami.
+         Tiap pesan di sini menyebut apa yang terjadi DAN apa yang bisa dilakukan. */
+      function pesanAuth(e) {
+        var m = String((e && e.message) || e || '').toLowerCase();
+        if (/rate limit|too many requests|over_email_send/.test(m))
+          return 'Pendaftaran sedang dibatasi sementara karena banyak yang mendaftar sekaligus. Ini dari sisi kami, bukan dari kamu. Coba lagi sekitar satu jam lagi, akunmu belum terbuat.';
+        if (/for security purposes.*(\d+) seconds/.test(m)) {
+          var d = m.match(/(\d+) seconds/);
+          return 'Tunggu ' + (d ? d[1] : 'beberapa') + ' detik lagi sebelum mencoba lagi.';
+        }
+        if (/invalid login credentials/.test(m)) return 'Email atau password salah.';
+        if (/user already registered|already been registered/.test(m)) return 'Email ini sudah terdaftar. Coba masuk saja, atau pakai "Lupa password".';
+        if (/email not confirmed/.test(m)) return 'Emailnya belum diverifikasi. Cek inbox dan folder spam.';
+        if (/unable to validate email|invalid format/.test(m)) return 'Alamat emailnya sepertinya keliru. Coba periksa lagi.';
+        if (/signups not allowed|signup is disabled/.test(m)) return 'Pendaftaran sedang ditutup sementara.';
+        if (/password should be at least/.test(m)) return 'Password minimal 8 karakter.';
+        if (/new password should be different/.test(m)) return 'Password barunya masih sama dengan yang lama.';
+        if (/expired|invalid.*token|token.*invalid/.test(m)) return 'Tautannya sudah kedaluwarsa. Minta tautan baru.';
+        if (/failed to fetch|network|load failed/.test(m)) return 'Koneksinya terputus. Periksa internetmu lalu coba lagi.';
+        return (e && e.message) || 'Ada kendala. Coba lagi sebentar.';
+      }
+
       function AuthPage(p) {
         // Tombol "Mulai gratis" di halaman depan membuka langsung formulir pendaftaran
         var _tab = useState(p.initTab === 'register' ? 'register' : 'login'), tab = _tab[0], sTab = _tab[1];
@@ -1805,12 +1830,13 @@
 
         // Password reset redirect is now handled at App level via onAuthStateChange PASSWORD_RECOVERY event
 
+
         function doLogin() {
           if (!email || !pass) { sErr('Email dan password wajib diisi'); return }
           sLoading(true); sErr('');
           sb.auth.signInWithPassword({ email: email, password: pass }).then(function (r) {
             sLoading(false);
-            if (r.error) { sErr(r.error.message); return }
+            if (r.error) { sErr(pesanAuth(r.error)); return }
             if (p.onAuth) p.onAuth(r.data.user);
           })
         }
@@ -1821,7 +1847,7 @@
           sLoading(true); sErr('');
           sb.auth.signUp({ email: email, password: pass }).then(function (r) {
             sLoading(false);
-            if (r.error) { sErr(r.error.message); return }
+            if (r.error) { sErr(pesanAuth(r.error)); return }
             if (r.data.user && !r.data.user.email_confirmed_at) { sErr(''); sTab('verify') }
             else if (p.onAuth) p.onAuth(r.data.user);
           })
@@ -1832,7 +1858,7 @@
           var url = window.location.origin + window.location.pathname;
           sb.auth.resetPasswordForEmail(email, { redirectTo: url }).then(function (r) {
             sLoading(false);
-            if (r.error) { sErr(r.error.message); return }
+            if (r.error) { sErr(pesanAuth(r.error)); return }
             sOk('Link reset password dikirim ke ' + email + '. Cek inbox & folder spam.');
           })
         }
@@ -1842,7 +1868,7 @@
           sLoading(true); sErr('');
           sb.auth.updateUser({ password: newPass }).then(function (r) {
             sLoading(false);
-            if (r.error) { sErr(r.error.message); return }
+            if (r.error) { sErr(pesanAuth(r.error)); return }
             sOk('Password berhasil diubah!');
             setTimeout(function () { sTab('login'); sOk(''); sNewPass('') }, 2000);
           })
@@ -2614,7 +2640,7 @@
           sLoading(true); sErr('');
           sb.auth.updateUser({ password: pass }).then(function (r) {
             sLoading(false);
-            if (r.error) { sErr(r.error.message); return }
+            if (r.error) { sErr(pesanAuth(r.error)); return }
             sOk('Password berhasil diubah! Mengalihkan...');
             setTimeout(function () { if (p.onDone) p.onDone() }, 2000);
           })

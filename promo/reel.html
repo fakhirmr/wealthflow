@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reel WealthFlow · perekam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  /* Berkas ini dijalankan LOKAL, bukan di dalam sandbox Artifact, jadi ia boleh
+     menyerahkan berkas hasil unduhan. Reel-nya digambar di kanvas 1080x1920 lalu
+     direkam lewat MediaRecorder, sehingga keluarannya beresolusi penuh dan tidak
+     bergantung pada ukuran layar seperti kalau merekam layar. */
+  :root {
+    --bg: #070a12; --panel: #0e1526; --card: #131a2b;
+    --line: rgba(148,163,184,.14);
+    --acc: #10b981; --accd: #059669;
+    --t1: #f1f5f9; --t2: #94a3b8; --t3: #64748b;
+  }
+  * { box-sizing: border-box }
+  body {
+    margin: 0; background: var(--bg); color: var(--t1);
+    font-family: 'Plus Jakarta Sans', system-ui, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 16px 22px; background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  h1 { margin: 0; font-size: .98rem; font-weight: 800; letter-spacing: -.02em }
+  h1 em { font-style: normal; color: var(--acc) }
+  .sp { flex: 1 }
+  button {
+    font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer;
+    padding: 9px 16px; border-radius: 9px; border: 1px solid var(--line);
+    background: transparent; color: var(--t1);
+  }
+  button:hover:not(:disabled) { background: rgba(148,163,184,.1) }
+  button:disabled { opacity: .4; cursor: not-allowed }
+  button.pri { background: var(--acc); border-color: var(--acc); color: #04140d }
+  button.pri:hover:not(:disabled) { background: var(--accd); border-color: var(--accd) }
+  button.rec { background: #ef4444; border-color: #ef4444; color: #fff }
+  select {
+    font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer;
+    padding: 9px 12px; border-radius: 9px; border: 1px solid var(--line);
+    background: var(--card); color: var(--t1);
+  }
+  select:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px }
+
+  main { flex: 1; display: grid; place-items: center; padding: 22px; min-height: 0 }
+  /* Yang dibatasi cuma TAMPILANNYA. Backing store kanvas tetap 1080x1920, dan
+     captureStream merekam backing store itu, bukan ukuran tampilnya, jadi video
+     hasilnya tetap resolusi penuh walau di layar terlihat mengecil. */
+  canvas {
+    display: block; border-radius: 20px; background: #0b0f1a;
+    box-shadow: 0 26px 80px rgba(0,0,0,.6);
+    max-width: 100%; max-height: calc(100vh - 260px);
+  }
+
+  .status {
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .76rem;
+    color: var(--t2); display: flex; align-items: center; gap: 8px;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--t3) }
+  .dot.live { background: #ef4444; animation: pulse 1s ease-in-out infinite }
+  @keyframes pulse { 50% { opacity: .25 } }
+
+  footer {
+    padding: 18px 22px 28px; border-top: 1px solid var(--line); background: var(--panel);
+    font-size: .84rem; color: var(--t2); line-height: 1.7;
+  }
+  footer .in { max-width: 820px; margin: 0 auto }
+  footer b { color: var(--t1) }
+  footer code {
+    font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .84em;
+    background: var(--card); border: 1px solid var(--line); padding: 2px 7px; border-radius: 6px; color: var(--t1);
+  }
+  footer ol { margin: 10px 0 0; padding-left: 20px }
+  #err { color: #fca5a5; margin-top: 10px }
+
+  /* Mode bingkai tunggal: hanya kanvas pada ukuran aslinya, tanpa apa pun di
+     sekelilingnya, supaya tangkapan layarnya persis 1080x1920. */
+  body.raw { display: block; background: #000 }
+  body.raw header, body.raw footer { display: none }
+  body.raw main { padding: 0; display: block }
+  body.raw canvas { width: 1080px; height: 1920px; border-radius: 0; box-shadow: none }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Reel <em>WealthFlow</em></h1>
+  <span class="status"><span class="dot" id="dot"></span><span id="stat">siap</span></span>
+  <span class="sp"></span>
+  <select id="musik" title="Musik yang ikut terekam ke dalam video">
+    <option value="gen">♪ Musik dibangkitkan</option>
+    <option value="none">Tanpa musik</option>
+    <option value="file">♪ Berkas sendiri...</option>
+  </select>
+  <input type="file" id="berkas" accept="audio/*" hidden>
+  <button class="pri" id="play">Putar</button>
+  <button id="cover">Unduh sampul</button>
+  <button class="rec" id="go">Rekam &amp; unduh</button>
+</header>
+
+<main><canvas id="c" width="1080" height="1920"></canvas></main>
+
+<footer>
+  <div class="in">
+    <b>Cara pakai:</b> klik <b>Rekam &amp; unduh</b>, tunggu 23 detik sampai selesai, berkasnya turun sendiri.
+    Kanvasnya digambar pada 1080×1920, jadi hasilnya resolusi penuh, bukan rekaman layar yang mengecil.
+    <ol>
+      <li>Jangan pindah tab selama merekam. Browser memperlambat tab yang tidak aktif, dan videonya jadi tersendat.</li>
+      <li>Formatnya <b id="fmt">menyesuaikan</b>. Kalau yang turun <code>.webm</code>, CapCut dan Premiere tetap menerimanya. Untuk MP4, seret ke CapCut lalu ekspor.</li>
+      <li><b>Musik ikut terekam ke dalam berkasnya.</b> Pilihan <i>Musik dibangkitkan</i> menyusun nada langsung di browser, jadi tidak ada hak cipta yang menempel dan aman dipakai untuk iklan berbayar. Pilih <i>Berkas sendiri</i> kalau mau memakai trek bebas royalti dari Pixabay Music atau Uppbeat.</li>
+      <li>Kalau lebih suka memakai lagu dari pustaka Instagram atau TikTok, pilih <i>Tanpa musik</i> lalu tambahkan saat mengunggah. Perlu diingat pustaka musik menyempit untuk akun bisnis.</li>
+    </ol>
+    <div id="err"></div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var W = 1080, H = 1920, TOTAL = 23000;
+  var cv = document.getElementById('c');
+  var ctx = cv.getContext('2d');
+
+  var BG = '#0b0f1a', CARD = '#131a2b', LINE = 'rgba(148,163,184,.14)';
+  var ACC = '#10b981', T1 = '#f1f5f9', T2 = '#94a3b8', T3 = '#64748b';
+  var DISP = "'Plus Jakarta Sans', 'Segoe UI', sans-serif";
+  var MONO = "'JetBrains Mono', Consolas, monospace";
+
+  function f(w, s, fam) { return w + ' ' + s + 'px ' + (fam || DISP); }
+  function easeOut(p) { return 1 - Math.pow(1 - p, 3); }
+
+  function rr(x, y, w, h, r) {
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+    else {
+      var a = Math.min(r, w / 2, h / 2);
+      ctx.moveTo(x + a, y); ctx.arcTo(x + w, y, x + w, y + h, a);
+      ctx.arcTo(x + w, y + h, x, y + h, a); ctx.arcTo(x, y + h, x, y, a);
+      ctx.arcTo(x, y, x + w, y, a); ctx.closePath();
+    }
+  }
+  function isi(x, y, w, h, r, warna) { rr(x, y, w, h, r); ctx.fillStyle = warna; ctx.fill(); }
+  function garis(x, y, w, h, r, warna, tebal) {
+    rr(x, y, w, h, r); ctx.strokeStyle = warna; ctx.lineWidth = tebal || 1; ctx.stroke();
+  }
+
+  // Pemenggalan baris dihitung dari lebar sebenarnya, bukan ditebak dari jumlah
+  // karakter, supaya judul besar tidak pernah keluar dari bingkai.
+  function penggal(teks, maxW, font) {
+    ctx.font = font;
+    var kata = teks.split(' '), baris = [], kini = '';
+    for (var i = 0; i < kata.length; i++) {
+      var coba = kini ? kini + ' ' + kata[i] : kata[i];
+      if (ctx.measureText(coba).width > maxW && kini) { baris.push(kini); kini = kata[i]; }
+      else kini = coba;
+    }
+    if (kini) baris.push(kini);
+    return baris;
+  }
+
+  var rupiah = new Intl.NumberFormat('id-ID');
+  function rp(n) { return 'Rp ' + rupiah.format(Math.round(n)); }
+
+  function spasi(v) { if ('letterSpacing' in ctx) ctx.letterSpacing = v; }
+
+  /* Judul besar sering terpenggal justru di tengah kata yang mau disorot, dan
+     pencarian per baris akan diam-diam gagal menemukannya. Rentang sorot di sini
+     dihitung pada teks ASLI lalu dipetakan ke tiap baris, jadi sorotannya tetap
+     kena walau kata itu jatuh melintasi dua baris. */
+  function judul(teks, sorot, x, yBase, maxW, size, lh) {
+    var font = f(800, size, DISP);
+    var baris = penggal(teks, maxW, font);
+    var i0 = sorot ? teks.indexOf(sorot) : -1;
+    var i1 = i0 >= 0 ? i0 + sorot.length : -1;
+    ctx.font = font; ctx.textAlign = 'left';
+    var off = 0;
+    for (var i = 0; i < baris.length; i++) {
+      var b = baris[i], cx = x, y = yBase + i * lh, potong = [];
+      if (i0 >= 0) {
+        var s = Math.max(0, i0 - off), e = Math.min(b.length, i1 - off);
+        if (s < e && e > 0 && s < b.length) {
+          if (s > 0) potong.push([b.slice(0, s), T1]);
+          potong.push([b.slice(s, e), ACC]);
+          if (e < b.length) potong.push([b.slice(e), T1]);
+        }
+      }
+      if (!potong.length) potong.push([b, T1]);
+      for (var k = 0; k < potong.length; k++) {
+        ctx.fillStyle = potong[k][1];
+        ctx.fillText(potong[k][0], cx, y);
+        cx += ctx.measureText(potong[k][0]).width;
+      }
+      off += b.length + 1;
+    }
+    return baris.length * lh;
+  }
+  function tinggiJudul(teks, maxW, size, lh) {
+    return penggal(teks, maxW, f(800, size, DISP)).length * lh;
+  }
+
+  /* ── Bahan, disalin dari halaman depan aplikasi ────────────────── */
+  /* Ikonnya monogram, bukan emoji: emoji digambar oleh font sistem dan bisa
+     berbeda bentuk atau hilang warnanya di komputer lain, sementara video ini
+     harus tampil sama di mana pun ia dirender. */
+  var DOMPET = [
+    ['J', 'Bank Jago', 4820000],
+    ['G', 'GoPay', 315000],
+    ['B', 'BCA', 12640000],
+    ['T', 'Tunai', 185000]
+  ];
+  var TOTAL_SALDO = 17960000;
+
+  /* ── Adegan ────────────────────────────────────────────────────── */
+  var ADEGAN = [
+    { id: 1, a: 0, b: 3500 },
+    { id: 2, a: 3500, b: 11800 },
+    { id: 3, a: 11800, b: 15800 },
+    { id: 4, a: 15800, b: 19300 },
+    { id: 5, a: 19300, b: TOTAL }
+  ];
+
+  function fase(t, a, b) {
+    if (t < a || t > b) return null;
+    var masuk = 520, keluar = 420, al = 1, dy = 0;
+    if (t < a + masuk) { var p = (t - a) / masuk; al = p; dy = 28 * (1 - easeOut(p)); }
+    else if (t > b - keluar) { var q = (b - t) / keluar; al = q; dy = -24 * (1 - q); }
+    return { al: al, dy: dy };
+  }
+
+  function eyebrow(teks, y) {
+    ctx.font = f(700, 30, MONO); spasi('6.6px');
+    ctx.fillStyle = ACC; ctx.textAlign = 'left';
+    ctx.fillText(teks.toUpperCase(), 96, y);
+    spasi('0px');
+  }
+
+  // ── 1 · Kail
+  function adegan1(t) {
+    var teks = 'Nyatet pengeluaran itu capek.';
+    var mulai = 350, per = 46;
+    var n = Math.max(0, Math.min(teks.length, Math.floor((t - mulai) / per)));
+    var tampil = teks.slice(0, n);
+
+    var font = f(800, 104, DISP);
+    var baris = penggal(teks, 888, font);
+    var tinggi = baris.length * 110;
+    var y0 = H / 2 - tinggi / 2 - 60;
+
+    // Digambar per baris dari teks penuh supaya susunannya tidak melompat
+    // saat karakter bertambah; yang dipotong hanya bagian yang terlihat.
+    ctx.font = font; ctx.textAlign = 'left'; ctx.fillStyle = T1;
+    var sisa = n;
+    for (var i = 0; i < baris.length; i++) {
+      var b = baris[i];
+      var pot = Math.max(0, Math.min(b.length, sisa));
+      if (pot > 0) ctx.fillText(b.slice(0, pot), 96, y0 + i * 110);
+      sisa -= b.length + 1;
+      if (pot > 0 && pot < b.length && Math.floor(t / 500) % 2 === 0) {
+        var w = ctx.measureText(b.slice(0, pot)).width;
+        ctx.fillStyle = ACC; ctx.fillRect(96 + w + 8, y0 + i * 110 - 74, 5, 82); ctx.fillStyle = T1;
+      }
+    }
+
+    if (t > 2050) {
+      ctx.globalAlpha *= Math.min(1, (t - 2050) / 550);
+      ctx.font = f(400, 40, DISP); ctx.fillStyle = T2;
+      var sb = penggal('Makanya banyak yang berhenti mencatat di minggu kedua.', 760, ctx.font);
+      for (var j = 0; j < sb.length; j++) ctx.fillText(sb[j], 96, y0 + tinggi + 40 + j * 58);
+    }
+  }
+
+  // ── 2 · Bukti: percakapan
+  function gelembung(x, y, lebar, baris, kanan) {
+    var padX = 28, padY = 24, tinggi = padY * 2;
+    for (var i = 0; i < baris.length; i++) tinggi += baris[i].h;
+
+    var lebarIsi = 0;
+    for (var k = 0; k < baris.length; k++) {
+      var wtot = 0;
+      for (var m = 0; m < baris[k].run.length; m++) {
+        ctx.font = baris[k].run[m].f;
+        wtot += ctx.measureText(baris[k].run[m].t).width;
+      }
+      if (wtot > lebarIsi) lebarIsi = wtot;
+    }
+    var w = Math.min(lebar * .82, lebarIsi + padX * 2);
+    var bx = kanan ? x + lebar - w : x;
+
+    if (kanan) { isi(bx, y, w, tinggi, 24, ACC); }
+    else { isi(bx, y, w, tinggi, 24, 'rgba(148,163,184,.1)'); garis(bx, y, w, tinggi, 24, LINE, 1); }
+
+    var cy = y + padY;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    for (var b = 0; b < baris.length; b++) {
+      var cx = bx + padX;
+      for (var r = 0; r < baris[b].run.length; r++) {
+        var run = baris[b].run[r];
+        ctx.font = run.f;
+        ctx.fillStyle = kanan ? '#04140d' : (run.c || T1);
+        ctx.fillText(run.t, cx, cy);
+        cx += ctx.measureText(run.t).width;
+      }
+      cy += baris[b].h;
+    }
+    ctx.textBaseline = 'alphabetic';
+    return tinggi;
+  }
+
+  var B32 = f(600, 32, DISP), N32 = f(400, 32, DISP), B38 = f(800, 38, DISP), M25 = f(400, 25, DISP);
+  /* Waktunya LOKAL terhadap adegan ini, bukan terhadap keseluruhan reel. Angka
+     global sempat terpakai di sini dan akibatnya balasan struk dijadwalkan 1,2
+     detik setelah adegannya berakhir, jadi ia tak pernah sekali pun muncul. */
+  var PESAN = [
+    { me: 1, at: 600, baris: [{ h: 45, run: [{ t: 'beli kopi 25rb pakai gopay', f: B32 }] }] },
+    { me: 0, at: 2400, baris: [
+      { h: 45, run: [{ t: 'Sudah dicatat', f: N32 }] },
+      { h: 52, run: [{ t: 'Rp 25.000', f: B38 }, { t: ' buat kopi', f: N32 }] },
+      { h: 44, run: [{ t: 'Makanan & Minuman › Kopi · GoPay', f: M25, c: T3 }] }
+    ] },
+    { me: 1, at: 4400, baris: [{ h: 45, run: [{ t: '📷 foto struk', f: B32 }] }] },
+    { me: 0, at: 6000, baris: [
+      { h: 45, run: [{ t: 'Kebaca dari struknya', f: N32 }] },
+      { h: 52, run: [{ t: 'Rp 187.500', f: B38 }, { t: ' di Indomaret', f: N32 }] },
+      { h: 44, run: [{ t: 'Belanja Bulanan · 21 Agu', f: M25, c: T3 }] }
+    ] }
+  ];
+
+  // Tinggi tiap gelembung tetap, jadi cukup dihitung sekali.
+  var TINGGI_PESAN = PESAN.map(function (p) {
+    var th = 48;
+    for (var j = 0; j < p.baris.length; j++) th += p.baris[j].h;
+    return th;
+  });
+  var KEPALA = 30 + 68 + 24 + 1 + 28;
+
+  function adegan2(t) {
+    /* Kartunya dulu digambar setinggi keempat pesan sejak detik pertama, jadi
+       ada ruang kosong menganga selama beberapa detik pertama. Sekarang ia
+       tumbuh mengikuti pesan yang sudah muncul, seperti jendela percakapan
+       sungguhan. */
+    var kx = 96, kw = 888;
+    var isiT = KEPALA + 16;
+    var maju = [];
+    for (var i = 0; i < PESAN.length; i++) {
+      var p = Math.min(1, Math.max(0, (t - PESAN[i].at) / 340));
+      maju.push(easeOut(p));
+      isiT += (TINGGI_PESAN[i] + 18) * easeOut(p);
+    }
+
+    /* Posisi atas dipatok pada tata letak AKHIR, bukan pada tinggi yang sedang
+       berubah. Kalau ditengahkan terhadap tinggi sesaat, seluruh komposisi ikut
+       naik-turun tiap pesan datang dan hasilnya terlihat goyah. */
+    var isiPenuh = KEPALA + 16;
+    for (var n = 0; n < PESAN.length; n++) isiPenuh += TINGGI_PESAN[n] + 18;
+    var atas = H / 2 - (120 + isiPenuh) / 2;
+    eyebrow('Cukup chat', atas + 30);
+    var ky = atas + 120;
+
+    isi(kx, ky, kw, isiT, 34, CARD);
+    garis(kx, ky, kw, isiT, 34, LINE, 1);
+
+    // kepala percakapan
+    isi(kx + 30, ky + 30, 68, 68, 20, ACC);
+    ctx.fillStyle = '#04140d'; ctx.font = f(800, 26, DISP); ctx.textAlign = 'center';
+    ctx.fillText('WF', kx + 64, ky + 73);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = T1; ctx.font = f(800, 30, DISP);
+    ctx.fillText('WealthFlow', kx + 116, ky + 58);
+    ctx.fillStyle = ACC; ctx.font = f(400, 24, DISP);
+    ctx.fillText('online', kx + 116, ky + 92);
+    ctx.strokeStyle = LINE; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(kx + 30, ky + 122); ctx.lineTo(kx + kw - 30, ky + 122); ctx.stroke();
+
+    var y = ky + KEPALA;
+    for (var k = 0; k < PESAN.length; k++) {
+      if (maju[k] > 0) {
+        var simpan = ctx.globalAlpha;
+        ctx.globalAlpha = simpan * maju[k];
+        ctx.save();
+        ctx.translate(0, 14 * (1 - maju[k]));
+        gelembung(kx + 30, y, kw - 60, PESAN[k].baris, !!PESAN[k].me);
+        ctx.restore();
+        ctx.globalAlpha = simpan;
+      }
+      y += (TINGGI_PESAN[k] + 18) * maju[k];
+    }
+  }
+
+  // ── 3 · Semua dompet dalam satu layar
+  var JUDUL3 = 'Aplikasi bank cuma tahu satu bank.';
+  function adegan3(t) {
+    var tJudul = tinggiJudul(JUDUL3, 888, 104, 110);
+    var tDaftar = DOMPET.length * 116 + (DOMPET.length - 1) * 18;
+    var blok = 90 + tJudul + 40 + tDaftar + 30 + 118;
+    var atas = H / 2 - blok / 2;
+
+    eyebrow('Satu layar', atas + 30);
+    judul(JUDUL3, 'satu bank', 96, atas + 90 + 78, 888, 104, 110);
+
+    var y = atas + 90 + tJudul + 40;
+    for (var k = 0; k < DOMPET.length; k++) {
+      var at = 300 + k * 190;
+      if (t < at) { y += 134; continue; }
+      var mun = easeOut(Math.min(1, (t - at) / 420));
+      var simpan = ctx.globalAlpha;
+      ctx.globalAlpha = simpan * mun;
+      var dx = -22 * (1 - mun);
+
+      isi(96 + dx, y, 888, 116, 22, CARD);
+      garis(96 + dx, y, 888, 116, 22, LINE, 1);
+      isi(126 + dx, y + 28, 60, 60, 17, 'rgba(16,185,129,.12)');
+      ctx.font = f(800, 28, DISP); ctx.fillStyle = ACC; ctx.textAlign = 'center';
+      ctx.fillText(DOMPET[k][0], 156 + dx, y + 68);
+      ctx.textAlign = 'left';
+      ctx.font = f(700, 33, DISP); ctx.fillStyle = T1;
+      ctx.fillText(DOMPET[k][1], 206 + dx, y + 70);
+
+      var pHit = easeOut(Math.min(1, Math.max(0, (t - 500) / 1300)));
+      ctx.font = f(700, 33, MONO); ctx.textAlign = 'right';
+      ctx.fillText(rp(DOMPET[k][2] * pHit), 954 + dx, y + 70);
+      ctx.textAlign = 'left';
+
+      ctx.globalAlpha = simpan;
+      y += 134;
+    }
+
+    y += 12;
+    isi(96, y, 888, 118, 22, 'rgba(16,185,129,.1)');
+    garis(96, y, 888, 118, 22, 'rgba(16,185,129,.3)', 1);
+    ctx.font = f(400, 30, DISP); ctx.fillStyle = T2;
+    ctx.fillText('Total kekayaanmu', 126, y + 72);
+    var pT = easeOut(Math.min(1, Math.max(0, (t - 500) / 1300)));
+    ctx.font = f(700, 46, MONO); ctx.fillStyle = ACC; ctx.textAlign = 'right';
+    ctx.fillText(rp(TOTAL_SALDO * pT), 954, y + 74);
+    ctx.textAlign = 'left';
+  }
+
+  // ── 4 · Harga
+  var PAKET = [
+    { nm: 'Gratis', amt: 'Rp 0', per: 'Semua fitur pencatatan, dompet dan kategori tanpa batas.', hot: 0 },
+    { nm: 'Premium', amt: 'Rp 100rb', per: 'Per tahun. Sekitar Rp 8.300 sebulan untuk bagian AI-nya.', hot: 1 }
+  ];
+  var JUDUL4 = 'Pencatatannya gratis selamanya.';
+  function adegan4(t) {
+    var tJudul = tinggiJudul(JUDUL4, 888, 104, 110);
+    var blok = 90 + tJudul + 50 + 320;
+    var atas = H / 2 - blok / 2;
+
+    eyebrow('Harga', atas + 30);
+    judul(JUDUL4, 'gratis', 96, atas + 90 + 78, 888, 104, 110);
+
+    var y = atas + 90 + tJudul + 50;
+    var lebar = (888 - 22) / 2;
+    for (var k = 0; k < PAKET.length; k++) {
+      var at = 350 + k * 240;
+      if (t < at) continue;
+      var mun = Math.min(1, (t - at) / 420);
+      var simpan = ctx.globalAlpha;
+      ctx.globalAlpha = simpan * mun;
+      var dy = 20 * (1 - easeOut(mun));
+      var x = 96 + k * (lebar + 22);
+      var p = PAKET[k];
+
+      isi(x, y + dy, lebar, 320, 26, p.hot ? 'rgba(16,185,129,.09)' : CARD);
+      garis(x, y + dy, lebar, 320, 26, p.hot ? ACC : LINE, 1);
+
+      ctx.font = f(700, 28, DISP); spasi('1.1px');
+      ctx.fillStyle = T2; ctx.textAlign = 'left';
+      ctx.fillText(p.nm.toUpperCase(), x + 30, y + dy + 62);
+      spasi('0px');
+
+      ctx.font = f(800, 62, DISP); ctx.fillStyle = p.hot ? ACC : T1;
+      ctx.fillText(p.amt, x + 30, y + dy + 136);
+
+      ctx.font = f(400, 26, DISP); ctx.fillStyle = T3;
+      var pb = penggal(p.per, lebar - 60, ctx.font);
+      for (var j = 0; j < pb.length; j++) ctx.fillText(pb[j], x + 30, y + dy + 190 + j * 38);
+
+      ctx.globalAlpha = simpan;
+    }
+  }
+
+  // ── 5 · Penutup
+  function adegan5(t) {
+    ctx.textAlign = 'center';
+    ctx.font = f(800, 118, DISP);
+    var w1 = ctx.measureText('Wealth').width, w2 = ctx.measureText('Flow').width;
+    var x0 = W / 2 - (w1 + w2) / 2;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = T1; ctx.fillText('Wealth', x0, 880);
+    ctx.fillStyle = ACC; ctx.fillText('Flow', x0 + w1, 880);
+
+    ctx.font = f(700, 40, MONO);
+    var url = 'wealthflow.me';
+    var uw = ctx.measureText(url).width;
+    var pw = uw + 80, px = W / 2 - pw / 2;
+    isi(px, 950, pw, 82, 41, 'rgba(16,185,129,.1)');
+    garis(px, 950, pw, 82, 41, 'rgba(16,185,129,.3)', 1);
+    ctx.fillStyle = ACC; ctx.textAlign = 'center';
+    ctx.fillText(url, W / 2, 1004);
+
+    ctx.font = f(400, 32, DISP); ctx.fillStyle = T2;
+    ctx.fillText('Gratis. Tanpa kartu kredit.', W / 2, 1090);
+    ctx.textAlign = 'left';
+  }
+
+  var GAMBAR = { 1: adegan1, 2: adegan2, 3: adegan3, 4: adegan4, 5: adegan5 };
+
+  function bingkai(t) {
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = BG; ctx.fillRect(0, 0, W, H);
+
+    // cahaya latar yang bergerak pelan, memberi kedalaman tanpa warna baru
+    var g = ctx.createRadialGradient(
+      W * (.24 + .04 * Math.sin(t / 4200)), H * (.2 + .03 * Math.cos(t / 5100)), 0,
+      W * .24, H * .2, W * .9);
+    g.addColorStop(0, 'rgba(16,185,129,.15)');
+    g.addColorStop(1, 'rgba(16,185,129,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    for (var i = 0; i < ADEGAN.length; i++) {
+      var s = ADEGAN[i], ph = fase(t, s.a, s.b);
+      if (!ph) continue;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, ph.al));
+      ctx.translate(0, ph.dy);
+      GAMBAR[s.id](t - s.a);
+      ctx.restore();
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(148,163,184,.12)'; ctx.fillRect(0, H - 7, W, 7);
+    ctx.fillStyle = ACC; ctx.fillRect(0, H - 7, W * Math.min(1, t / TOTAL), 7);
+  }
+
+  /* ── Musik ─────────────────────────────────────────────────────────
+     Nadanya dibangkitkan saat itu juga lewat Web Audio, bukan diambil dari
+     rekaman siapa pun, jadi tidak ada hak cipta yang menempel padanya. Itu
+     penting karena pustaka musik Instagram menyempit drastis untuk akun bisnis
+     dan lebih ketat lagi untuk iklan berbayar. Nada-nadanya sengaja tipis:
+     tugasnya mengisi ruang, bukan merebut perhatian dari isinya. */
+  var AC = null, tujuanRekam = null, master = null, sumberAktif = [], bufBerkas = null;
+
+  function siapkanAudio() {
+    if (AC) return AC;
+    var K = window.AudioContext || window.webkitAudioContext;
+    if (!K) return null;
+    AC = new K();
+    tujuanRekam = AC.createMediaStreamDestination();
+    return AC;
+  }
+
+  // Satu akor per adegan, mengikuti pergantian gambarnya
+  var AKOR = [
+    { at: 0.0, lama: 3.6, bas: 55.00, nada: [220.00, 261.63, 329.63] }, // Am
+    { at: 3.5, lama: 4.3, bas: 43.65, nada: [174.61, 220.00, 261.63] }, // F
+    { at: 7.7, lama: 4.2, bas: 65.41, nada: [196.00, 261.63, 329.63] }, // C
+    { at: 11.8, lama: 4.1, bas: 49.00, nada: [196.00, 246.94, 293.66] }, // G
+    { at: 15.8, lama: 3.6, bas: 55.00, nada: [220.00, 261.63, 329.63] }, // Am
+    { at: 19.3, lama: 3.7, bas: 65.41, nada: [261.63, 329.63, 392.00] }  // C, naik untuk penutup
+  ];
+  // Petikan menandai kejadian di layar, bukan ketukan tetap
+  var PETIK = [
+    [4.10, 523.25], [5.90, 392.00], [7.90, 523.25], [9.50, 392.00],      // tiap pesan chat
+    [12.10, 440.00], [12.29, 523.25], [12.48, 587.33], [12.67, 659.25],  // dompet muncul satu-satu
+    [16.15, 523.25], [16.39, 659.25],                                    // dua kartu harga
+    [19.30, 523.25], [19.75, 659.25], [20.20, 783.99]                    // penutup
+  ];
+
+  function bangkitkanMusik(t0) {
+    function petik(at, fr, kuat) {
+      var o = AC.createOscillator(), g = AC.createGain(), lp = AC.createBiquadFilter();
+      o.type = 'triangle'; o.frequency.value = fr;
+      lp.type = 'lowpass'; lp.frequency.value = 2600;
+      g.gain.setValueAtTime(0.0001, t0 + at);
+      g.gain.linearRampToValueAtTime(kuat || 0.13, t0 + at + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.85);
+      o.connect(g); g.connect(lp); lp.connect(master);
+      o.start(t0 + at); o.stop(t0 + at + 0.95);
+      sumberAktif.push(o);
+    }
+    AKOR.forEach(function (k) {
+      // lapisan pad: tiap nada digandakan dengan pelarasan sedikit meleset
+      var g = AC.createGain(), lp = AC.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 1300;
+      g.gain.setValueAtTime(0.0001, t0 + k.at);
+      g.gain.linearRampToValueAtTime(0.085, t0 + k.at + 0.9);
+      g.gain.setValueAtTime(0.085, t0 + k.at + k.lama - 0.8);
+      g.gain.linearRampToValueAtTime(0.0001, t0 + k.at + k.lama);
+      g.connect(lp); lp.connect(master);
+      k.nada.forEach(function (fr) {
+        [1, 1.004].forEach(function (d) {
+          var o = AC.createOscillator(), gv = AC.createGain();
+          o.type = 'triangle'; o.frequency.value = fr * d;
+          gv.gain.value = 0.32;
+          o.connect(gv); gv.connect(g);
+          o.start(t0 + k.at); o.stop(t0 + k.at + k.lama + 0.1);
+          sumberAktif.push(o);
+        });
+      });
+      // bas, menahan dasar akornya
+      var ob = AC.createOscillator(), gb = AC.createGain();
+      ob.type = 'sine'; ob.frequency.value = k.bas;
+      gb.gain.setValueAtTime(0.0001, t0 + k.at);
+      gb.gain.linearRampToValueAtTime(0.26, t0 + k.at + 0.3);
+      gb.gain.linearRampToValueAtTime(0.0001, t0 + k.at + k.lama);
+      ob.connect(gb); gb.connect(master);
+      ob.start(t0 + k.at); ob.stop(t0 + k.at + k.lama + 0.1);
+      sumberAktif.push(ob);
+    });
+    PETIK.forEach(function (p) { petik(p[0], p[1]); });
+  }
+
+  function hentikanMusik() {
+    sumberAktif.forEach(function (s) { try { s.stop(); } catch (e) { } });
+    sumberAktif = [];
+    if (master) { try { master.disconnect(); } catch (e) { } master = null; }
+  }
+
+  function mulaiMusik() {
+    var pilihan = document.getElementById('musik').value;
+    hentikanMusik();
+    if (pilihan === 'none') return;
+    if (pilihan === 'file' && !bufBerkas) return;
+    if (!siapkanAudio()) return;
+    if (AC.state === 'suspended') AC.resume();
+
+    master = AC.createGain();
+    master.gain.value = pilihan === 'file' ? 0.85 : 0.24;
+    master.connect(tujuanRekam);
+    master.connect(AC.destination);   // supaya terdengar saat dipratinjau
+
+    var t0 = AC.currentTime + 0.08;
+    if (pilihan === 'file') {
+      var src = AC.createBufferSource();
+      src.buffer = bufBerkas;
+      src.connect(master);
+      src.start(t0);
+      sumberAktif.push(src);
+    } else {
+      bangkitkanMusik(t0);
+    }
+    // Menutup dengan hening, bukan terpotong mendadak di ujung video
+    master.gain.setValueAtTime(master.gain.value, t0 + TOTAL / 1000 - 1.6);
+    master.gain.linearRampToValueAtTime(0.0001, t0 + TOTAL / 1000 - 0.1);
+  }
+
+  document.getElementById('musik').addEventListener('change', function () {
+    if (this.value === 'file') document.getElementById('berkas').click();
+    else { err.textContent = ''; hentikanMusik(); }
+  });
+  document.getElementById('berkas').addEventListener('change', function () {
+    var berkas = this.files && this.files[0];
+    if (!berkas) { document.getElementById('musik').value = 'gen'; return; }
+    if (!siapkanAudio()) { err.textContent = 'Browser ini tidak mendukung Web Audio.'; return; }
+    stat.textContent = 'membaca musik...';
+    berkas.arrayBuffer().then(function (ab) { return AC.decodeAudioData(ab); })
+      .then(function (buf) {
+        bufBerkas = buf;
+        stat.textContent = 'musik siap · ' + berkas.name.slice(0, 28);
+        err.textContent = buf.duration < TOTAL / 1000
+          ? 'Musiknya ' + buf.duration.toFixed(1) + ' detik, lebih pendek dari reel (23 detik). Sisanya akan hening.'
+          : '';
+      })
+      .catch(function () {
+        bufBerkas = null;
+        document.getElementById('musik').value = 'gen';
+        err.textContent = 'Berkas musiknya tidak bisa dibaca. Coba MP3, M4A, atau WAV.';
+        stat.textContent = 'siap';
+      });
+  });
+
+  /* ── Jam ───────────────────────────────────────────────────────── */
+  var raf = 0, mulai = 0, jalan = false, selesaiCb = null;
+  function putar(cb) {
+    cancelAnimationFrame(raf);
+    selesaiCb = cb || null;
+    mulaiMusik();
+    jalan = true; mulai = performance.now();
+    (function langkah(now) {
+      if (!jalan) return;
+      var t = now - mulai;
+      if (t >= TOTAL) { bingkai(TOTAL); jalan = false; if (selesaiCb) selesaiCb(); return; }
+      bingkai(t);
+      raf = requestAnimationFrame(langkah);
+    })(performance.now());
+  }
+
+  /* ── Perekaman ─────────────────────────────────────────────────── */
+  var stat = document.getElementById('stat'), dot = document.getElementById('dot');
+  var bPlay = document.getElementById('play'), bGo = document.getElementById('go');
+  var err = document.getElementById('err');
+
+  // Codec audio ikut disebut, kalau tidak videonya bisa terekam tanpa suara
+  var KANDIDAT = [
+    ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'mp4'],
+    ['video/mp4', 'mp4'],
+    ['video/webm;codecs=vp9,opus', 'webm'],
+    ['video/webm;codecs=vp8,opus', 'webm'],
+    ['video/webm', 'webm']
+  ];
+  function pilihFormat() {
+    if (!window.MediaRecorder) return null;
+    for (var i = 0; i < KANDIDAT.length; i++) {
+      try { if (MediaRecorder.isTypeSupported(KANDIDAT[i][0])) return KANDIDAT[i]; } catch (e) { }
+    }
+    return null;
+  }
+  var fmt = pilihFormat();
+  document.getElementById('fmt').textContent = fmt ? ('.' + fmt[1] + ' (' + fmt[0].split(';')[0] + ')') : 'tidak didukung browser ini';
+  if (!fmt) { bGo.disabled = true; err.textContent = 'Browser ini tidak mendukung MediaRecorder. Pakai Chrome atau Edge.'; }
+
+  bPlay.addEventListener('click', function () { putar(); });
+
+  bGo.addEventListener('click', function () {
+    if (!fmt) return;
+    err.textContent = '';
+    bGo.disabled = true; bPlay.disabled = true;
+    dot.classList.add('live'); stat.textContent = 'merekam 0%';
+
+    /* Trek audionya harus sudah ada SEBELUM perekam dibuat. MediaRecorder
+       mengunci daftar trek saat dibentuk, jadi musik yang baru menyala setelah
+       itu tidak akan pernah ikut terekam. */
+    var pakaiMusik = document.getElementById('musik').value !== 'none'
+      && !(document.getElementById('musik').value === 'file' && !bufBerkas);
+    var trek = cv.captureStream(30).getVideoTracks();
+    if (pakaiMusik && siapkanAudio()) trek = trek.concat(tujuanRekam.stream.getAudioTracks());
+    var stream = new MediaStream(trek);
+
+    var potongan = [];
+    var mr;
+    try {
+      mr = new MediaRecorder(stream, {
+        mimeType: fmt[0], videoBitsPerSecond: 12000000, audioBitsPerSecond: 128000
+      });
+    } catch (e) {
+      err.textContent = 'Gagal memulai perekam: ' + e.message;
+      bGo.disabled = false; bPlay.disabled = false; dot.classList.remove('live'); stat.textContent = 'gagal';
+      return;
+    }
+
+    mr.ondataavailable = function (e) { if (e.data && e.data.size) potongan.push(e.data); };
+    mr.onstop = function () {
+      /* Hanya trek video yang dihentikan. Trek audio milik tujuan rekam dipakai
+         bersama untuk semua perekaman, dan menghentikannya berarti mematikannya
+         selamanya: rekaman kedua akan bisu tanpa satu pun galat. */
+      stream.getVideoTracks().forEach(function (tr) { tr.stop(); });
+      var blob = new Blob(potongan, { type: fmt[0] });
+
+      /* Berkas kosong atau nyaris kosong berarti perekamnya tidak menangkap
+         apa-apa. Menyerahkannya begitu saja cuma membuat orang mengira sudah
+         berhasil, lalu bingung waktu videonya tak bisa dibuka. */
+      if (blob.size < 50000) {
+        err.textContent = 'Perekaman menghasilkan berkas kosong (' + blob.size + ' byte). '
+          + 'Pastikan memakai Chrome atau Edge, jangan pindah tab selama merekam, '
+          + 'dan jangan menutup jendelanya. Coba lagi.';
+        dot.classList.remove('live'); stat.textContent = 'gagal';
+        bGo.disabled = false; bPlay.disabled = false;
+        return;
+      }
+
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'wealthflow-reel-1080x1920.' + fmt[1];
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      dot.classList.remove('live');
+      stat.textContent = 'selesai · ' + (blob.size / 1048576).toFixed(1) + ' MB';
+      bGo.disabled = false; bPlay.disabled = false;
+    };
+
+    var tik = setInterval(function () {
+      if (!jalan) return;
+      stat.textContent = 'merekam ' + Math.round(Math.min(100, (performance.now() - mulai) / TOTAL * 100)) + '%';
+    }, 300);
+
+    mr.start();
+    putar(function () {
+      clearInterval(tik);
+      stat.textContent = 'menyusun berkas...';
+      // Beri MediaRecorder waktu menangkap bingkai terakhir sebelum ditutup,
+      // supaya penutup reel tidak terpotong di ujung video.
+      setTimeout(function () { if (mr.state !== 'inactive') mr.stop(); }, 350);
+    });
+  });
+
+  /* Sampul Reels diambil dari reel-nya sendiri, jadi gambar diam di feed dan
+     videonya tidak pernah berbeda. Tombolnya menyimpan bingkai yang sedang
+     tampil sebagai PNG 1080x1920. */
+  var bCover = document.getElementById('cover');
+  bCover.addEventListener('click', function () {
+    cv.toBlob(function (blob) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = 'wealthflow-sampul-1080x1920.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      stat.textContent = 'sampul tersimpan';
+    }, 'image/png');
+  });
+
+  /* ?frame=8000 menggambar satu bingkai pada milidetik itu lalu berhenti, tanpa
+     kendali di sekelilingnya. Dipakai untuk memeriksa tiap adegan satu per satu
+     dan untuk mengambil sampul pada momen tertentu. */
+  var qs = new URLSearchParams(location.search);
+  var satuBingkai = qs.has('frame') ? Number(qs.get('frame')) : null;
+
+  /* Font harus benar-benar termuat sebelum menggambar, kalau tidak lebar teks
+     diukur memakai font cadangan dan pemenggalan barisnya jadi salah. */
+  function siap() {
+    if (satuBingkai !== null && isFinite(satuBingkai)) {
+      document.body.classList.add('raw');
+      bingkai(satuBingkai);
+      document.title = 'bingkai ' + satuBingkai;
+    } else bingkai(2600);   // bingkai diam yang sudah ada isinya, bukan layar kosong detik nol
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(siap, siap);
+  else siap();
+})();
+</script>
+</body>
+</html>
