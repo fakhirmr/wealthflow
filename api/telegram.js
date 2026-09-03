@@ -148,10 +148,35 @@ async function reply(token, chatId, text, tombol) {
 function jawabTombol(token, id, teks) {
   return tgCall(token, 'answerCallbackQuery', { callback_query_id: id, text: teks || '' }).catch(function () { });
 }
-function ubahPesan(token, chatId, msgId, teks, tombol) {
-  var b = { chat_id: chatId, message_id: msgId, text: teks, parse_mode: 'HTML' };
-  if (tombol && tombol.length) b.reply_markup = { inline_keyboard: tombol };
-  return tgCall(token, 'editMessageText', b).catch(function () { });
+/* Cacatnya sama seperti reply() dulu: penolakan Telegram tiba sebagai respons
+   sukses, lalu ditelan .catch(). Bedanya di sini akibatnya lebih membingungkan
+   lagi, karena pesan pratinjau tetap memajang tombol yang sudah tak berlaku
+   seolah pekerjaannya belum jalan. Kalau menyunting memang tak bisa, kabarnya
+   dikirim sebagai pesan baru, bukan dibuang. */
+async function ubahPesan(token, chatId, msgId, teks, tombol) {
+  var isi = String(teks == null ? '' : teks);
+  if (isi.length > BATAS_TEKS) isi = isi.slice(0, BATAS_TEKS) + '\n\n<i>… dipotong</i>';
+  var markup = tombolAman(tombol);
+
+  var urutan = [{ teks: isi, html: true, markup: markup }];
+  if (markup) urutan.push({ teks: isi, html: true, markup: null });
+  urutan.push({ teks: tanpaTag(isi), html: false, markup: null });
+
+  for (var i = 0; i < urutan.length; i++) {
+    var c = urutan[i];
+    var b = { chat_id: chatId, message_id: msgId, text: c.teks };
+    if (c.html) b.parse_mode = 'HTML';
+    if (c.markup) b.reply_markup = { inline_keyboard: c.markup };
+    var r = null;
+    try { r = await tgCall(token, 'editMessageText', b); } catch (e) { continue; }
+    if (r && r.ok) return r;
+    /* "message is not modified" berarti isinya memang sudah sama persis. Itu
+       hasil yang benar, bukan kegagalan, dan mengirim ulang malah menggandakan. */
+    var ket = '';
+    try { ket = (await r.text()) || ''; } catch (e2) { }
+    if (/not modified/i.test(ket)) return r;
+  }
+  return reply(token, chatId, teks, tombol);
 }
 
 async function rpc(nama, argumen, SB_URL, KEY) {
