@@ -13,6 +13,28 @@
   <meta name="apple-mobile-web-app-title" content="WealthFlow">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta name="description" content="Pencatatan keuangan pribadi yang simple dan powerful">
+  <script>
+    /* Tema ditentukan SEBELUM halaman tergambar. Kalau menunggu React mount,
+       pengunjung sempat melihat kedipan gelap dulu sebelum berubah terang, dan
+       itu paling kentara justru di halaman depan yang jadi kesan pertama.
+
+       Halaman publik (depan, daftar, masuk) selalu terang. Tema pilihan pengguna
+       baru berlaku setelah dia masuk, dan keberadaan sesi Supabase di
+       localStorage adalah petunjuk paling awal yang bisa dipakai di sini. */
+    (function () {
+      try {
+        var adaSesi = false;
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && k.indexOf('sb-') === 0 && k.indexOf('-auth-token') > 0) { adaSesi = true; break; }
+        }
+        document.documentElement.setAttribute(
+          'data-theme',
+          adaSesi ? (localStorage.getItem('wf_theme') || 'dark') : 'light'
+        );
+      } catch (e) { }
+    })();
+  </script>
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 50'><defs><linearGradient id='fg' x1='0' y1='0' x2='52' y2='0' gradientUnits='userSpaceOnUse'><stop offset='0%25' stop-color='%2310b981'/><stop offset='100%25' stop-color='%2306b6d4'/></linearGradient></defs><rect width='52' height='50' rx='11' fill='url(%23fg)'/><path d='M 4,7 C 6,20 12,35 13,40 C 15,33 19,24 22,17 C 25,24 29,33 31,40 L 31,7' stroke='white' stroke-width='3.5' stroke-linejoin='round' stroke-linecap='round' fill='none'/><line x1='31' y1='40' x2='31' y2='44' stroke='white' stroke-width='3.5' stroke-linecap='round'/><line x1='31' y1='7' x2='48' y2='7' stroke='white' stroke-width='3.5' stroke-linecap='round'/><line x1='31' y1='24' x2='44' y2='24' stroke='white' stroke-width='3.5' stroke-linecap='round'/></svg>">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -2940,7 +2962,24 @@
         var _wa = useState(false), showAll = _wa[0], sShowAll = _wa[1];
         function closeWN() { sShowWN(false); try { localStorage.setItem('wf_seen_ver', WF_VERSION) } catch (e) { } }
         function openAll() { sShowWN(false); sShowAll(true) }
-        useEffect(function () { document.documentElement.setAttribute('data-theme', theme); try { localStorage.setItem('wf_theme', theme) } catch (e) { } }, [theme]);
+        /* Yang DIPAKAI di layar dan yang DISIMPAN sebagai pilihan sengaja dipisah.
+           Halaman publik selalu terang, tapi 'light' itu tidak boleh ikut tertulis
+           ke localStorage: kalau tertulis, pengguna yang memilih gelap akan
+           kehilangan pilihannya setiap kali dia keluar. Selama sesi masih
+           diperiksa, tema tersimpan yang dipakai, supaya yang sudah masuk tidak
+           melihat kedipan terang sebelum layarnya kembali gelap. */
+        /* Selama sesi diperiksa, yang dipakai adalah keputusan skrip di <head>,
+           bukan tema tersimpan. Kalau memakai tema tersimpan, pengunjung baru
+           akan melihat kedip gelap sepersekian detik: skrip kepala sudah benar
+           memilih terang, lalu React menimpanya dengan 'dark' bawaan sebelum
+           pemeriksaan sesi selesai. Dibaca sekali saja saat mount, sebelum
+           effect di bawah sempat mengubahnya. */
+        var _ta = useState(function () {
+          try { return document.documentElement.getAttribute('data-theme') || 'dark' } catch (e) { return 'dark' }
+        }), temaAwal = _ta[0];
+        var temaTampil = user ? theme : (authChecking ? temaAwal : 'light');
+        useEffect(function () { document.documentElement.setAttribute('data-theme', temaTampil); }, [temaTampil]);
+        useEffect(function () { try { localStorage.setItem('wf_theme', theme) } catch (e) { } }, [theme]);
         var _fab = useState(false), fabOpen = _fab[0], sFab = _fab[1];
         var _tf = useState(false), tfOpen = _tf[0], sTf = _tf[1];
 
