@@ -2432,6 +2432,106 @@
         }, h('div', { className: 'moc' }, h('div', { className: 'moh' }, h('h3', null, p.title), h('button', { className: 'bi', onClick: p.onClose }, h(Ic, { n: 'x' }))), h('div', { className: 'mob' }, p.children), p.footer ? h('div', { className: 'mof' }, p.footer) : null)), document.body)
       }
       /* CONFIRM */
+      /* === SERET UNTUK MENGURUTKAN ===
+         Dipakai dua kali: urutan menu bawah dan urutan kartu dashboard.
+         Logikanya dulu disalin bulat-bulat ke dua tempat, jadi keduanya
+         rusak dengan cara yang persis sama dan menuntut dibetulkan dua kali.
+
+         Memakai Pointer Events, bukan HTML5 drag-and-drop maupun sentuhan
+         mentah. Tiga hal yang membuat cara lama tak pernah jalan:
+
+         (a) React memasang listener touchmove sebagai PASIF, jadi
+             preventDefault() di dalam onTouchMove tidak berpengaruh apa pun.
+             Halaman tetap menggulir di bawah jari sementara baris ikut
+             berpindah. Ini sebab utama seret terasa mati di ponsel.
+         (b) dataTransfer.setData() tak pernah dipanggil di onDragStart.
+             Tanpa itu Firefox menolak memulai seret sama sekali.
+         (c) Baris yang diseret tidak ikut bergerak, cuma diredupkan di
+             tempatnya, sementara baris lain bergeser menimpanya. Sekalipun
+             perpindahannya berhasil, yang terlihat cuma tumpang tindih.
+
+         Titik seret dipindah ke gagang, dengan touch-action:none di sana.
+         Menahan 300ms di sembarang tempat menuntut jari diam sempurna dan
+         selalu berebut dengan gerakan menggulir; gagang menyelesaikan
+         keduanya sekaligus, dan halaman tetap bisa digulir dari mana pun
+         selain gagang.
+
+         Sasaran dihitung dari jarak tempuh jari dibagi tinggi baris, bukan
+         dari elementFromPoint. Saat seret berlangsung baris-barisnya sedang
+         digeser transform, jadi menanyakan "elemen apa yang ada di bawah
+         jari" dijawab dengan indeks yang sudah bergeser, dan sasarannya
+         berayun sendiri. */
+      function useSeretUrut(daftar, simpan) {
+        var _a = useState(null), asal = _a[0], sAsal = _a[1];
+        var _t = useState(null), tuju = _t[0], sTuju = _t[1];
+        var _y = useState(0), geserY = _y[0], sGeserY = _y[1];
+        var rAsal = useRef(null), rTuju = useRef(null), rAwal = useRef(0);
+        var rTinggi = useRef(44), rDaftar = useRef(daftar);
+        rDaftar.current = daftar;
+
+        function henti() {
+          var dari = rAsal.current, ke = rTuju.current;
+          rAsal.current = null; rTuju.current = null;
+          sAsal(null); sTuju(null); sGeserY(0);
+          if (dari === null || ke === null || dari === ke) return;
+          var n = rDaftar.current.slice();
+          n.splice(ke, 0, n.splice(dari, 1)[0]);
+          simpan(n);
+        }
+
+        return {
+          asal: asal,
+          baris: function (i) {
+            var diseret = asal === i;
+            var geser = 0;
+            if (asal !== null && tuju !== null && !diseret) {
+              if (asal < tuju && i > asal && i <= tuju) geser = -rTinggi.current;
+              else if (asal > tuju && i >= tuju && i < asal) geser = rTinggi.current;
+            }
+            return {
+              'data-urut': String(i),
+              style: {
+                position: 'relative',
+                zIndex: diseret ? 10 : 1,
+                transform: 'translateY(' + (diseret ? geserY : geser) + 'px)' + (diseret ? ' scale(1.02)' : ''),
+                boxShadow: diseret ? '0 8px 22px rgba(0,0,0,.22)' : 'none',
+                // Yang diseret harus menempel di jari; transisi di sini membuatnya tertinggal
+                transition: diseret ? 'none' : 'transform .18s cubic-bezier(.25,.46,.45,.94), box-shadow .2s',
+                userSelect: 'none', WebkitUserSelect: 'none'
+              }
+            };
+          },
+          gagang: function (i) {
+            return {
+              onPointerDown: function (e) {
+                if (e.button) return;   // klik kanan atau tombol tengah tidak menyeret
+                e.preventDefault();
+                var baris = e.currentTarget;
+                while (baris && (!baris.dataset || baris.dataset.urut === undefined)) baris = baris.parentElement;
+                // 6px = jarak antarbaris, ikut dihitung supaya satu langkah jari = satu slot
+                if (baris) rTinggi.current = baris.offsetHeight + 6;
+                try { e.currentTarget.setPointerCapture(e.pointerId) } catch (x) { }
+                rAsal.current = i; rTuju.current = i; rAwal.current = e.clientY;
+                sAsal(i); sTuju(i); sGeserY(0);
+                if (navigator.vibrate) navigator.vibrate(15);
+              },
+              onPointerMove: function (e) {
+                if (rAsal.current === null) return;
+                var dy = e.clientY - rAwal.current;
+                sGeserY(dy);
+                var ke = rAsal.current + Math.round(dy / rTinggi.current);
+                if (ke < 0) ke = 0;
+                if (ke > rDaftar.current.length - 1) ke = rDaftar.current.length - 1;
+                if (ke !== rTuju.current) { rTuju.current = ke; sTuju(ke) }
+              },
+              onPointerUp: henti,
+              onPointerCancel: henti,
+              style: { touchAction: 'none', cursor: asal === null ? 'grab' : 'grabbing' }
+            };
+          }
+        };
+      }
+
       function useCf() { var s = useState(null), st = s[0], sS = s[1]; var mulaiDiLatar = useRef(false); var cf = useCallback(function (msg) { return new Promise(function (r) { sS({ msg: msg, r: r }) }) }, []); var el = st ? ReactDOM.createPortal(h('div', { className: 'mo', onPointerDown: function (e) { mulaiDiLatar.current = (e.target === e.currentTarget) }, onClick: function (e) { if (e.target !== e.currentTarget || !mulaiDiLatar.current) return; st.r(false); sS(null) } }, h('div', { className: 'moc' }, h('div', { className: 'moh' }, h('h3', null, 'Konfirmasi')), h('div', { className: 'mob' }, h('p', { style: { color: 'var(--t2)', lineHeight: 1.5 } }, st.msg)), h('div', { className: 'mof' }, h('button', { className: 'btn bs', onClick: function () { st.r(false); sS(null) } }, 'Batal'), h('button', { className: 'btn bd', onClick: function () { st.r(true); sS(null) } }, 'Hapus')))), document.body) : null; return [cf, el] }
 
       /* ═══════════════════ GOALS ═══════════════════ */
@@ -3980,16 +4080,8 @@
         var _pwBusy = useState(false), pwBusy = _pwBusy[0], sPwBusy = _pwBusy[1];
         var _pwMsg = useState(null), pwMsg = _pwMsg[0], sPwMsg = _pwMsg[1];
         var _showAllCl = useState(false), showAllCl = _showAllCl[0], sShowAllCl = _showAllCl[1];
-        var _dri = useState(null), dragI = _dri[0], sDragI = _dri[1];
-        var _dov = useState(null), dragOv = _dov[0], sDragOv = _dov[1];
-        var _tref = useRef(null);
-        var _pressing = useState(null), pressing = _pressing[0], sPressing = _pressing[1];
-        var _ptimer = useRef(null);
-        var _dri2 = useState(null), dragI2 = _dri2[0], sDragI2 = _dri2[1];
-        var _dov2 = useState(null), dragOv2 = _dov2[0], sDragOv2 = _dov2[1];
-        var _tref2 = useRef(null);
-        var _pressing2 = useState(null), pressing2 = _pressing2[0], sPressing2 = _pressing2[1];
-        var _ptimer2 = useRef(null);
+        var seretNav = useSeretUrut(bnav, sBnav);
+        var seretKartu = useSeretUrut(dashCards, sDash);
         var _tg = useState(null), tgLink = _tg[0], sTgLink = _tg[1];
         var _tgBusy = useState(false), tgBusy = _tgBusy[0], sTgBusy = _tgBusy[1];
         useEffect(function () {
@@ -4236,75 +4328,30 @@
           tab === 'tampilan' ? h('div', null,
             h('div', { className: 'cd' },
               h('h3', { style: { fontSize: '.95rem', fontWeight: 700, marginBottom: 4 } }, 'Navigasi Bawah'),
-              h('p', { style: { fontSize: '.78rem', color: 'var(--t3)', marginBottom: 16 } }, 'Tahan dan seret ⠿ untuk mengubah urutan. Pilih 3–5 menu.'),
+              h('p', { style: { fontSize: '.78rem', color: 'var(--t3)', marginBottom: 16 } }, 'Seret ⠿ untuk mengubah urutan. Pilih 3–5 menu.'),
               // Draggable selected slots
               h('div', { style: { marginBottom: 14 } },
                 bnav.map(function (id, i) {
                   var item = ALL_PAGES.find(function (n) { return n.id === id });
                   if (!item) return null;
-                  var isDragging = dragI === i;
-                  var isPressing = pressing === i && dragI === null;
-                  // Shift other items to create gap at drop target
-                  var shift = 0;
-                  if (dragI !== null && dragOv !== null && dragI !== dragOv && !isDragging) {
-                    if (dragI < dragOv && i > dragI && i <= dragOv) shift = -44;
-                    else if (dragI > dragOv && i >= dragOv && i < dragI) shift = 44;
-                  }
-                  return h('div', {
-                    key: id,
-                    'data-di': String(i),
-                    draggable: true,
-                    onDragStart: function (e) { sDragI(i); sDragOv(i); e.dataTransfer.effectAllowed = 'move' },
-                    onDragOver: function (e) { e.preventDefault(); if (dragOv !== i) sDragOv(i) },
-                    onDrop: function (e) {
-                      e.preventDefault();
-                      if (dragI !== null && dragI !== i) { var nb = bnav.slice(); var moved = nb.splice(dragI, 1)[0]; nb.splice(i, 0, moved); sBnav(nb) }
-                      sDragI(null); sDragOv(null);
-                    },
-                    onDragEnd: function () { sDragI(null); sDragOv(null) },
-                    onTouchStart: function (e) {
-                      e.stopPropagation();
-                      sPressing(i);
-                      _ptimer.current = setTimeout(function () {
-                        _tref.current = i; sDragI(i); sDragOv(i); sPressing(null);
-                        if (navigator.vibrate) navigator.vibrate(40);
-                      }, 300);
-                    },
-                    onTouchMove: function (e) {
-                      if (_tref.current === null) { clearTimeout(_ptimer.current); sPressing(null); return }
-                      e.preventDefault();
-                      var tc = e.touches[0];
-                      var el = document.elementFromPoint(tc.clientX, tc.clientY);
-                      while (el && el.dataset && el.dataset.di === undefined) el = el.parentElement;
-                      if (el && el.dataset && el.dataset.di !== undefined) { var di = parseInt(el.dataset.di); if (!isNaN(di) && di !== dragOv) sDragOv(di) }
-                    },
-                    onTouchEnd: function () {
-                      clearTimeout(_ptimer.current); sPressing(null);
-                      var from = _tref.current; _tref.current = null;
-                      if (from !== null && dragOv !== null && from !== dragOv) { var nb = bnav.slice(); var moved = nb.splice(from, 1)[0]; nb.splice(dragOv, 0, moved); sBnav(nb) }
-                      sDragI(null); sDragOv(null);
-                    },
-                    onTouchCancel: function () {
-                      clearTimeout(_ptimer.current); sPressing(null);
-                      _tref.current = null; sDragI(null); sDragOv(null);
-                    },
-                    style: {
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '10px 12px',
-                      background: isPressing ? 'var(--bgc2)' : 'var(--bgi)',
-                      borderRadius: 8, marginBottom: 6,
-                      border: '1px solid ' + (dragOv === i && !isDragging ? 'var(--acc)' : 'transparent'),
-                      opacity: isDragging ? 0.35 : 1,
-                      transform: isDragging ? 'scale(1.02)' : isPressing ? 'scale(1.03)' : 'translateY(' + shift + 'px)',
-                      boxShadow: isDragging ? '0 8px 22px rgba(0,0,0,.22)' : isPressing ? '0 4px 14px rgba(0,0,0,.15)' : 'none',
-                      zIndex: isDragging ? 5 : 1,
-                      position: 'relative',
-                      cursor: dragI !== null ? 'grabbing' : 'grab',
-                      transition: 'transform 0.2s cubic-bezier(.25,.46,.45,.94), opacity 0.15s, background 0.12s, box-shadow 0.2s, border-color 0.1s',
-                      userSelect: 'none', WebkitUserSelect: 'none'
-                    }
-                  },
-                    h('span', { style: { color: isPressing || isDragging ? 'var(--acc)' : 'var(--t3)', fontSize: '1.1rem', flexShrink: 0, letterSpacing: '-.1em', transition: 'color 0.15s' } }, '⠿'),
+                  var pb = seretNav.baris(i), pg = seretNav.gagang(i);
+                  return h('div', Object.assign({ key: id }, pb, {
+                    style: Object.assign({
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                      background: 'var(--bgi)', borderRadius: 8, marginBottom: 6
+                    }, pb.style)
+                  }),
+                    /* Bidang sentuh gagang dilebarkan lewat padding, lalu ditarik
+                       balik dengan margin negatif supaya tata letaknya tak berubah.
+                       Gagang setipis ikonnya nyaris mustahil dikenai jempol. */
+                    h('span', Object.assign({}, pg, {
+                      style: Object.assign({
+                        color: seretNav.asal === i ? 'var(--acc)' : 'var(--t3)',
+                        fontSize: '1.15rem', flexShrink: 0, letterSpacing: '-.1em',
+                        padding: '8px 10px', margin: '-8px -4px -8px -10px',
+                        transition: 'color .15s'
+                      }, pg.style)
+                    }), '⠿'),
                     h('div', { style: { display: 'flex', width: 18, height: 18, color: 'var(--t2)', flexShrink: 0 } }, h(Ic, { n: item.ic })),
                     h('span', { style: { flex: 1, fontSize: '.85rem', fontWeight: 500 } }, item.lb),
                     h('button', {
@@ -4335,78 +4382,33 @@
             // Dashboard cards section
             h('div', { className: 'cd', style: { marginTop: 12 } },
               h('h3', { style: { fontSize: '.95rem', fontWeight: 700, marginBottom: 4 } }, 'Kartu Dashboard'),
-              h('p', { style: { fontSize: '.78rem', color: 'var(--t3)', marginBottom: 16 } }, 'Tahan dan seret untuk mengubah urutan. Tap × untuk menyembunyikan kartu.'),
+              h('p', { style: { fontSize: '.78rem', color: 'var(--t3)', marginBottom: 16 } }, 'Seret ⠿ untuk mengubah urutan. Tap × untuk menyembunyikan kartu.'),
               // Draggable selected cards
               h('div', { style: { marginBottom: 14 } },
-                dashCards.map(function(id, i) {
-                  var card = ALL_DASH_CARDS.find(function(c) { return c.id === id });
+                dashCards.map(function (id, i) {
+                  var card = ALL_DASH_CARDS.find(function (c) { return c.id === id });
                   if (!card) return null;
-                  var isDragging2 = dragI2 === i;
-                  var isPressing2 = pressing2 === i && dragI2 === null;
-                  var shift2 = 0;
-                  if (dragI2 !== null && dragOv2 !== null && dragI2 !== dragOv2 && !isDragging2) {
-                    if (dragI2 < dragOv2 && i > dragI2 && i <= dragOv2) shift2 = -44;
-                    else if (dragI2 > dragOv2 && i >= dragOv2 && i < dragI2) shift2 = 44;
-                  }
-                  return h('div', {
-                    key: id,
-                    'data-di2': String(i),
-                    draggable: true,
-                    onDragStart: function(e) { sDragI2(i); sDragOv2(i); e.dataTransfer.effectAllowed = 'move' },
-                    onDragOver: function(e) { e.preventDefault(); if (dragOv2 !== i) sDragOv2(i) },
-                    onDrop: function(e) {
-                      e.preventDefault();
-                      if (dragI2 !== null && dragI2 !== i) { var nc = dashCards.slice(); var mv = nc.splice(dragI2, 1)[0]; nc.splice(i, 0, mv); sDash(nc) }
-                      sDragI2(null); sDragOv2(null);
-                    },
-                    onDragEnd: function() { sDragI2(null); sDragOv2(null) },
-                    onTouchStart: function(e) {
-                      e.stopPropagation(); sPressing2(i);
-                      _ptimer2.current = setTimeout(function() {
-                        _tref2.current = i; sDragI2(i); sDragOv2(i); sPressing2(null);
-                        if (navigator.vibrate) navigator.vibrate(40);
-                      }, 300);
-                    },
-                    onTouchMove: function(e) {
-                      if (_tref2.current === null) { clearTimeout(_ptimer2.current); sPressing2(null); return }
-                      e.preventDefault();
-                      var tc = e.touches[0];
-                      var el = document.elementFromPoint(tc.clientX, tc.clientY);
-                      while (el && el.dataset && el.dataset.di2 === undefined) el = el.parentElement;
-                      if (el && el.dataset && el.dataset.di2 !== undefined) { var di2 = parseInt(el.dataset.di2); if (!isNaN(di2) && di2 !== dragOv2) sDragOv2(di2) }
-                    },
-                    onTouchEnd: function() {
-                      clearTimeout(_ptimer2.current); sPressing2(null);
-                      var from2 = _tref2.current; _tref2.current = null;
-                      if (from2 !== null && dragOv2 !== null && from2 !== dragOv2) { var nc = dashCards.slice(); var mv = nc.splice(from2, 1)[0]; nc.splice(dragOv2, 0, mv); sDash(nc) }
-                      sDragI2(null); sDragOv2(null);
-                    },
-                    onTouchCancel: function() {
-                      clearTimeout(_ptimer2.current); sPressing2(null);
-                      _tref2.current = null; sDragI2(null); sDragOv2(null);
-                    },
-                    style: {
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '10px 12px',
-                      background: isPressing2 ? 'var(--bgc2)' : 'var(--bgi)',
-                      borderRadius: 8, marginBottom: 6,
-                      border: '1px solid ' + (dragOv2 === i && !isDragging2 ? 'var(--acc)' : 'transparent'),
-                      opacity: isDragging2 ? 0.35 : 1,
-                      transform: isDragging2 ? 'scale(1.02)' : isPressing2 ? 'scale(1.03)' : 'translateY(' + shift2 + 'px)',
-                      boxShadow: isDragging2 ? '0 8px 22px rgba(0,0,0,.22)' : isPressing2 ? '0 4px 14px rgba(0,0,0,.15)' : 'none',
-                      zIndex: isDragging2 ? 5 : 1, position: 'relative',
-                      cursor: dragI2 !== null ? 'grabbing' : 'grab',
-                      transition: 'transform 0.2s cubic-bezier(.25,.46,.45,.94), opacity 0.15s, background 0.12s, box-shadow 0.2s, border-color 0.1s',
-                      userSelect: 'none', WebkitUserSelect: 'none'
-                    }
-                  },
-                    h('span', { style: { color: isPressing2 || isDragging2 ? 'var(--acc)' : 'var(--t3)', fontSize: '1.1rem', flexShrink: 0, letterSpacing: '-.1em', transition: 'color 0.15s' } }, '⠿'),
+                  var pb = seretKartu.baris(i), pg = seretKartu.gagang(i);
+                  return h('div', Object.assign({ key: id }, pb, {
+                    style: Object.assign({
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                      background: 'var(--bgi)', borderRadius: 8, marginBottom: 6
+                    }, pb.style)
+                  }),
+                    h('span', Object.assign({}, pg, {
+                      style: Object.assign({
+                        color: seretKartu.asal === i ? 'var(--acc)' : 'var(--t3)',
+                        fontSize: '1.15rem', flexShrink: 0, letterSpacing: '-.1em',
+                        padding: '8px 10px', margin: '-8px -4px -8px -10px',
+                        transition: 'color .15s'
+                      }, pg.style)
+                    }), '⠿'),
                     h('div', { style: { flex: 1, minWidth: 0 } },
                       h('div', { style: { fontSize: '.85rem', fontWeight: 500 } }, card.lb),
                       h('div', { style: { fontSize: '.68rem', color: 'var(--t3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, card.desc)),
                     h('button', {
                       disabled: dashCards.length <= 1,
-                      onClick: function() { if (dashCards.length > 1) sDash(dashCards.filter(function(x) { return x !== id })) },
+                      onClick: function () { if (dashCards.length > 1) sDash(dashCards.filter(function (x) { return x !== id })) },
                       style: { width: 28, height: 28, border: 'none', borderRadius: 6, cursor: dashCards.length > 1 ? 'pointer' : 'default', background: dashCards.length > 1 ? 'var(--redbg)' : 'transparent', color: dashCards.length > 1 ? 'var(--red)' : 'var(--brd)', fontSize: '1.1rem', lineHeight: '1', flexShrink: 0 }
                     }, '×'));
                 })
