@@ -3501,6 +3501,13 @@
       function Dash(p) {
         var W = p.W, T = p.T, C = p.C, B = p.B, I = p.I, D = p.D || [], G = p.G || [], R = p.R || [];
         var dashCards = p.dashCards || DEFAULT_DASH;
+        /* Rincian jatah per kategori ditutup secara bawaan: yang dicari sekilas
+           cuma satu angka, dan daftar kategori membuat dashboard panjang.
+           Pilihannya diingat karena memaksa mengetuk ulang setiap kali kembali
+           ke dashboard lebih menjengkelkan daripada kartu yang kepanjangan. */
+        var _jb = useState(function () { try { return localStorage.getItem('wf_jatah_buka') === '1' } catch (e) { return false } });
+        var jatahBuka = _jb[0], sJatahBuka = _jb[1];
+        function tukarJatah() { var v = !jatahBuka; sJatahBuka(v); try { localStorage.setItem('wf_jatah_buka', v ? '1' : '0') } catch (e) { } }
         var now = new Date();
         var mo = now.getMonth(), yr = now.getFullYear(), today = now.getDate();
         var MO = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -3703,24 +3710,35 @@
         };
 
         cardMap.daily = function() {
-          return h('div',{className:'cd',style:{marginBottom:16,padding:'18px 20px'}},
+          var adaJatah = jatahKat.length > 0;
+          /* "Sisa Rp -23.667" menuntut pembacanya mengurai tanda minus untuk
+             tahu keadaannya buruk. Judulnya diganti dan angkanya dibalik jadi
+             positif, sama seperti yang dilakukan bot Telegram. */
+          var lewatBatas = jatahSisa < 0;
+          return h('div',{className:'cd',style:{marginBottom:16,padding:'18px 20px',cursor:adaJatah?'pointer':'default'},
+              onClick:adaJatah?tukarJatah:null},
             h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}},
               h('div',null,
-                h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:4,textTransform:'uppercase',letterSpacing:'.08em'}},'Sisa Jatah Hari Ini'),
-                jatahKat.length
-                  ?h('div',{style:{fontSize:'clamp(1.4rem,5vw,2rem)',fontWeight:800,color:dailyColor,letterSpacing:'-1px',lineHeight:1}},fmt(jatahSisa))
+                h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:4,textTransform:'uppercase',letterSpacing:'.08em'}},adaJatah&&lewatBatas?'Lewat Batas Hari Ini':'Sisa Jatah Hari Ini'),
+                adaJatah
+                  ?h('div',{style:{fontSize:'clamp(1.4rem,5vw,2rem)',fontWeight:800,color:dailyColor,letterSpacing:'-1px',lineHeight:1}},fmt(lewatBatas?-jatahSisa:jatahSisa))
                   :h('div',{style:{fontSize:'.85rem',color:'var(--t3)',marginTop:8}},'Buat anggaran untuk melihat jatah harian')),
-              jatahKat.length?h('div',{style:{textAlign:'right'}},
+              adaJatah?h('div',{style:{textAlign:'right'}},
                 h('div',{style:{fontSize:'.62rem',color:'var(--t3)',marginBottom:2}},'Hari tersisa'),
                 h('div',{style:{fontSize:'1.4rem',fontWeight:800,color:'var(--t2)',lineHeight:1}},daysLeft),
                 h('div',{style:{fontSize:'.6rem',color:'var(--t3)'}},'hari')):null),
-            jatahKat.length?h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:12}},
-              'Jatah ',fmt(jatahTotal),' · terpakai ',fmt(jatahPakai)):null,
-            // Rincian per kategori: ini yang dicari saat mau jajan, bukan angka gabungan
-            jatahKat.length?h('div',null,
+
+            // Baris pembuka. Tanpa penanda ini rinciannya tak akan pernah ditemukan.
+            adaJatah?h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',fontSize:'.7rem',color:'var(--t3)',marginTop:10,paddingTop:10,borderTop:'1px solid var(--brd)'}},
+              h('span',null,jatahKat.length,' kategori',jatahBuka?'':' · ketuk untuk rincian'),
+              h('span',{style:{fontSize:'.6rem'}},jatahBuka?'▲':'▼')):null,
+
+            adaJatah&&jatahBuka?h('div',{style:{marginTop:10}},
+              h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:10}},
+                'Jatah ',fmt(jatahTotal),' · terpakai ',fmt(jatahPakai)),
               jatahKat.map(function(x,i){
                 var col=x.sisaHariIni<=0?'var(--red)':x.pct>=75?'var(--org)':(x.cat.color||'var(--acc)');
-                return h('div',{key:i,style:{marginBottom:i===jatahKat.length-1?0:9}},
+                return h('div',{key:i,style:{marginBottom:9}},
                   h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline',fontSize:'.75rem',marginBottom:3,gap:8}},
                     h('span',{style:{fontWeight:600,display:'flex',alignItems:'center',gap:4,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},(x.cat.icon||''),' ',x.cat.name),
                     h('span',{style:{flexShrink:0,fontWeight:700,color:col}},
@@ -3728,14 +3746,14 @@
                       h('span',{style:{fontWeight:400,color:'var(--t3)'}},' / ',fmt(x.jatah)))),
                   h('div',{style:{height:5,background:'var(--bgi)',borderRadius:3,overflow:'hidden'}},
                     h('div',{style:{height:'100%',width:x.pct+'%',background:col,borderRadius:3,transition:'width .5s'}})));
-              })):null,
-            jatahKat.length?h('div',{style:{marginTop:12,display:'flex',gap:8,fontSize:'.75rem'}},
-              h('div',{style:{flex:1,background:'var(--bgi)',borderRadius:8,padding:'8px 10px'}},
-                h('div',{style:{color:'var(--t3)',marginBottom:2}},'Sisa Budget'),
-                h('div',{style:{fontWeight:700,color:totalBudget-budgetSpent>=0?'var(--acc)':'var(--red)'}},fmt(totalBudget-budgetSpent))),
-              h('div',{style:{flex:1,background:'var(--bgi)',borderRadius:8,padding:'8px 10px'}},
-                h('div',{style:{color:'var(--t3)',marginBottom:2}},'Sudah Dipakai'),
-                h('div',{style:{fontWeight:700,color:'var(--red)'}},fmt(budgetSpent)))):null);
+              }),
+              h('div',{style:{display:'flex',gap:8,fontSize:'.75rem'}},
+                h('div',{style:{flex:1,background:'var(--bgi)',borderRadius:8,padding:'8px 10px'}},
+                  h('div',{style:{color:'var(--t3)',marginBottom:2}},'Sisa Budget'),
+                  h('div',{style:{fontWeight:700,color:totalBudget-budgetSpent>=0?'var(--acc)':'var(--red)'}},fmt(totalBudget-budgetSpent))),
+                h('div',{style:{flex:1,background:'var(--bgi)',borderRadius:8,padding:'8px 10px'}},
+                  h('div',{style:{color:'var(--t3)',marginBottom:2}},'Sudah Dipakai'),
+                  h('div',{style:{fontWeight:700,color:'var(--red)'}},fmt(budgetSpent))))):null);
         };
 
         cardMap.emergency = function() {
