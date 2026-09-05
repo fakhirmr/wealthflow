@@ -35,6 +35,18 @@ function fmtRp(n) {
   catch (e) { return 'Rp ' + (n || 0); }
 }
 function today() { return new Date().toISOString().slice(0, 10); }
+
+/* Vercel berjalan di UTC, pengguna bot ini di Indonesia. today() yang UTC masih
+   memadai untuk mencatat transaksi, tapi TIDAK untuk jatah harian: siapa pun
+   yang bertanya antara tengah malam dan pukul 07.00 WIB akan diberi jatah hari
+   KEMARIN, lengkap dengan belanja kemarin yang sudah memotongnya. Batas harian
+   yang meleset sehari setiap pagi lebih menyesatkan daripada tidak ada batas.
+
+   Dipatok ke WIB, bukan zona per pengguna: aplikasi belum menyimpan zona waktu
+   siapa pun, dan menebaknya dari chat_id tidak mungkin. */
+var OFFSET_WIB = 7 * 60 * 60 * 1000;
+function skrgWIB() { return new Date(Date.now() + OFFSET_WIB); }
+function hariIniWIB() { return skrgWIB().toISOString().slice(0, 10); }
 // Normalkan tanggal dari AI ke YYYY-MM-DD. Struk sering DD/MM/YYYY — format asing ditolak
 // Postgres dan membatalkan SELURUH insert, jadi apa pun yang meragukan jatuh ke hari ini.
 function safeDate(d) {
@@ -514,6 +526,157 @@ function cocokKategori(nama, cats) {
   return hasil;
 }
 
+/* === JATAH HARIAN PER KATEGORI ===
+   Kembaran fungsi jatahHarian() di index.html. Rumusnya WAJIB sama persis:
+   kalau app dan bot menyebut angka berbeda untuk pertanyaan yang sama,
+   pengguna tak punya cara tahu mana yang benar.
+
+   Jatah hari ini = (pagu - belanja SAMPAI KEMARIN) / sisa hari.
+   Belanja hari ini sengaja tidak ikut dibagi rata ke sisa hari; kalau ikut,
+   uang yang baru saja dipakai memotong jatah hari ini dua kali. */
+async function hitungJatah(uid, SB_URL, KEY) {
+  var kini = skrgWIB();
+  var yr = kini.getUTCFullYear(), mo = kini.getUTCMonth() + 1, tgl = kini.getUTCDate();
+  var akhirBln = new Date(Date.UTC(yr, mo, 0)).getUTCDate();
+  var sisaHari = Math.max(akhirBln - tgl + 1, 1);
+  var bl = yr + '-' + String(mo).padStart(2, '0');
+  var hariIni = hariIniWIB();
+
+  var br = await sb('/rest/v1/budgets?user_id=eq.' + uid + '&select=amount,category_id,is_recurring,month,year', {}, SB_URL, KEY);
+  var bud = await br.json(); if (!Array.isArray(bud)) bud = [];
+  var cr = await sb('/rest/v1/categories?user_id=eq.' + uid + '&select=id,name,icon,parent_id,type&order=name.asc', {}, SB_URL, KEY);
+  var cats = await cr.json(); if (!Array.isArray(cats)) cats = [];
+  var xr = await sb('/rest/v1/transactions?user_id=eq.' + uid + '&type=eq.expense&date=gte.' + bl + '-01&date=lte.' + bl + '-' + String(akhirBln).padStart(2, '0') + '&select=amount,date,category_id,sub_category_id', {}, SB_URL, KEY);
+  var txs = await xr.json(); if (!Array.isArray(txs)) txs = [];
+
+  /* Satu kategori bisa punya dua baris anggaran: yang berulang tiap bulan dan
+     yang khusus bulan ini. Yang khusus menang, kalau tidak jatahnya dihitung
+     dari pagu yang sudah diganti sendiri oleh pengguna. */
+  var pilih = {};
+  bud.forEach(function (b) {
+    if (!b.category_id) return;
+    var berulang = b.is_recurring === true || b.is_recurring === null || b.is_recurring === undefined;
+    if (!berulang && !(Number(b.month) === mo && Number(b.year) === yr)) return;
+    var ada = pilih[b.category_id];
+    if (!ada || (!berulang && ada.is_recurring !== false)) pilih[b.category_id] = b;
+  });
+
+  var baris = [];
+  Object.keys(pilih).forEach(function (k) {
+    var b = pilih[k];
+    var cat = cats.find(function (c) { return c.id === b.category_id; });
+    if (!cat) return;
+    /* Induk dicocokkan lewat category_id saja. Kalau sub ikut dijumlah,
+       transaksi yang sama terhitung dua kali: baris sub selalu menyimpan
+       induknya juga di category_id. */
+    var induk = !cat.parent_id;
+    var milik = txs.filter(function (t) {
+      return induk ? t.category_id === b.category_id
+                   : (t.sub_category_id === b.category_id || t.category_id === b.category_id);
+    });
+    var jml = function (a) { return a.reduce(function (x, t) { return x + (Number(t.amount) || 0); }, 0); };
+    var pagu = Number(b.amount) || 0;
+    var pakaiBulan = jml(milik);
+    var pakaiHariIni = jml(milik.filter(function (t) { return String(t.date).slice(0, 10) === hariIni; }));
+    var sisaKemarin = Math.max(pagu - (pakaiBulan - pakaiHariIni), 0);
+    var jatah = sisaKemarin / sisaHari;
+    baris.push({
+      cat: cat, pagu: pagu, pakaiBulan: pakaiBulan, sisaBulan: pagu - pakaiBulan,
+      pakaiHariIni: pakaiHariIni, jatah: jatah, sisaHariIni: jatah - pakaiHariIni,
+      pct: jatah > 0 ? Math.min(Math.round((pakaiHariIni / jatah) * 100), 100) : (pakaiHariIni > 0 ? 100 : 0)
+    });
+  });
+  // Yang paling mepet ditaruh di atas: itu yang perlu dilihat sebelum belanja lagi.
+  baris.sort(function (a, b) { return (a.jatah > 0 ? a.sisaHariIni / a.jatah : -1) - (b.jatah > 0 ? b.sisaHariIni / b.jatah : -1); });
+  return { sisaHari: sisaHari, baris: baris, cats: cats };
+}
+
+/* Kata yang muncul di hampir semua pertanyaan jatah. Kalau ikut dicocokkan ke
+   nama kategori, "sisa" atau "hari" bisa menang atas kata yang sebenarnya
+   ditanyakan. */
+var KATA_UMUM = ['hari', 'ini', 'berapa', 'jatah', 'sisa', 'budget', 'anggaran', 'limit', 'batas',
+  'harian', 'kuota', 'untuk', 'buat', 'yang', 'saya', 'aku', 'gue', 'masih', 'boleh', 'bisa',
+  'lagi', 'sekarang', 'dong', 'nih', 'kah', 'gak', 'nggak', 'engga', 'apa', 'sih', 'aman'];
+
+/* Menebak kategori yang ditanya dari kalimat bebas. Sengaja tidak memanggil AI:
+   pertanyaan jatah harus gratis dan instan, dan mencocokkan nama kategori tak
+   butuh model bahasa. Awalan ikut diterima supaya "makan" menemukan "Makanan". */
+function katDariKalimat(teks, cats) {
+  var kata = rapi(teks).split(' ').filter(function (w) { return w.length >= 3 && KATA_UMUM.indexOf(w) < 0; });
+  var terbaik = null, skor = 0;
+  cats.forEach(function (c) {
+    var nama = rapi(c.name); if (!nama) return;
+    var bagian = nama.split(' ');
+    kata.forEach(function (w) {
+      var sk = 0;
+      if (nama === w) sk = 100;
+      else if (bagian.indexOf(w) >= 0) sk = 80;
+      else if (nama.indexOf(w) === 0 || w.indexOf(nama) === 0) sk = 60 + Math.min(w.length, nama.length);
+      else if (w.length >= 4 && bagian.some(function (bb) { return bb.indexOf(w) === 0; })) sk = 50;
+      if (sk > skor) { skor = sk; terbaik = c; }
+    });
+  });
+  return skor >= 50 ? terbaik : null;
+}
+
+/* Memilah pertanyaan jatah dari catatan transaksi. Salah pilah mahal di dua
+   arah: pertanyaan yang dikira transaksi membuat catatan palsu, transaksi yang
+   dikira pertanyaan membuat belanja hilang tak tercatat. Karena itu kalimat
+   yang memuat nominal (mis. "beli jatah beras 50rb") tetap diperlakukan sebagai
+   transaksi, kecuali kalimatnya jelas-jelas bertanya. */
+var POLA_TANYA_JATAH = /(\bjatah\b)|(\bsisa\b[\s\S]*\b(budget|anggaran|jatah|harian|hari)\b)|(\bberapa\b[\s\S]*\b(boleh|jatah|sisa|budget|anggaran|limit|batas)\b)|(\bmasih\s+(boleh|bisa|ada)\b)|(\b(limit|batas)\b[\s\S]*\bhari\s*ini\b)|(\b(budget|anggaran)\b[\s\S]*\bhari\s*ini\b)/i;
+var POLA_NOMINAL = /\d\s*(rb|ribu|k|jt|juta)\b|\d{3,}/i;
+function tanyaJatah(teks) {
+  var t = String(teks || '');
+  if (!POLA_TANYA_JATAH.test(t)) return false;
+  if (POLA_NOMINAL.test(t) && !/\?|\bberapa\b/i.test(t)) return false;
+  return true;
+}
+
+function tandaJatah(x) { return x.sisaHariIni <= 0 ? '⚠️' : x.pct >= 75 ? '🟡' : '✅'; }
+
+/* Balasan pertanyaan jatah. Satu kategori kalau pertanyaannya menyebut
+   kategori tertentu, kalau tidak semuanya sekaligus. */
+function layarJatah(j, kat) {
+  var bersih = function (x) { return String(x || '').replace(/[<>&]/g, ''); };
+  if (!j.baris.length) {
+    return 'Belum ada anggaran bulan ini, jadi jatah harian belum bisa dihitung.\n\nAtur budget per kategori dulu di app (menu <b>Anggaran</b>), nanti jatah hariannya muncul sendiri.';
+  }
+  if (kat) {
+    var x = j.baris.find(function (b) { return b.cat.id === kat.id; });
+    /* Kata yang diketik pengguna sering menunjuk sub-kategori sementara
+       anggarannya dipasang di induk ("makan" menemukan "Makan di luar",
+       padahal pagunya ada di "Makanan"). Menjawab "belum punya anggaran"
+       di situ salah: uangnya jelas ada, cuma dicatat setingkat di atas. */
+    var lewatInduk = false;
+    if (!x && kat.parent_id) {
+      x = j.baris.find(function (b) { return b.cat.id === kat.parent_id; });
+      lewatInduk = !!x;
+    }
+    if (!x) {
+      return 'Kategori <b>' + bersih(kat.name) + '</b> belum punya anggaran, jadi belum ada jatah hariannya.\n\nSet budget bulanannya dulu di app, nanti jatah per hari dihitung otomatis.\n\nKetik /jatah untuk melihat kategori yang sudah ada anggarannya.';
+    }
+    return (x.cat.icon ? x.cat.icon + ' ' : '') + '<b>' + bersih(x.cat.name) + '</b> — jatah hari ini\n\n' +
+      'Jatah: <b>' + fmtRp(x.jatah) + '</b>\n' +
+      'Terpakai: ' + fmtRp(x.pakaiHariIni) + '\n' +
+      'Sisa: <b>' + (x.sisaHariIni > 0 ? fmtRp(x.sisaHariIni) : 'habis, lewat ' + fmtRp(-x.sisaHariIni)) + '</b> ' + tandaJatah(x) + '\n\n' +
+      (lewatInduk ? '<i>Anggarannya dipasang di induk, jadi ini mencakup semua ' + bersih(x.cat.name) + ', bukan cuma ' + bersih(kat.name) + '.</i>\n' : '') +
+      '<i>Sisa anggaran bulan ini ' + fmtRp(x.sisaBulan) + ' untuk ' + j.sisaHari + ' hari (pagu ' + fmtRp(x.pagu) + ', terpakai ' + fmtRp(x.pakaiBulan) + ').</i>';
+  }
+  var totalSisa = j.baris.reduce(function (a, x2) { return a + x2.sisaHariIni; }, 0);
+  return '🎯 <b>Jatah belanja hari ini</b>\n\n' +
+    j.baris.map(function (x3) {
+      return tandaJatah(x3) + ' ' + (x3.cat.icon ? x3.cat.icon + ' ' : '') + bersih(x3.cat.name) + '\n' +
+        '     ' + (x3.sisaHariIni > 0
+          ? 'sisa <b>' + fmtRp(x3.sisaHariIni) + '</b> dari ' + fmtRp(x3.jatah)
+          : 'habis, lewat <b>' + fmtRp(-x3.sisaHariIni) + '</b>');
+    }).join('\n') +
+    '\n\n' + (totalSisa >= 0
+      ? 'Total sisa hari ini: <b>' + fmtRp(totalSisa) + '</b>'
+      : 'Gabungan sudah lewat batas <b>' + fmtRp(-totalSisa) + '</b>') + '\n' +
+    '<i>' + j.sisaHari + ' hari lagi sampai akhir bulan. Tanya kategori tertentu juga bisa, mis. "berapa jatah makan hari ini".</i>';
+}
+
 // Menyusun daftar transaksi jadi teks yang enak dibaca di chat.
 function ringkas(rows, wallets, cats) {
   return rows.map(function (r) {
@@ -881,10 +1044,10 @@ export default async function handler(req) {
     }
 
     if (/^\/sisa\b/i.test(text)) {
-      var bln = today().slice(0, 7);
+      var bln = hariIniWIB().slice(0, 7);
       var br = await sb('/rest/v1/budgets?user_id=eq.' + uid + '&select=amount,category_id,is_recurring,month,year', {}, SB_URL, KEY);
       var bud = await br.json(); if (!Array.isArray(bud)) bud = [];
-      var kini = new Date(); var blnKini = kini.getMonth() + 1, thnKini = kini.getFullYear();
+      var kini = skrgWIB(); var blnKini = kini.getUTCMonth() + 1, thnKini = kini.getUTCFullYear();
       var pagu = bud.filter(function (b) {
         if (b.is_recurring === true || b.is_recurring === null || b.is_recurring === undefined) return true;
         return Number(b.month) === blnKini && Number(b.year) === thnKini;
@@ -894,14 +1057,15 @@ export default async function handler(req) {
       var xs = await xr.json(); if (!Array.isArray(xs)) xs = [];
       var pakai = xs.reduce(function (a, x) { return a + (Number(x.amount) || 0); }, 0);
       var sisaAnggaran = pagu - pakai;
-      var akhirBln = new Date(thnKini, blnKini, 0).getDate();
-      var sisaHari = Math.max(akhirBln - kini.getDate() + 1, 1);
+      var akhirBln = new Date(Date.UTC(thnKini, blnKini, 0)).getUTCDate();
+      var sisaHari = Math.max(akhirBln - kini.getUTCDate() + 1, 1);
       await reply(TOKEN, chatId, '🎯 <b>Sisa anggaran</b>\n\n' +
         'Pagu: ' + fmtRp(pagu) + '\nTerpakai: ' + fmtRp(pakai) + '\n' +
         'Sisa: <b>' + fmtRp(sisaAnggaran) + '</b>\n\n' +
         (sisaAnggaran > 0
           ? 'Jatah ' + sisaHari + ' hari tersisa: <b>' + fmtRp(sisaAnggaran / sisaHari) + '</b>/hari'
-          : '⚠️ Anggaran bulan ini sudah lewat batas.'));
+          : '⚠️ Anggaran bulan ini sudah lewat batas.') +
+        '\n\n<i>Rincian per kategori: /jatah</i>');
       return new Response('ok');
     }
 
@@ -988,13 +1152,29 @@ export default async function handler(req) {
     if (/^\/(bantuan|perintah)\b/i.test(text)) {
       await reply(TOKEN, chatId, '📖 <b>Yang bisa dilakukan</b>\n\n' +
         '<b>Mencatat</b>\n• Ketik langsung: <i>beli kopi 25rb pakai gopay</i>\n• Kirim foto struk 📷\n\n' +
+        '<b>Bertanya</b>\n• <i>berapa jatah makan hari ini?</i>\n• <i>masih boleh jajan gak?</i>\n\n' +
         '<b>Perintah cepat</b> (tak memakai jatah AI)\n' +
         '/saldo — saldo semua dompet\n' +
         '/sisa — sisa anggaran &amp; jatah harian\n' +
+        '/jatah — jatah hari ini per kategori\n' +
         '/notif — atur notifikasi\n' +
         '/model — model AI yang tersedia\n' +
         '/diag — uji kecepatan AI\n' +
         '/bantuan — pesan ini');
+      return new Response('ok');
+    }
+
+    /* Pertanyaan jatah dijawab DARI BASIS DATA, bukan lewat AI, dan sengaja
+       ditaruh sebelum pemeriksaan kuota. Dua sebabnya: angkanya harus tepat
+       (model bahasa yang menghitung sendiri pembagian anggaran pernah keliru
+       dan tak ada yang bisa mengoreksinya di sisi pengguna), dan pertanyaan
+       sesering "jatah makan hari ini berapa" tidak pantas memakan jatah AI
+       bulanan yang cuma 30. */
+    if (/^\/jatah\b/i.test(text) || tanyaJatah(text)) {
+      var jt = await hitungJatah(uid, SB_URL, KEY);
+      var sisaTeks = text.replace(/^\/jatah\b/i, '').trim();
+      var katTanya = sisaTeks ? katDariKalimat(sisaTeks, jt.cats) : null;
+      await reply(TOKEN, chatId, layarJatah(jt, katTanya));
       return new Response('ok');
     }
 

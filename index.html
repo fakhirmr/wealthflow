@@ -1704,7 +1704,7 @@
         { id: 'networth',   lb: 'Kekayaan Bersih',     desc: 'Total aset, hutang & investasi' },
         { id: 'cashflow',   lb: 'Arus Kas',             desc: 'Pemasukan, pengeluaran & selisih bulan ini' },
         { id: 'budget',     lb: 'Anggaran',             desc: 'Progress penggunaan anggaran per kategori' },
-        { id: 'daily',      lb: 'Batas Belanja Harian', desc: 'Jatah belanja per hari yang tersisa' },
+        { id: 'daily',      lb: 'Batas Belanja Harian', desc: 'Sisa jatah hari ini, dirinci per kategori' },
         { id: 'emergency',  lb: 'Dana Darurat',         desc: 'Coverage bulan dari aset liquid' },
         { id: 'upcoming',   lb: 'Tagihan Mendatang',    desc: 'Reminder & cicilan jatuh tempo 14 hari ke depan' },
         { id: 'savtrend',   lb: 'Tren Tabungan',        desc: 'Savings rate 6 bulan terakhir' },
@@ -2004,6 +2004,69 @@
       function wn(ws, id) { var w = fid(ws, id); return w ? w.name : '-' }
       function gi(g) { for (var i = 0; i < WGROUPS.length; i++)if (WGROUPS[i].id === g) return WGROUPS[i]; return WGROUPS[7] }
       function uf(f, k, v, s) { var n = {}; for (var x in f) n[x] = f[x]; n[k] = v; if (k === 'type') n.category_id = ''; s(n) }
+      /* ═══ JATAH HARIAN PER KATEGORI ═══
+         Batas belanja harian sengaja TIDAK disimpan di basis data. Ia diturunkan
+         dari budget bulanan yang sudah ada, jadi setiap anggaran langsung punya
+         batas harian tanpa pengguna menyetel apa pun lagi.
+
+         Jatah hari ini = (pagu - belanja SAMPAI KEMARIN) / sisa hari.
+         Pembaginya sengaja memakai belanja sampai kemarin, bukan sampai detik ini.
+         Kalau belanja hari ini ikut dipotong lebih dulu, uang yang baru saja
+         dipakai ikut disebar rata ke sisa hari, sehingga jatah hari ini menyusut
+         dua kali dan angkanya jadi bohong. Dengan rumus ini, boros kemarin
+         otomatis mengecilkan jatah hari ini, dan itu memang yang diinginkan.
+
+         Dipakai bersama oleh Dashboard, halaman Anggaran, dan konteks AI supaya
+         ketiganya mustahil menyebut angka yang berbeda. */
+      function jatahHarian(B, C, T) {
+        if (!B || !C || !T) return [];
+        var now = new Date(); var mo = now.getMonth(), yr = now.getFullYear();
+        var hariIni = td();
+        var akhirBln = new Date(yr, mo + 1, 0).getDate();
+        var sisaHari = Math.max(akhirBln - now.getDate() + 1, 1);
+        var moTxns = T.filter(function (t) {
+          if (!t.date || t.type !== 'expense') return false;
+          var d = new Date(t.date); return d.getMonth() === mo && d.getFullYear() === yr;
+        });
+        /* Satu kategori bisa punya dua baris budget: yang berulang tiap bulan dan
+           yang khusus bulan ini. Yang khusus harus menang, kalau tidak jatahnya
+           dihitung dari pagu yang sudah diganti pengguna. */
+        var pilih = {};
+        B.forEach(function (b) {
+          if (!b.category_id) return;
+          var berulang = b.is_recurring === true || b.is_recurring === null || b.is_recurring === undefined;
+          if (!berulang && !(Number(b.month) === mo + 1 && Number(b.year) === yr)) return;
+          var ada = pilih[b.category_id];
+          if (!ada || (!berulang && ada.is_recurring !== false)) pilih[b.category_id] = b;
+        });
+        var hasil = [];
+        Object.keys(pilih).forEach(function (k) {
+          var b = pilih[k]; var cat = fid(C, b.category_id); if (!cat) return;
+          /* Induk dicocokkan lewat category_id saja. Kalau sub ikut dijumlah,
+             transaksi yang sama terhitung dua kali karena baris sub selalu
+             menyimpan induknya juga di category_id. */
+          var induk = !cat.parent_id;
+          var milik = moTxns.filter(function (t) {
+            return induk ? t.category_id === b.category_id
+                         : (t.sub_category_id === b.category_id || t.category_id === b.category_id);
+          });
+          var jml = function (a) { return a.reduce(function (s2, t) { return s2 + (Number(t.amount) || 0) }, 0) };
+          var pagu = Number(b.amount) || 0;
+          var pakaiBulan = jml(milik);
+          var pakaiHariIni = jml(milik.filter(function (t) { return String(t.date).slice(0, 10) === hariIni }));
+          var sisaKemarin = Math.max(pagu - (pakaiBulan - pakaiHariIni), 0);
+          var jatah = sisaKemarin / sisaHari;
+          hasil.push({
+            cat: cat, pagu: pagu, sisaHari: sisaHari,
+            pakaiBulan: pakaiBulan, sisaBulan: pagu - pakaiBulan,
+            pakaiHariIni: pakaiHariIni, jatah: jatah, sisaHariIni: jatah - pakaiHariIni,
+            pct: jatah > 0 ? Math.min(Math.round((pakaiHariIni / jatah) * 100), 100) : (pakaiHariIni > 0 ? 100 : 0),
+            habis: jatah > 0 ? pakaiHariIni >= jatah : pakaiHariIni > 0
+          });
+        });
+        // Yang paling mepet ditaruh di atas: itu yang perlu dilihat sebelum belanja lagi.
+        return hasil.sort(function (a, b) { return (a.jatah > 0 ? a.sisaHariIni / a.jatah : -1) - (b.jatah > 0 ? b.sisaHariIni / b.jatah : -1) });
+      }
       /* ═══ OFFLINE: snapshot data ═══
          Setiap pemuatan yang sukses disimpan lokal, lalu dipakai kembali saat jaringan mati.
          Karena SEMUA tabel memakai lt(), satu perubahan di sini memberi dukungan offline menyeluruh. */
@@ -3448,8 +3511,14 @@
 
         var daysInMonth = new Date(yr,mo+1,0).getDate();
         var daysLeft = Math.max(daysInMonth-today+1,1);
-        var dailyLimit = totalBudget>0?(totalBudget-budgetSpent)/daysLeft:0;
-        var dailyColor = dailyLimit>=100000?'var(--acc)':dailyLimit>=30000?'var(--org)':'var(--red)';
+        /* Angka jatah diambil dari helper bersama, bukan dihitung ulang di sini.
+           Dulu kartu ini memakai rumusnya sendiri dan hanya tahu total semua
+           kategori, jadi tak bisa menjawab "jatah makan hari ini berapa". */
+        var jatahKat = jatahHarian(B,C,T);
+        var jatahTotal = jatahKat.reduce(function(s,x){return s+x.jatah},0);
+        var jatahSisa = jatahKat.reduce(function(s,x){return s+x.sisaHariIni},0);
+        var jatahPakai = jatahKat.reduce(function(s,x){return s+x.pakaiHariIni},0);
+        var dailyColor = jatahSisa<=0?'var(--red)':(jatahTotal>0&&jatahSisa/jatahTotal<.3)?'var(--org)':'var(--acc)';
 
         var liquidGroups = ['cash','accounts','debit','savings','ewallet'];
         var liquidAssets = W.filter(function(w){return liquidGroups.indexOf(w.group_type)>=0&&(Number(w.balance)||0)>0}).reduce(function(s,w){return s+(Number(w.balance)||0)},0);
@@ -3597,15 +3666,30 @@
           return h('div',{className:'cd',style:{marginBottom:16,padding:'18px 20px'}},
             h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:6}},
               h('div',null,
-                h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:4,textTransform:'uppercase',letterSpacing:'.08em'}},'Batas Belanja Harian'),
-                totalBudget>0
-                  ?h('div',{style:{fontSize:'clamp(1.4rem,5vw,2rem)',fontWeight:800,color:dailyColor,letterSpacing:'-1px',lineHeight:1}},fmt(dailyLimit))
+                h('div',{style:{fontSize:'.68rem',color:'var(--t3)',marginBottom:4,textTransform:'uppercase',letterSpacing:'.08em'}},'Sisa Jatah Hari Ini'),
+                jatahKat.length
+                  ?h('div',{style:{fontSize:'clamp(1.4rem,5vw,2rem)',fontWeight:800,color:dailyColor,letterSpacing:'-1px',lineHeight:1}},fmt(jatahSisa))
                   :h('div',{style:{fontSize:'.85rem',color:'var(--t3)',marginTop:8}},'Buat anggaran untuk melihat jatah harian')),
-              totalBudget>0?h('div',{style:{textAlign:'right'}},
+              jatahKat.length?h('div',{style:{textAlign:'right'}},
                 h('div',{style:{fontSize:'.62rem',color:'var(--t3)',marginBottom:2}},'Hari tersisa'),
                 h('div',{style:{fontSize:'1.4rem',fontWeight:800,color:'var(--t2)',lineHeight:1}},daysLeft),
                 h('div',{style:{fontSize:'.6rem',color:'var(--t3)'}},'hari')):null),
-            totalBudget>0?h('div',{style:{marginTop:12,display:'flex',gap:8,fontSize:'.75rem'}},
+            jatahKat.length?h('div',{style:{fontSize:'.7rem',color:'var(--t3)',marginBottom:12}},
+              'Jatah ',fmt(jatahTotal),' · terpakai ',fmt(jatahPakai)):null,
+            // Rincian per kategori: ini yang dicari saat mau jajan, bukan angka gabungan
+            jatahKat.length?h('div',null,
+              jatahKat.map(function(x,i){
+                var col=x.sisaHariIni<=0?'var(--red)':x.pct>=75?'var(--org)':(x.cat.color||'var(--acc)');
+                return h('div',{key:i,style:{marginBottom:i===jatahKat.length-1?0:9}},
+                  h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'baseline',fontSize:'.75rem',marginBottom:3,gap:8}},
+                    h('span',{style:{fontWeight:600,display:'flex',alignItems:'center',gap:4,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},(x.cat.icon||''),' ',x.cat.name),
+                    h('span',{style:{flexShrink:0,fontWeight:700,color:col}},
+                      x.sisaHariIni>0?fmt(x.sisaHariIni):'habis',
+                      h('span',{style:{fontWeight:400,color:'var(--t3)'}},' / ',fmt(x.jatah)))),
+                  h('div',{style:{height:5,background:'var(--bgi)',borderRadius:3,overflow:'hidden'}},
+                    h('div',{style:{height:'100%',width:x.pct+'%',background:col,borderRadius:3,transition:'width .5s'}})));
+              })):null,
+            jatahKat.length?h('div',{style:{marginTop:12,display:'flex',gap:8,fontSize:'.75rem'}},
               h('div',{style:{flex:1,background:'var(--bgi)',borderRadius:8,padding:'8px 10px'}},
                 h('div',{style:{color:'var(--t3)',marginBottom:2}},'Sisa Budget'),
                 h('div',{style:{fontWeight:700,color:totalBudget-budgetSpent>=0?'var(--acc)':'var(--red)'}},fmt(totalBudget-budgetSpent))),
@@ -5709,13 +5793,21 @@
           var cats = []; C.filter(function (c) { return !c.parent_id && c.type === 'expense' }).forEach(function (c) { var s = moTxns.filter(function (t) { return t.type === 'expense' && t.category_id === c.id }).reduce(function (ss, t) { return ss + (Number(t.amount) || 0) }, 0); if (s > 0) cats.push(c.name + ': ' + fmt(s)) });
           var netWorth = W.reduce(function (s, w) { return s + (Number(w.balance) || 0) }, 0) + I.reduce(function (s, i) { return s + (Number(i.current_value) || 0) }, 0) - D.filter(function (d) { return d.type === 'hutang' && d.status !== 'paid' }).reduce(function (s, d) { return s + (Number(d.remaining_amount) || 0) }, 0);
           var savGoals = goals.map(function (g) { return g.name + ' target ' + fmt(g.amount) + (g.deadline ? ' deadline ' + g.deadline : '') }).join('; ');
+          /* Jatah harian disodorkan sudah jadi angka. Model tidak boleh menghitung
+             sendiri dari pagu dan tanggal: salah bagi sedikit saja langsung jadi
+             nasihat belanja yang keliru, dan pengguna tak punya cara tahu. */
+          var jk = jatahHarian(B, C, T);
           return '=== DATA KEUANGAN ' + MO[mo] + ' ' + yr + ' ===\n' +
             'Net Worth: ' + fmt(netWorth) + '\n' +
             'Dompet: ' + W.map(function (w) { return w.name + ' ' + fmt(Number(w.balance) || 0) }).join(', ') + '\n' +
             'Bulan ini, Masuk: ' + fmt(inc) + ', Keluar: ' + fmt(exp) + ', Selisih: ' + fmt(inc - exp) + '\n' +
             'Bulan lalu, Masuk: ' + fmt(pInc) + ', Keluar: ' + fmt(pExp) + '\n' +
             'Pengeluaran: ' + cats.join(', ') + '\n' +
-            (B.length ? 'Anggaran: ' + B.map(function (b) { var c = fid(C, b.category_id); var s = moTxns.filter(function (t) { return t.category_id === b.category_id && t.type === 'expense' }).reduce(function (ss, t) { return ss + (Number(t.amount) || 0) }, 0); return (c ? c.name : '?') + ' ' + fmt(s) + '/' + fmt(Number(b.amount)) }).join(', ') + '\n' : '') +
+            (jk.length ? 'ANGGARAN & JATAH HARIAN (sisa ' + jk[0].sisaHari + ' hari sampai akhir bulan):\n' + jk.map(function (x) {
+              return '- ' + x.cat.name + ': pagu ' + fmt(x.pagu) + '/bulan, terpakai ' + fmt(x.pakaiBulan) + ', sisa bulan ' + fmt(x.sisaBulan) +
+                ' | jatah hari ini ' + fmt(x.jatah) + ', sudah dipakai hari ini ' + fmt(x.pakaiHariIni) +
+                ', SISA JATAH HARI INI ' + (x.sisaHariIni > 0 ? fmt(x.sisaHariIni) : 'HABIS, lewat ' + fmt(-x.sisaHariIni));
+            }).join('\n') + '\n' : '') +
             (D.filter(function (d) { return d.status === 'active' }).length ? 'Hutang: ' + D.filter(function (d) { return d.status === 'active' }).map(function (d) { return d.name + ' sisa ' + fmt(Number(d.remaining_amount) || 0) + ' cicilan ' + fmt(Number(d.monthly_payment) || 0) + '/bln' }).join('; ') + '\n' : '') +
             (I.length ? 'Investasi: ' + I.map(function (i) { return i.name + ' ' + fmt(Number(i.current_value) || 0) }).join(', ') + '\n' : '') +
             (forecast ? 'Proyeksi pengeluaran akhir bulan: ' + fmt(forecast.projE) + '\n' : '') +
@@ -5738,7 +5830,7 @@
           var wList = W.map(function (w) { return w.id + '=' + w.name }).join(',');
           var cList = C.filter(function (c) { return !c.parent_id }).map(function (c) { return c.id + '=' + c.name + '(' + c.type + ')' }).join(',');
           var sList = C.filter(function (c) { return !!c.parent_id }).map(function (c) { return c.id + '=' + c.name + '[parent:' + c.parent_id + ']' }).join(',');
-          var sysPrompt = 'Kamu adalah WealthFlow AI, asisten keuangan pribadi yang cerdas dan analitis untuk pengguna Indonesia.\n\nGAYA: Bahasa Indonesia sehari-hari, seperti teman yang paham keuangan. Kalimat pendek dan langsung. Emoji secukupnya. Jawaban terstruktur (bullet/list jika perlu). Maksimal 300 kata kecuali diminta lebih detail.\n\nDILARANG: jangan pakai tanda pisah em-dash. Pakai titik, koma, atau titik dua. Hindari gaya bahasa AI seperti "bukan X, melainkan Y", "mari kita", "penting untuk dicatat", atau kalimat penutup yang cuma mengulang isi jawaban.\n\nDATA KEUANGAN: Gunakan HANYA angka dari data di bawah. Jangan pernah mengarang angka. Jika data tidak ada atau kurang, minta user input dengan jelas.\n\nPANDUAN RESPONS:\n• Kondisi umum → highlight surplus/defisit, perbandingan bulan lalu, kategori pengeluaran terbesar\n• Analisis pengeluaran → sebutkan angka spesifik per kategori, tandai yang perlu diwaspadai\n• Status budget → tampilkan % terpakai tiap kategori, yang sudah over, estimasi sisa bulan\n• Hutang → total beban cicilan/bulan, rekomendasikan urutan prioritas pelunasan\n• Tips hemat → SPESIFIK berdasarkan pola pengeluaran user, bukan saran generik\n• Pertanyaan di luar keuangan → bantu singkat lalu arahkan ke konteks keuangan user\n\nCATAT TRANSAKSI OTOMATIS: Jika pesan user mengandung transaksi keuangan (beli, bayar, makan, transfer, terima, gaji, dll), sertakan di AKHIR respons satu blok [TX] per transaksi dalam SATU BARIS:\n[TX]{"type":"expense","amount":0,"description":"","date":"' + td() + '","wallet_id":"UUID_ATAU_null","category_id":"UUID_ATAU_null","sub_category_id":"UUID_ATAU_null"}[/TX]\nATURAN KETAT: (1) Setiap blok [TX]...{json}...[/TX] harus ditulis dalam SATU BARIS, jangan dipecah. (2) Semua ID harus UUID TUNGGAL, bukan gabungan koma. (3) sub_category_id harus anak dari category_id yang dipilih, atau null. (4) Jika tidak ada transaksi, JANGAN sertakan [TX].\nDompet: ' + wList + '\nKategori: ' + cList + '\nSub-Kategori: ' + sList + '\n\nPENTING: Fokus pada insight yang actionable. Ingat percakapan sebelumnya.\n\n' + buildCtx();
+          var sysPrompt = 'Kamu adalah WealthFlow AI, asisten keuangan pribadi yang cerdas dan analitis untuk pengguna Indonesia.\n\nGAYA: Bahasa Indonesia sehari-hari, seperti teman yang paham keuangan. Kalimat pendek dan langsung. Emoji secukupnya. Jawaban terstruktur (bullet/list jika perlu). Maksimal 300 kata kecuali diminta lebih detail.\n\nDILARANG: jangan pakai tanda pisah em-dash. Pakai titik, koma, atau titik dua. Hindari gaya bahasa AI seperti "bukan X, melainkan Y", "mari kita", "penting untuk dicatat", atau kalimat penutup yang cuma mengulang isi jawaban.\n\nDATA KEUANGAN: Gunakan HANYA angka dari data di bawah. Jangan pernah mengarang angka. Jika data tidak ada atau kurang, minta user input dengan jelas.\n\nPANDUAN RESPONS:\n• Kondisi umum → highlight surplus/defisit, perbandingan bulan lalu, kategori pengeluaran terbesar\n• Analisis pengeluaran → sebutkan angka spesifik per kategori, tandai yang perlu diwaspadai\n• Status budget → tampilkan % terpakai tiap kategori, yang sudah over, estimasi sisa bulan\n• Jatah harian ("jatah makan hari ini berapa?", "masih boleh jajan?") → sebut SISA JATAH HARI INI kategori itu, lalu jatah penuhnya dan yang sudah dipakai hari ini. Angkanya SUDAH ADA di data, salin apa adanya, JANGAN hitung ulang. Kalau kategori yang ditanya belum punya anggaran, katakan begitu, jangan mengarang jatah.\n• Hutang → total beban cicilan/bulan, rekomendasikan urutan prioritas pelunasan\n• Tips hemat → SPESIFIK berdasarkan pola pengeluaran user, bukan saran generik\n• Pertanyaan di luar keuangan → bantu singkat lalu arahkan ke konteks keuangan user\n\nCATAT TRANSAKSI OTOMATIS: Jika pesan user mengandung transaksi keuangan (beli, bayar, makan, transfer, terima, gaji, dll), sertakan di AKHIR respons satu blok [TX] per transaksi dalam SATU BARIS:\n[TX]{"type":"expense","amount":0,"description":"","date":"' + td() + '","wallet_id":"UUID_ATAU_null","category_id":"UUID_ATAU_null","sub_category_id":"UUID_ATAU_null"}[/TX]\nATURAN KETAT: (1) Setiap blok [TX]...{json}...[/TX] harus ditulis dalam SATU BARIS, jangan dipecah. (2) Semua ID harus UUID TUNGGAL, bukan gabungan koma. (3) sub_category_id harus anak dari category_id yang dipilih, atau null. (4) Jika tidak ada transaksi, JANGAN sertakan [TX].\nDompet: ' + wList + '\nKategori: ' + cList + '\nSub-Kategori: ' + sList + '\n\nPENTING: Fokus pada insight yang actionable. Ingat percakapan sebelumnya.\n\n' + buildCtx();
           aiFetch({
             model: 'gemini-flash-latest', max_tokens: 4096,
             messages: [{ role: 'system', content: sysPrompt }].concat(hist)
@@ -6128,6 +6220,7 @@
         var quickP = [
           { lb: 'Kondisi keuangan', q: 'Bagaimana kondisi keuangan aku bulan ini secara keseluruhan?' },
           { lb: 'Boros di mana?', q: 'Di kategori apa aku paling boros bulan ini? Bandingkan dengan bulan lalu.' },
+          { lb: 'Jatah hari ini', q: 'Berapa sisa jatah belanja hari ini per kategori?' },
           { lb: 'Budget status', q: 'Status budget per kategori. Yang mana sudah over atau hampir habis?' },
           { lb: 'Strategi hutang', q: 'Strategi terbaik melunasi hutang aku lebih cepat berdasarkan kondisi keuangan sekarang?' },
           { lb: 'Tips hemat', q: 'Berikan 5 tips hemat yang spesifik berdasarkan pola pengeluaran aku.' },
@@ -6486,6 +6579,21 @@
         // Generic spent (used for single-level budget display)
         function spent(catId) { var cat = fid(C, catId); return cat && !cat.parent_id ? spentParent(catId) : spentSub(catId) }
 
+        /* Jatah harian hanya berarti untuk bulan berjalan: bulan lampau sudah
+           tutup buku, bulan depan belum punya belanja sama sekali. Kalau
+           navigator digeser ke bulan lain, barisnya sengaja tidak muncul
+           daripada memajang angka yang tak bisa dipakai. */
+        var blnBerjalan = vMo === mo2 && vYr === yr;
+        var jatahMap = {};
+        if (blnBerjalan) jatahHarian(B, C, T).forEach(function (x) { jatahMap[x.cat.id] = x });
+        function barisJatah(catId) {
+          var j = jatahMap[catId]; if (!j || j.pagu <= 0) return null;
+          var col = j.sisaHariIni <= 0 ? 'var(--red)' : j.pct >= 75 ? 'var(--org)' : 'var(--acc)';
+          return h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: '.72rem', marginTop: 6, padding: '4px 8px', background: 'var(--bgi)', borderRadius: 6 } },
+            h('span', { style: { color: 'var(--t3)' } }, 'Jatah hari ini ', h('b', { style: { color: 'var(--t2)' } }, fmt(j.jatah))),
+            h('span', { style: { color: 'var(--t3)' } }, 'sisa ', h('b', { style: { color: col } }, j.sisaHariIni > 0 ? fmt(j.sisaHariIni) : 'habis')));
+        }
+
         // Get all parent categories that have budgets OR have sub-category budgets
         var parents = C.filter(function (c) { return !c.parent_id && c.type === 'expense' });
         var budgetedParents = parents.filter(function (par) {
@@ -6569,6 +6677,7 @@
                         h('div', { style: { fontSize: '.7rem', color: 'var(--t3)' } }, fmt(parSpent), ' / ', fmt(effectiveBudget)))),
                     h('div', { style: { height: 6, background: 'var(--bgi)', borderRadius: 3, overflow: 'hidden' } },
                       h('div', { style: { height: '100%', width: parPct + '%', background: parCol, borderRadius: 3, transition: 'width .5s' } })),
+                    directBudget && subBudgets.length === 0 ? barisJatah(par.id) : null,
                     directBudget && subBudgets.length === 0 ?
                       h('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 6, marginTop: 8 } },
                         h('button', { className: 'bi', onClick: function (e) { e.stopPropagation(); oE(directBudget) } }, h(Ic, { n: 'edit' })),
@@ -6599,7 +6708,8 @@
                             h('button', { className: 'bi', style: { color: 'var(--red)' }, onClick: function () { del(subB) } }, h(Ic, { n: 'trash' }))) :
                             h('button', { className: 'btn bs', style: { fontSize: '.72rem', padding: '2px 8px' }, onClick: function () { sF({ category_id: sub.id, amount: '', period: 'monthly' }); sMo({ m: 'add' }) } }, '+ Budget')),
                         subB ? h('div', { style: { height: 4, background: 'var(--bgi)', borderRadius: 2, overflow: 'hidden' } },
-                          h('div', { style: { height: '100%', width: subPct + '%', background: subCol, borderRadius: 2 } })) : null)
+                          h('div', { style: { height: '100%', width: subPct + '%', background: subCol, borderRadius: 2 } })) : null,
+                        subB ? barisJatah(sub.id) : null)
                     }),
                     // Add sub-budget button
                     h('div', { style: { padding: '8px 16px' } },
@@ -6717,6 +6827,19 @@
               h('div', { style: { height: 5, background: 'var(--brd)', borderRadius: 3, overflow: 'hidden' } },
                 h('div', { style: { height: '100%', width: Math.min(detB.pct, 100) + '%', background: detB.pct >= 100 ? 'var(--red)' : detB.pct >= 80 ? 'var(--org)' : 'var(--acc)', borderRadius: 3 } })),
               h('div', { style: { textAlign: 'right', fontSize: '.68rem', color: 'var(--t3)', marginTop: 4 } }, detB.pct + '% terpakai')),
+          // Jatah hari ini: yang dicari orang sebelum memutuskan jadi jajan atau tidak
+          (function () {
+            var j = detB.cat ? jatahMap[detB.cat.id] : null; if (!j || j.pagu <= 0) return null;
+            var col = j.sisaHariIni <= 0 ? 'var(--red)' : j.pct >= 75 ? 'var(--org)' : 'var(--acc)';
+            return h('div', { style: { background: 'var(--bgi)', borderRadius: 8, padding: '10px 12px', marginBottom: 10 } },
+              h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 } },
+                h('span', { style: { fontSize: '.72rem', color: 'var(--t3)' } }, 'Sisa jatah hari ini'),
+                h('span', { style: { fontSize: '1.05rem', fontWeight: 800, color: col } }, j.sisaHariIni > 0 ? fmt(j.sisaHariIni) : 'habis')),
+              h('div', { style: { height: 5, background: 'var(--brd)', borderRadius: 3, overflow: 'hidden', marginBottom: 5 } },
+                h('div', { style: { height: '100%', width: j.pct + '%', background: col, borderRadius: 3 } })),
+              h('div', { style: { fontSize: '.68rem', color: 'var(--t3)' } },
+                'Jatah ', fmt(j.jatah), ' · terpakai ', fmt(j.pakaiHariIni), ' · sisa bulan ', fmt(j.sisaBulan), ' untuk ', j.sisaHari, ' hari'));
+          })(),
             // Transaction list — immediately visible
             h('div', { style: { fontSize: '.75rem', fontWeight: 600, color: 'var(--t3)', marginBottom: 6 } }, detB.txns.length + ' transaksi bulan ini'),
             detB.txns.length === 0 ? h('div', { style: { textAlign: 'center', padding: '20px 0', color: 'var(--t3)', fontSize: '.82rem' } }, 'Belum ada transaksi di kategori ini') :
