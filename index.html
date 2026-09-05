@@ -2753,8 +2753,48 @@
       }
 
       /* ═══════════════════ WHAT'S NEW ═══════════════════ */
-      var WF_VERSION = '4.0';
+      var WF_VERSION = '5.0';
       var WF_CHANGELOG = [
+        {
+          v: '5.0', date: '5 Sep 2026', items: [
+            { type: 'new', emoji: '🎯', text: 'Batas belanja harian kini per kategori, bukan cuma angka gabungan' },
+            { type: 'new', emoji: '💬', text: 'Tanya bot Telegram "berapa jatah makan hari ini", dijawab tanpa memakai kuota AI' },
+            { type: 'new', emoji: '🤖', text: 'AI di app ikut tahu sisa jatah tiap kategori untuk hari ini' },
+            { type: 'improve', emoji: '📊', text: 'Halaman Anggaran menampilkan sisa jatah hari ini di tiap kategori & sub-kategori' },
+            { type: 'fix', emoji: '🕘', text: 'Perhitungan hari di bot Telegram ikut waktu Indonesia, tak lagi meleset sebelum jam 7 pagi' },
+          ]
+        },
+        {
+          v: '4.4', date: '28 Agu 2026', items: [
+            { type: 'new', emoji: '🔔', text: 'Bot Telegram jadi dua arah: notifikasi terjadwal & tombol aksi' },
+            { type: 'new', emoji: '✅', text: 'Bot minta persetujuan dulu sebelum menyimpan hasil baca gambar' },
+            { type: 'new', emoji: '🏦', text: 'Pilih dompet & kategori langsung dari layar konfirmasi bot' },
+            { type: 'new', emoji: '🔁', text: 'Bayar otomatis cicilan hutang' },
+            { type: 'new', emoji: '🚪', text: 'Halaman depan baru & rancang ulang halaman masuk' },
+            { type: 'fix', emoji: '🔒', text: 'Audit keamanan menyeluruh: 4 celah & 3 bug saldo ditutup' },
+          ]
+        },
+        {
+          v: '4.3', date: '11 Agu 2026', items: [
+            { type: 'new', emoji: '📴', text: 'Mode offline: app tetap jalan & bisa mencatat tanpa internet' },
+            { type: 'new', emoji: '🍩', text: 'Komposisi pengeluaran per kategori jadi grafik donat' },
+            { type: 'improve', emoji: '🖼', text: 'Baca mutasi lebih cepat, dompet cukup dipilih sekali untuk semua barisnya' },
+          ]
+        },
+        {
+          v: '4.2', date: '1 Agu 2026', items: [
+            { type: 'new', emoji: '💎', text: 'Langganan Premium lewat Midtrans' },
+            { type: 'new', emoji: '✂️', text: 'Split satu transaksi ke beberapa kategori' },
+          ]
+        },
+        {
+          v: '4.1', date: '19 Jul 2026', items: [
+            { type: 'new', emoji: '🤖', text: 'AI terpusat: tak perlu menempel API key sendiri lagi' },
+            { type: 'new', emoji: '📷', text: 'Baca struk belanja & mutasi rekening dari foto' },
+            { type: 'new', emoji: '⏰', text: 'Reminder tagihan, cicilan, & apa pun yang harus dibayar' },
+            { type: 'new', emoji: '✈️', text: 'Catat keuangan lewat chat bot Telegram' },
+          ]
+        },
         {
           v: '4.0', date: '4 Jun 2026', items: [
             { type: 'fix', emoji: '🛠', text: 'Layar gelap atau crash saat buka app sudah diperbaiki' },
@@ -4445,7 +4485,7 @@
                 h('div', { style: { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,var(--acc),var(--cyn))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#fff', fontSize: 16, flexShrink: 0 } }, 'W'),
                 h('div', null,
                   h('div', { style: { fontWeight: 700, fontSize: '.95rem' } }, 'WealthFlow'),
-                  h('div', { style: { fontSize: '.75rem', color: 'var(--t3)' } }, 'Versi ' + WF_VERSION + ' · 4 Jun 2026'))),
+                  h('div', { style: { fontSize: '.75rem', color: 'var(--t3)' } }, 'Versi ' + WF_VERSION + ' · ' + WF_CHANGELOG[0].date))),
               h('div', { style: { fontSize: '.78rem', color: 'var(--t2)', marginBottom: 10 } }, 'Kamu menggunakan versi terbaru ✓'),
               h('button', { className: 'btn bp', style: { width: '100%', justifyContent: 'center', fontSize: '.82rem' }, onClick: function () { sShowAllCl(true) } }, 'Lihat semua riwayat pembaruan')),
             // Latest changes

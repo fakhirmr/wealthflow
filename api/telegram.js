@@ -656,7 +656,7 @@ function layarJatah(j, kat) {
     if (!x) {
       return 'Kategori <b>' + bersih(kat.name) + '</b> belum punya anggaran, jadi belum ada jatah hariannya.\n\nSet budget bulanannya dulu di app, nanti jatah per hari dihitung otomatis.\n\nKetik /jatah untuk melihat kategori yang sudah ada anggarannya.';
     }
-    return (x.cat.icon ? x.cat.icon + ' ' : '') + '<b>' + bersih(x.cat.name) + '</b> — jatah hari ini\n\n' +
+    return (x.cat.icon ? x.cat.icon + ' ' : '') + '<b>' + bersih(x.cat.name) + '</b> hari ini\n\n' +
       'Jatah: <b>' + fmtRp(x.jatah) + '</b>\n' +
       'Terpakai: ' + fmtRp(x.pakaiHariIni) + '\n' +
       'Sisa: <b>' + (x.sisaHariIni > 0 ? fmtRp(x.sisaHariIni) : 'habis, lewat ' + fmtRp(-x.sisaHariIni)) + '</b> ' + tandaJatah(x) + '\n\n' +
@@ -1154,13 +1154,13 @@ export default async function handler(req) {
         '<b>Mencatat</b>\n• Ketik langsung: <i>beli kopi 25rb pakai gopay</i>\n• Kirim foto struk 📷\n\n' +
         '<b>Bertanya</b>\n• <i>berapa jatah makan hari ini?</i>\n• <i>masih boleh jajan gak?</i>\n\n' +
         '<b>Perintah cepat</b> (tak memakai jatah AI)\n' +
-        '/saldo — saldo semua dompet\n' +
-        '/sisa — sisa anggaran &amp; jatah harian\n' +
-        '/jatah — jatah hari ini per kategori\n' +
-        '/notif — atur notifikasi\n' +
-        '/model — model AI yang tersedia\n' +
-        '/diag — uji kecepatan AI\n' +
-        '/bantuan — pesan ini');
+        '/saldo - saldo semua dompet\n' +
+        '/sisa - sisa anggaran &amp; jatah harian\n' +
+        '/jatah - jatah hari ini per kategori\n' +
+        '/notif - atur notifikasi\n' +
+        '/model - model AI yang tersedia\n' +
+        '/diag - uji kecepatan AI\n' +
+        '/bantuan - pesan ini');
       return new Response('ok');
     }
 
