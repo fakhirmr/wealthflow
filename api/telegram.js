@@ -287,13 +287,28 @@ function pesanGalatAI(e) {
   var m = String(e && e.message || '').toLowerCase();
   var kode = (e && e.kode) || 0;
   if (kode === 429 || m.indexOf('quota') >= 0 || m.indexOf('rate limit') >= 0 || m.indexOf('exhaust') >= 0) {
-    return '🚫 <b>Jatah AI di Google habis atau kena batas laju.</b>\n\nBukan salah tulisanmu. Tunggu beberapa menit, atau aktifkan penagihan di Google AI Studio kalau ini sering terjadi.';
+    var asliK = String(e && e.message || '').slice(0, 180).replace(/[<>&]/g, '');
+    return '🚫 <b>Jatah AI di Google habis atau kena batas laju.</b>\n\nBukan salah tulisanmu. Tunggu beberapa menit lalu coba lagi.' + (asliK ? '\n\n<code>' + asliK + '</code>' : '');
   }
   if (kode >= 500 || m.indexOf('penuh') >= 0 || m.indexOf('overload') >= 0 || m.indexOf('unavailable') >= 0 || m.indexOf('high traffic') >= 0) {
     return '🌧 <b>Semua model AI menolak.</b>\n\nGoogle membalas bahwa modelnya sedang penuh. Ini dari pihak Google, bukan dari tulisanmu.';
   }
   if (kode === 401 || kode === 403 || m.indexOf('api key') >= 0 || m.indexOf('permission') >= 0) {
-    return '🔑 <b>Kunci AI ditolak Google.</b> Periksa GEMINI_API_KEY di Vercel.';
+    /* Tiga keadaan yang sangat berbeda dulu dibalas satu kalimat yang sama,
+       padahal tak ada satu pun tindakannya yang sama: kunci salah dibetulkan
+       di Vercel, API yang belum aktif dibetulkan di Google Cloud, kunci yang
+       dibatasi dibetulkan di AI Studio. Lebih buruk lagi, kalimat lama
+       membuang pesan asli Google, satu-satunya keterangan yang bisa
+       membedakan ketiganya, sehingga penerimanya justru dikirim menebak. */
+    var asli = String(e && e.message || '').slice(0, 180).replace(/[<>&]/g, '');
+    var ekor = asli ? '\n\n<code>' + asli + '</code>' : '';
+    if (m.indexOf('has not been used') >= 0 || m.indexOf('is disabled') >= 0 || m.indexOf('not enabled') >= 0) {
+      return '🔌 <b>Generative Language API belum aktif di project Google-nya.</b>\n\nAktifkan API itu di Google Cloud Console untuk project pemilik kunci ini, lalu tunggu beberapa menit sampai menyebar.' + ekor;
+    }
+    if (m.indexOf('referer') >= 0 || m.indexOf('referrer') >= 0 || m.indexOf('ip address') >= 0 || m.indexOf('blocked') >= 0 || m.indexOf('restrict') >= 0) {
+      return '⛔ <b>Kunci AI dibatasi, jadi ditolak dari server.</b>\n\nBuang pembatasan referrer/IP pada kunci ini. Panggilannya datang dari server Vercel, bukan dari peramban, jadi pembatasan apa pun akan menolaknya.' + ekor;
+    }
+    return '🔑 <b>Kunci AI ditolak Google.</b>\n\nPeriksa GEMINI_API_KEY di Vercel. Kunci yang dibuat ulang di AI Studio membuat kunci lama langsung mati, dan env di Vercel tidak ikut berubah sendiri.' + ekor + '\n\nKetik /model untuk melihat jawaban mentah Google.';
   }
   if (m.indexOf('not found') >= 0 || m.indexOf('model') >= 0) {
     return '⚠️ <b>Model AI tidak tersedia.</b>\n\n<code>' + String(e.message).slice(0, 120).replace(/[<>&]/g, '') + '</code>';

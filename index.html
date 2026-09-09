@@ -5730,7 +5730,7 @@
              sering kosong, yang sampai ke pengguna cuma "respons kosong". */
           if (d.error === 'ai_penuh') return '🌧 Server AI Google sedang penuh. Sudah dicoba dua kali dengan model berbeda. Ini dari pihak Google, bukan datamu. Tunggu sebentar lalu coba lagi.';
           if (d.error === 'ai_kuota') return '⏳ Jatah AI di Google penuh sesaat. Tunggu ~1 menit lalu coba lagi.';
-          if (d.error === 'ai_kunci') return '🔑 Kunci AI ditolak Google. Hubungi admin untuk memeriksa GEMINI_API_KEY.';
+          if (d.error === 'ai_kunci') return '🔑 Kunci AI ditolak Google. Hubungi admin untuk memeriksa GEMINI_API_KEY' + (d.detail ? ': ' + d.detail : '') + '.';
           if (d.error === 'ai_model') return '⚠️ Model AI tidak tersedia' + (d.detail ? ': ' + d.detail : '') + '.';
           if (d.error === 'ai_gagal') return '❌ AI menolak permintaan' + (d.detail ? ': ' + d.detail : '') + '.';
           if (d.error === 'upstream_failed') {
