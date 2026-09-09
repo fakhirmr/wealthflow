@@ -302,6 +302,15 @@ function pesanGalatAI(e) {
        membedakan ketiganya, sehingga penerimanya justru dikirim menebak. */
     var asli = String(e && e.message || '').slice(0, 180).replace(/[<>&]/g, '');
     var ekor = asli ? '\n\n<code>' + asli + '</code>' : '';
+    /* "dunning" itu istilah penagihan, bukan istilah teknis: Google memblokir
+       project karena tagihannya gagal ditarik atau lewat jatuh tempo. Ia datang
+       sebagai 403 PERMISSION_DENIED, persis seperti kunci yang tak sah, jadi
+       tanpa pemeriksaan ini pemiliknya dikirim mengutak-atik GEMINI_API_KEY
+       yang sebenarnya tidak apa-apa. Diperiksa PALING AWAL karena pesannya
+       kadang menyebut project yang "disabled" juga. */
+    if (m.indexOf('dunning') >= 0 || m.indexOf('delinquen') >= 0 || m.indexOf('billing') >= 0 || m.indexOf('suspend') >= 0) {
+      return '💳 <b>Tagihan Google Cloud belum lunas, project-nya diblokir.</b>\n\nKuncinya sendiri tidak apa-apa. Buka Google Cloud Console lalu menu Billing, periksa tagihan yang lewat jatuh tempo atau kartu yang gagal ditarik, betulkan metode pembayarannya, lalu bayar tagihannya. Akses biasanya pulih dalam hitungan menit sampai beberapa jam setelah pembayaran masuk.\n\nKartu Indonesia sering ditolak untuk tagihan dolar berulang, jadi periksa juga ke banknya.' + ekor;
+    }
     if (m.indexOf('has not been used') >= 0 || m.indexOf('is disabled') >= 0 || m.indexOf('not enabled') >= 0) {
       return '🔌 <b>Generative Language API belum aktif di project Google-nya.</b>\n\nAktifkan API itu di Google Cloud Console untuk project pemilik kunci ini, lalu tunggu beberapa menit sampai menyebar.' + ekor;
     }
