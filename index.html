@@ -2250,6 +2250,13 @@
       function pesanGalat(mentah) {
         try { console.warn('WealthFlow, galat basis data:', mentah) } catch (e) { }
         var m = String(mentah || '').toLowerCase();
+        /* Token yang "belum berlaku" hampir selalu berarti jam perangkatnya
+           meleset, bukan sesinya basi. Menyuruh keluar-masuk di kasus itu
+           mengirim orang berputar-putar: sesi barunya akan ditolak persis
+           sama selama jamnya masih salah. */
+        if (m.indexOf('not yet valid') >= 0 || m.indexOf('issued at future') >= 0 || m.indexOf('iat') >= 0) {
+          return 'Jam di perangkat ini meleset dari jam sebenarnya, jadi server menolak sesimu. Nyalakan penyetelan waktu otomatis di pengaturan perangkat, lalu muat ulang halaman.';
+        }
         if (isAuthErr(m)) return 'Sesi kamu perlu disegarkan. Muat ulang halaman, atau keluar lalu masuk lagi.';
         if (m.indexOf('row-level security') >= 0 || m.indexOf('permission denied') >= 0) return 'Data ini tidak bisa dibuka dari akun kamu.';
         if (m.indexOf('does not exist') >= 0 || m.indexOf('schema cache') >= 0) return 'Ada bagian aplikasi yang belum siap di server. Coba lagi sebentar.';
@@ -3127,6 +3134,21 @@
       function App() {
         var t = useContext(TCtx); // untuk notifikasi sinkronisasi offline
         var _au = useState(null), user = _au[0], sUser = _au[1];
+        /* Penyegaran token mengembalikan objek user BARU untuk orang yang SAMA.
+           Kalau objek itu langsung dipasang, seluruh aplikasi menganggap
+           penggunanya berganti: sembilan tabel dimuat ulang dari nol dan layar
+           skeleton muncul lagi. Objek lama karena itu dipertahankan selama
+           id-nya tidak berubah. */
+        function sUserStabil(u) {
+          sUser(function (lama) { return (lama && u && lama.id === u.id) ? lama : u; });
+        }
+        /* Efek berat dikunci ke id, bukan ke objeknya. Ini yang memutus lingkaran:
+           lt() yang kena galat JWT memanggil segarkanSesi(), penyegaran itu
+           memancing onAuthStateChange, objek user berganti, efek pemuatan data
+           jalan lagi, sembilan permintaan berikutnya kena galat JWT yang sama,
+           dan seterusnya tanpa henti. Yang terlihat di layar: isi halaman
+           muncul lalu hilang berulang kali, setiap dua detik. */
+        var uidDep = user ? user.id : null;
         var _ac = useState(true), authChecking = _ac[0], sAC = _ac[1];
         // Pengunjung melihat halaman depan lebih dulu; formulir masuk baru dibuka saat diminta.
         // Tautan pemulihan kata sandi dari surel harus langsung ke formulir, jadi dikenali di sini.
@@ -3192,16 +3214,16 @@
           sb.auth.getSession().then(function (r) {
             clearTimeout(timeout);
             if (r.data.session && r.data.session.user) {
-              UID = r.data.session.user.id; sUser(r.data.session.user);
+              UID = r.data.session.user.id; sUserStabil(r.data.session.user);
             }
             sAC(false);
           }).catch(function () { clearTimeout(timeout); sAC(false) });
           var sub = sb.auth.onAuthStateChange(function (event, session) {
             if (event === 'PASSWORD_RECOVERY') {
               sResetMode(true); sAC(false);
-              if (session && session.user) { UID = session.user.id; sUser(session.user) }
+              if (session && session.user) { UID = session.user.id; sUserStabil(session.user) }
             } else if (session && session.user) {
-              UID = session.user.id; sUser(session.user);
+              UID = session.user.id; sUserStabil(session.user);
               // Lock with biometrics if already registered and this is session restore
               if (bioAvailable() && event === 'INITIAL_SESSION') { sLocked(true); }
               // Offer to enable biometrics after fresh sign-in (only once)
@@ -3230,7 +3252,7 @@
           }
           document.addEventListener('visibilitychange', onVis);
           return function () { document.removeEventListener('visibilitychange', onVis) };
-        }, [user]);
+        }, [uidDep]);
 
         // Load data when user changes
         useEffect(function () {
@@ -3275,7 +3297,7 @@
             }).catch(function () { });
           }
           return function () { clearTimeout(t1); clearTimeout(t2) }
-        }, [user]);
+        }, [uidDep]);
         function rW() { lt('wallets', 'created_at', true).then(function (r) { sW(r.d) }) }
         function rT() { lt('transactions', 'date', false).then(function (r) { sT(r.d) }) }
         function rC() { lt('categories', 'name', true).then(function (r) { sC(r.d) }) }
@@ -3302,7 +3324,7 @@
           var iv = setInterval(function () { sPendCount(obCount()); flush() }, 30000); // jaring pengaman
           flush();
           return function () { window.removeEventListener('online', goOn); window.removeEventListener('offline', goOff); clearInterval(iv) };
-        }, [user]);
+        }, [uidDep]);
 
         var sideNav = ALL_PAGES;
         function go(p) { sPg(p); sMb(false) }
