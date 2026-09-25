@@ -125,8 +125,17 @@ export default async function handler(req) {
   var FREE_LIMIT = parseInt(process.env.AI_FREE_LIMIT || '30', 10);
   var PREMIUM_LIMIT = parseInt(process.env.AI_PREMIUM_LIMIT || '500', 10);
 
-  if (!AKEY || !SB_URL || !SB_SERVICE || !SB_ANON) {
-    return json({ error: 'server_misconfig', detail: 'Environment variables belum lengkap' }, 500);
+  /* Menyebut env mana yang kosong, bukan sekadar "belum lengkap". Pesan lama
+     benar tapi buntu: pemiliknya tahu ada yang salah dan tidak tahu apa, lalu
+     harus membuka /api/diag hanya untuk membaca satu nama. Nama env bukan
+     rahasia; isinya yang rahasia, dan isinya tidak pernah ikut ditampilkan. */
+  var kurang = [];
+  if (!AKEY) kurang.push('ANTHROPIC_API_KEY');
+  if (!SB_URL) kurang.push('SUPABASE_URL');
+  if (!SB_ANON) kurang.push('SUPABASE_ANON_KEY');
+  if (!SB_SERVICE) kurang.push('SUPABASE_SERVICE_ROLE_KEY');
+  if (kurang.length) {
+    return json({ error: 'server_misconfig', detail: 'Env belum diset di Vercel: ' + kurang.join(', ') }, 500);
   }
 
   // 1) Verifikasi token login Supabase

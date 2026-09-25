@@ -5746,7 +5746,7 @@
           if (!d || !d.error) return null;
           if (d.error === 'quota_exceeded') return '🚫 Jatah AI bulan ini habis (' + d.used + '/' + d.limit + '). Kuota reset awal bulan depan.';
           if (d.error === 'unauthorized') return '🔒 Sesi habis. Silakan login ulang.';
-          if (d.error === 'server_misconfig') return '⚙️ AI belum dikonfigurasi. Hubungi admin.';
+          if (d.error === 'server_misconfig') return '⚙️ AI belum dikonfigurasi. Hubungi admin' + (d.detail ? ', ' + d.detail : '') + '.';
           if (d.error === 'model_not_allowed') return '⚠️ Model tidak didukung.';
           /* Kode-kode ini dikirim api/ai.js setelah menerjemahkan galat Google.
              Sebelumnya balasan mentah diteruskan apa adanya, dan karena badan 503
