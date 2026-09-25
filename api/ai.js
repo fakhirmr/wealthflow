@@ -64,6 +64,15 @@ function keClaude(messages) {
       if (b.type === 'image_url' && b.image_url && b.image_url.url) {
         var d = /^data:([^;,]+);base64,(.+)$/.exec(String(b.image_url.url));
         if (d) blok.push({ type: 'image', source: { type: 'base64', media_type: d[1], data: d[2] } });
+        return;
+      }
+      /* PDF. Lembar tagihan kartu kredit datang sebagai e-statement, dan
+         membacanya sebagai PDF jauh lebih tepat daripada memotretnya: tak ada
+         OCR, tabelnya utuh, angkanya tak pernah salah baca. Claude menerima
+         PDF sebagai blok 'document' tersendiri, bukan sebagai gambar. */
+      if (b.type === 'file' && b.file && b.file.file_data) {
+        var f = /^data:([^;,]+);base64,(.+)$/.exec(String(b.file.file_data));
+        if (f && f[1].indexOf('pdf') >= 0) blok.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f[2] } });
       }
     });
     if (blok.length) pesan.push({ role: peran, content: blok });
