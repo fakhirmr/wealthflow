@@ -2001,6 +2001,125 @@
       }
       function fid(a, id) { if (!a || !id) return null; for (var i = 0; i < a.length; i++)if (a[i].id === id) return a[i]; return null }
       function cn(cs, id) { var c = fid(cs, id); return c ? c.name : '-' }
+      /* Hutang yang IKUT mengurangi kekayaan bersih.
+
+         Tagihan kartu kredit sengaja dikecualikan. Belanja kartu dicatat
+         sebagai pengeluaran dengan wallet_id = dompet kartu, jadi saldo dompet
+         itu sudah minus sebesar yang terutang. Rumusnya menjumlahkan seluruh
+         saldo dompet lalu mengurangi sisa hutang, jadi menghitung keduanya
+         berarti mengurangi utang yang SAMA dua kali. Barisnya tetap tampil di
+         halaman Hutang, yang dikecualikan cuma dari rumusnya.
+
+         Dipakai bersama oleh Dashboard, halaman Dompet, dan konteks AI supaya
+         ketiganya mustahil menyebut kekayaan bersih yang berbeda. */
+      /* ═══ TAGIHAN KARTU KREDIT ═══
+         Lembar tagihan dibaca AI lalu dikembalikan sebagai baris berpembatas,
+         bukan JSON. Alasannya sama dengan jalur mutasi yang sudah ada: JSON
+         menghabiskan sekitar 30 token per transaksi, bentuk ini sekitar 12, dan
+         menghasilkan token itulah bagian paling lambat. Lembar tagihan bisa
+         memuat 60 baris, jadi selisihnya menentukan kena batas waktu atau tidak. */
+
+      /* Nominal di lembar tagihan bisa "1.234.567,89" (Indonesia) atau
+         "1,234,567.89" (Inggris), kadang berembel "Rp", "IDR", atau "CR".
+         Pemisah terakhir yang diikuti TEPAT dua digit dianggap desimal;
+         selain itu pemisah ribuan. Tanpa aturan ini "1.500" terbaca 1,5. */
+      function angkaTagihan(x) {
+        var t = String(x == null ? '' : x).replace(/[^0-9.,]/g, '');
+        if (!t) return 0;
+        var m = /[.,](\d{2})$/.exec(t);
+        var des = '';
+        if (m) { des = m[1]; t = t.slice(0, -3); }
+        t = t.replace(/[.,]/g, '');
+        var n = Number(t + (des ? '.' + des : ''));
+        return isFinite(n) ? Math.round(Math.abs(n)) : 0;
+      }
+
+      function tglAman(x) {
+        var t = String(x || '').trim();
+        return /^\d{4}-\d{2}-\d{2}$/.test(t) ? safeDate(t) : '';
+      }
+
+      function selisihHari(a, b) {
+        if (!a || !b) return 999;
+        var d1 = new Date(a + 'T00:00:00Z'), d2 = new Date(b + 'T00:00:00Z');
+        if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return 999;
+        return Math.round((d1 - d2) / 86400000);
+      }
+
+      /* Bentuk yang diminta ke AI:
+           RINGKASAN|nama|YYYY-MM|tgl cetak|jatuh tempo|total|minimum
+           TX|YYYY-MM-DD|keterangan|jumlah|B atau K
+         B = beban (pembelian, menambah tagihan). K = kredit (pembayaran,
+         refund, cashback; mengurangi tagihan). Keduanya harus dibedakan:
+         menganggap semua baris sebagai beban membuat pembayaran bulan lalu
+         tercatat sebagai belanja baru. */
+      function parseTagihan(teks) {
+        var hasil = { ringkas: null, baris: [] };
+        String(teks || '').split('\n').forEach(function (ln) {
+          var b = ln.split('|').map(function (x) { return String(x == null ? '' : x).trim() });
+          var tag = (b[0] || '').toUpperCase().replace(/[^A-Z]/g, '');
+          if (tag === 'RINGKASAN' && b.length >= 7) {
+            hasil.ringkas = {
+              nama: b[1] || 'Kartu Kredit',
+              periode: /^\d{4}-\d{2}$/.test(b[2]) ? b[2] : '',
+              tgl_cetak: tglAman(b[3]),
+              jatuh_tempo: tglAman(b[4]),
+              total: angkaTagihan(b[5]),
+              minimum: angkaTagihan(b[6])
+            };
+            return;
+          }
+          if (tag === 'TX' && b.length >= 5) {
+            var jml = angkaTagihan(b[3]);
+            if (jml <= 0) return;
+            hasil.baris.push({
+              tanggal: tglAman(b[1]),
+              ket: (b[2] || 'Transaksi kartu').slice(0, 120),
+              jumlah: jml,
+              kredit: (b[4] || '').toUpperCase().charAt(0) === 'K'
+            });
+          }
+        });
+        return hasil;
+      }
+
+      /* Menandai baris tagihan yang SUDAH tercatat. Pengguna mencatat dari dua
+         arah (langsung saat belanja, dan dari lembar tagihan), jadi tanpa ini
+         setiap pembacaan lembar menggandakan belanja yang sudah masuk.
+
+         Dicocokkan pada nominal yang sama persis dan tanggal yang berdekatan,
+         BUKAN pada keterangan: nama merchant di lembar tagihan ("SQ *KOPI
+         KENANGAN JKT") hampir tak pernah sama dengan yang diketik pengguna
+         ("kopi"). Toleransi tiga hari karena lembar tagihan memakai tanggal
+         posting, sedangkan pengguna mencatat di tanggal transaksi.
+
+         Satu transaksi tercatat hanya boleh memadankan SATU baris tagihan.
+         Tanpa penjagaan itu, dua belanja Rp50.000 di hari yang sama sama-sama
+         dianggap sudah tercatat padahal yang masuk baru satu. */
+      function tandaiSudahAda(baris, txAda) {
+        var dipakai = {};
+        return (baris || []).map(function (r) {
+          var cocok = null;
+          for (var i = 0; i < (txAda || []).length; i++) {
+            var t = txAda[i];
+            if (!t || dipakai[t.id]) continue;
+            if (Math.round(Number(t.amount) || 0) !== r.jumlah) continue;
+            if (Math.abs(selisihHari(String(t.date || '').slice(0, 10), r.tanggal)) > 3) continue;
+            cocok = t; break;
+          }
+          if (cocok) dipakai[cocok.id] = true;
+          return {
+            tanggal: r.tanggal, ket: r.ket, jumlah: r.jumlah, kredit: r.kredit,
+            sudahAda: !!cocok, pilih: !cocok
+          };
+        });
+      }
+
+      function hutangDihitung(D) {
+        return (D || []).filter(function (d) {
+          return d && d.type === 'hutang' && d.status !== 'paid' && !d.kartu_wallet;
+        });
+      }
       function wn(ws, id) { var w = fid(ws, id); return w ? w.name : '-' }
       function gi(g) { for (var i = 0; i < WGROUPS.length; i++)if (WGROUPS[i].id === g) return WGROUPS[i]; return WGROUPS[7] }
       function uf(f, k, v, s) { var n = {}; for (var x in f) n[x] = f[x]; n[k] = v; if (k === 'type') n.category_id = ''; s(n) }
@@ -3637,7 +3756,7 @@
 
         // --- core data ---
         var activeHutang = D.filter(function(d) { return d.type === 'hutang' && d.status !== 'paid' });
-        var debtLiab = activeHutang.reduce(function(s,d) { return s+(Number(d.remaining_amount)||0) }, 0);
+        var debtLiab = hutangDihitung(D).reduce(function(s,d) { return s+(Number(d.remaining_amount)||0) }, 0);
         var debtAsset = D.filter(function(d) { return d.type === 'piutang' && d.status !== 'paid' }).reduce(function(s,d) { return s+(Number(d.remaining_amount)||0) }, 0);
         var walletBal = W.reduce(function(s,w) { return s+(Number(w.balance)||0) }, 0);
         var invBal = I.reduce(function(s,i) { return s+(Number(i.current_value)||0) }, 0);
@@ -4565,7 +4684,7 @@
           })
         } var grouped = {}; var groupTotals = {}; W.forEach(function (w) { var g = w.group_type || 'others'; if (!grouped[g]) grouped[g] = []; grouped[g].push(w); groupTotals[g] = (groupTotals[g] || 0) + (Number(w.balance) || 0) });
         var D = p.D || [];
-        var debtLiab = D.filter(function (d) { return d.type === 'hutang' && d.status !== 'paid' }).reduce(function (s, d) { return s + (Number(d.remaining_amount) || 0) }, 0);
+        var debtLiab = hutangDihitung(D).reduce(function (s, d) { return s + (Number(d.remaining_amount) || 0) }, 0);
         var debtAsset = D.filter(function (d) { return d.type === 'piutang' && d.status !== 'paid' }).reduce(function (s, d) { return s + (Number(d.remaining_amount) || 0) }, 0);
         var totalAssets = W.filter(function (w) { return (Number(w.balance) || 0) >= 0 }).reduce(function (s, w) { return s + (Number(w.balance) || 0) }, 0) + debtAsset;
         var totalLiab = W.filter(function (w) { return (Number(w.balance) || 0) < 0 }).reduce(function (s, w) { return s + (Number(w.balance) || 0) }, 0) - debtLiab;
@@ -5074,7 +5193,7 @@
         function closeTip() { sShowTip(false); try { localStorage.setItem('wf_debt_tip_closed', '1') } catch(e) {} }
         var _f = useState({ type: 'hutang', name: '', description: '', category: 'personal', total_amount: '', remaining_amount: '', monthly_payment: '', interest_rate: '', interest_model: 'flat', tenor: '', start_date: td(), due_date: '', wallet_id: '', record_txn: true, txn_wallet_id: '', auto_pay: false, auto_pay_wallet: '', auto_pay_category: '' }), f = _f[0], sF = _f[1];
         var _pf = useState({ amount: '', paid_date: td(), wallet_id: '', notes: '', record_txn: true }), pf = _pf[0], sPf = _pf[1];
-        var CATS = { kpr: '🏠 KPR/Rumah', kendaraan: '🚗 Kendaraan', personal: '👤 Personal', usaha: '💼 Usaha', pendidikan: '🎓 Pendidikan', lainnya: '📦 Lainnya' };
+        var CATS = { kartu: '💳 Kartu Kredit', kpr: '🏠 KPR/Rumah', kendaraan: '🚗 Kendaraan', personal: '👤 Personal', usaha: '💼 Usaha', pendidikan: '🎓 Pendidikan', lainnya: '📦 Lainnya' };
         var IMODELS = { flat: 'Flat (Bunga Tetap)', anuitas: 'Anuitas (Efektif)', simple: 'Simple (Sekali Bayar)' };
 
         // Interest calculation engine
@@ -5696,7 +5815,7 @@
 
       /* ═══ AI ASSISTANT ═══ */
       function AiP(p) {
-        var T = p.T, C = p.C, W = p.W, B = p.B, D = p.D || [], I = p.I || [], rT = p.rT, rW = p.rW;
+        var T = p.T, C = p.C, W = p.W, B = p.B, D = p.D || [], I = p.I || [], rT = p.rT, rW = p.rW, rD = p.rD;
         var AI_FREE_LIMIT = 30; // harus sama dengan env AI_FREE_LIMIT di Vercel
         var AI_PREMIUM_LIMIT = 500; // harus sama dengan env AI_PREMIUM_LIMIT di Vercel
         var keySet = true; // AI terpusat — tersedia untuk semua user yang login
@@ -5831,6 +5950,12 @@
         var receiptRef = React.useRef(null);
         var scanModeRef = React.useRef('receipt'); // 'receipt' | 'mutation'
         var _scanBusy = useState(false), scanBusy = _scanBusy[0], sScanBusy = _scanBusy[1];
+        // Tagihan kartu kredit
+        var kartuRef = React.useRef(null);
+        var _moKartu = useState(null), moKartu = _moKartu[0], sMoKartu = _moKartu[1];
+        var _tagihan = useState(null), tagihan = _tagihan[0], sTagihan = _tagihan[1];
+        var _kartuBusy = useState(false), kartuBusy = _kartuBusy[0], sKartuBusy = _kartuBusy[1];
+        var kartuW = (W || []).filter(function (w) { return w.group_type === 'card' });
         var _featOpen = useState(false), featOpen = _featOpen[0], sFeatOpen = _featOpen[1];
         useEffect(function () { if (ref.current) ref.current.scrollTop = ref.current.scrollHeight }, [ms]);
 
@@ -5878,7 +6003,7 @@
           var pInc = prevTxns.filter(function (t) { return t.type === 'income' }).reduce(function (s, t) { return s + (Number(t.amount) || 0) }, 0);
           var pExp = prevTxns.filter(function (t) { return t.type === 'expense' }).reduce(function (s, t) { return s + (Number(t.amount) || 0) }, 0);
           var cats = []; C.filter(function (c) { return !c.parent_id && c.type === 'expense' }).forEach(function (c) { var s = moTxns.filter(function (t) { return t.type === 'expense' && t.category_id === c.id }).reduce(function (ss, t) { return ss + (Number(t.amount) || 0) }, 0); if (s > 0) cats.push(c.name + ': ' + fmt(s)) });
-          var netWorth = W.reduce(function (s, w) { return s + (Number(w.balance) || 0) }, 0) + I.reduce(function (s, i) { return s + (Number(i.current_value) || 0) }, 0) - D.filter(function (d) { return d.type === 'hutang' && d.status !== 'paid' }).reduce(function (s, d) { return s + (Number(d.remaining_amount) || 0) }, 0);
+          var netWorth = W.reduce(function (s, w) { return s + (Number(w.balance) || 0) }, 0) + I.reduce(function (s, i) { return s + (Number(i.current_value) || 0) }, 0) - hutangDihitung(D).reduce(function (s, d) { return s + (Number(d.remaining_amount) || 0) }, 0);
           var savGoals = goals.map(function (g) { return g.name + ' target ' + fmt(g.amount) + (g.deadline ? ' deadline ' + g.deadline : '') }).join('; ');
           /* Jatah harian disodorkan sudah jadi angka. Model tidak boleh menghitung
              sendiri dari pagu dan tanggal: salah bagi sedikit saja langsung jadi
@@ -6236,6 +6361,269 @@
            lalu user disuruh memotret ulang padahal fotonya sudah benar.
            Sekarang objek yang sudah lengkap tetap dipungut, dan pemanggil diberi
            tahu lewat .potong bahwa masih ada sisa yang belum terbaca. */
+        /* ═══ BACA TAGIHAN KARTU KREDIT ═══ */
+
+        var PROMPT_TAGIHAN =
+          'Ini lembar tagihan kartu kredit. Keluarkan HANYA baris di bawah, tanpa kalimat pembuka maupun penutup.\n\n' +
+          'Baris pertama, ringkasan:\n' +
+          'RINGKASAN|nama kartu|YYYY-MM|tanggal cetak YYYY-MM-DD|jatuh tempo YYYY-MM-DD|total tagihan|pembayaran minimum\n\n' +
+          'Lalu SATU baris untuk SETIAP transaksi:\n' +
+          'TX|YYYY-MM-DD|keterangan|jumlah|B\n\n' +
+          'Aturan:\n' +
+          '1) Huruf terakhir: B = beban (pembelian, biaya, bunga, denda, iuran, cicilan; menambah tagihan). K = kredit (pembayaran, refund, cashback, koreksi; mengurangi tagihan). Tanda CR, "kredit", atau nilai negatif berarti K.\n' +
+          '2) Jumlah ditulis angka saja tanpa Rp. Pemisah ribuan boleh ikut.\n' +
+          '3) Tanggal WAJIB YYYY-MM-DD. Kalau lembar hanya menulis tanggal dan bulan, ambil tahunnya dari periode tagihan.\n' +
+          '4) Tulis SEMUA transaksi yang terlihat, jangan diringkas dan jangan dikelompokkan.\n' +
+          '5) Baris yang angkanya tidak terbaca jelas, LEWATI. Jangan menebak.\n' +
+          '6) Nilai ringkasan yang tak ditemukan: tulis 0 untuk angka, kosongkan untuk tanggal.';
+
+        /* Berkas disiapkan menurut jenisnya. PDF dikirim utuh sebagai berkas
+           karena di situlah keunggulannya: tabelnya tetap tabel dan angkanya tak
+           lewat OCR. Gambar diperkecil dulu seperti jalur mutasi, sebab lembar
+           tagihan yang difoto sering berukuran besar dan menabrak batas badan
+           permintaan jauh sebelum AI sempat membacanya. */
+        function siapkanBerkas(file, cb) {
+          if (file.size > 4 * 1024 * 1024) {
+            cb(null, 'Berkasnya lebih dari 4 MB. Kirim PDF aslinya, atau potong gambarnya jadi beberapa bagian.');
+            return;
+          }
+          var isPdf = /pdf/i.test(file.type) || /\.pdf$/i.test(file.name || '');
+          var reader = new FileReader();
+          reader.onload = function () {
+            if (isPdf) { cb({ type: 'file', file: { filename: file.name || 'tagihan.pdf', file_data: reader.result } }); return }
+            var img = new Image();
+            img.onload = function () {
+              var maxW = 1400; var sc = Math.min(1, maxW / img.width);
+              var cw = Math.round(img.width * sc), ch = Math.round(img.height * sc);
+              var cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+              cv.getContext('2d').drawImage(img, 0, 0, cw, ch);
+              cb({ type: 'image_url', image_url: { url: cv.toDataURL('image/jpeg', 0.92) } });
+            };
+            img.onerror = function () { cb(null, 'Berkasnya tak bisa dibaca sebagai gambar maupun PDF.') };
+            img.src = reader.result;
+          };
+          reader.onerror = function () { cb(null, 'Gagal membaca berkas.') };
+          reader.readAsDataURL(file);
+        }
+
+        function bukaKartu() {
+          sFeatOpen(false);
+          if (!kartuW.length) {
+            var em = ms.concat({ role: 'sys', text: '💳 Belum ada dompet berjenis Kartu Kredit. Buat dulu di halaman Dompet, lalu lembar tagihannya bisa dibaca ke situ.' });
+            sMs(em); saveMem(em); sTab('chat'); return;
+          }
+          sMoKartu({ wallet_id: kartuW[0].id, teks: '' });
+        }
+
+        function bacaTagihan(blok, wid) {
+          sKartuBusy(true); sMoKartu(null); sTab('chat');
+          var nm = ms.concat({ role: 'user', text: '💳 [Tagihan Kartu] Membaca lembar tagihan...' }); sMs(nm);
+          aiFetch({
+            model: 'wf-chat', max_tokens: 4096,
+            messages: [{ role: 'user', content: [{ type: 'text', text: PROMPT_TAGIHAN }].concat(blok) }]
+          }).then(pj).then(function (d) {
+            sKartuBusy(false);
+            var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
+            var pil = d.choices && d.choices[0] ? d.choices[0] : null;
+            if (!pil || !pil.message) { var e0 = nm.concat({ role: 'sys', text: '❌ AI tidak mengirim jawaban. Lembarmu tidak bermasalah, layanan AI-nya yang sedang gagal.' }); sMs(e0); saveMem(e0); return }
+            var hasil = parseTagihan(stripThink(pil.message.content));
+            if (!hasil.baris.length && !hasil.ringkas) {
+              var e1 = nm.concat({ role: 'sys', text: '⚠️ Tidak ada yang terbaca dari lembar itu. Kalau ini foto, coba kirim PDF aslinya; kalau PDF-nya berkata sandi, buka dulu sandinya.' });
+              sMs(e1); saveMem(e1); return;
+            }
+            /* Duplikat dicocokkan HANYA pada dompet kartu ini, dan hanya pada
+               rentang tanggal yang muncul di lembar. Mencocokkan ke seluruh
+               riwayat membuat belanja bulan lalu yang nominalnya kebetulan sama
+               ikut dianggap duplikat. */
+            var tgl = hasil.baris.map(function (r) { return r.tanggal }).filter(Boolean).sort();
+            var dari = tgl[0] || '', sampai = tgl[tgl.length - 1] || '';
+            var txAda = (T || []).filter(function (t) {
+              if (t.wallet_id !== wid) return false;
+              var td2 = String(t.date || '').slice(0, 10);
+              return (!dari || td2 >= dari) && (!sampai || td2 <= sampai);
+            });
+            var baris = tandaiSudahAda(hasil.baris, txAda);
+            /* Baris kredit tidak dicentang secara bawaan. Pembayaran tagihan
+               biasanya sudah tercatat dari sisi rekening sebagai transfer, dan
+               memasukkannya lagi dari sisi kartu berarti menghitungnya dua kali.
+               Refund dan cashback memang pemasukan sungguhan, jadi barisnya
+               tetap ditampilkan supaya pengguna bisa mencentangnya sendiri. */
+            baris.forEach(function (r) { if (r.kredit) r.pilih = false });
+            var jmlBaru = baris.filter(function (r) { return !r.sudahAda && !r.kredit }).length;
+            var jmlAda = baris.filter(function (r) { return r.sudahAda }).length;
+            var ok = nm.concat({ role: 'ai', text: '💳 Lembar terbaca: ' + baris.length + ' baris, ' + jmlBaru + ' belum tercatat, ' + jmlAda + ' sudah ada.' });
+            sMs(ok); saveMem(ok);
+            sTagihan({ wallet_id: wid, ringkas: hasil.ringkas || { nama: '', periode: '', tgl_cetak: '', jatuh_tempo: '', total: 0, minimum: 0 }, baris: baris });
+          }).catch(function (e) {
+            sKartuBusy(false);
+            var e2 = nm.concat({ role: 'sys', text: '❌ ' + (e && e.message ? e.message : 'Gagal membaca tagihan') }); sMs(e2); saveMem(e2);
+          });
+        }
+
+        function ubahBaris(i, nilai) {
+          sTagihan(function (t) {
+            if (!t) return t;
+            var b = t.baris.slice(); b[i] = Object.assign({}, b[i], { pilih: nilai });
+            return Object.assign({}, t, { baris: b });
+          });
+        }
+
+        function simpanTagihan() {
+          if (!tagihan || kartuBusy || !UID) return;
+          var dipilih = tagihan.baris.filter(function (r) { return r.pilih });
+          var r0 = tagihan.ringkas;
+          sKartuBusy(true);
+
+          var rows = dipilih.map(function (r) {
+            return {
+              user_id: UID,
+              type: r.kredit ? 'income' : 'expense',
+              amount: r.jumlah,
+              description: r.ket,
+              date: r.tanggal || r0.tgl_cetak || td(),
+              wallet_id: tagihan.wallet_id,
+              category_id: null, sub_category_id: null
+            };
+          });
+          // Beban menambah utang (saldo kartu makin minus), kredit menguranginya
+          var delta = rows.reduce(function (s2, x) { return s2 + (x.type === 'income' ? x.amount : -x.amount) }, 0);
+
+          function simpanHutang() {
+            if (!r0 || (!r0.total && !r0.jatuh_tempo)) { selesai('Transaksi disimpan. Ringkasan tagihan tidak terbaca, jadi baris hutangnya dilewati.'); return }
+            var nama = (r0.nama || 'Kartu Kredit') + (r0.periode ? ' · ' + r0.periode : '');
+            var isi = {
+              user_id: UID, type: 'hutang', name: nama, category: 'kartu',
+              kartu_wallet: tagihan.wallet_id, periode: r0.periode || null,
+              total_amount: r0.total || 0, remaining_amount: r0.total || 0,
+              monthly_payment: r0.minimum || 0,
+              due_date: r0.jatuh_tempo || null,
+              start_date: r0.tgl_cetak || td(), status: 'active'
+            };
+            /* Dicari dulu, baru disisipkan atau diperbarui. Membaca ulang lembar
+               yang sama adalah hal yang wajar dilakukan kalau hasil baca pertama
+               kurang pas, dan tanpa ini tiap pembacaan menumpuk tagihan kembar. */
+            var q = sb.from('debts').select('id').eq('user_id', UID).eq('kartu_wallet', tagihan.wallet_id);
+            q = r0.periode ? q.eq('periode', r0.periode) : q.is('periode', null);
+            q.limit(1).then(function (cari) {
+              if (cari.error) { selesaiGagal(cari.error.message); return }
+              var ada = cari.data && cari.data[0];
+              var op = ada ? sb.from('debts').update(isi).eq('id', ada.id) : sb.from('debts').insert(isi);
+              op.then(function (r2) {
+                if (r2.error) { selesaiGagal(r2.error.message); return }
+                selesai((ada ? 'Tagihan diperbarui' : 'Tagihan dicatat') + ' di halaman Hutang.');
+              });
+            });
+          }
+
+          function kabar(teks, jenis) {
+            sKartuBusy(false); sTagihan(null); rT(); rW(); if (rD) rD();
+            sMs(function (prev) { var x = prev.concat({ role: jenis || 'ai', text: teks }); saveMem(x); return x });
+          }
+          function selesai(pesanTambahan) {
+            kabar('✅ ' + dipilih.length + ' transaksi disimpan. ' + (pesanTambahan || ''));
+          }
+          function selesaiGagal(pesan) {
+            /* Kolom yang belum ada mustahil ditebak dari pesan Postgres yang
+               serba umum, jadi sebabnya disebut langsung beserta nama berkasnya. */
+            var kurangKolom = /kartu_wallet|periode|column .* does not exist|schema cache/i.test(String(pesan || ''));
+            kabar(kurangKolom
+              ? '⚙️ Transaksinya tersimpan, tapi baris hutangnya belum bisa dibuat. Jalankan supabase-kartu-kredit-setup.sql di Supabase dulu, lalu baca ulang lembarnya.'
+              : '⚠️ Transaksinya tersimpan, baris hutangnya gagal: ' + pesan, 'sys');
+          }
+
+          if (!rows.length) { simpanHutang(); return }
+          sb.from('transactions').insert(rows).then(function (r1) {
+            if (r1.error) { kabar('❌ Gagal menyimpan transaksi: ' + r1.error.message, 'sys'); return }
+            adjWallet(tagihan.wallet_id, delta, simpanHutang);
+          });
+        }
+
+        function modalKartu() {
+          if (!moKartu) return null;
+          return h(Mod, {
+            open: true, onClose: function () { sMoKartu(null) }, title: '💳 Baca Tagihan Kartu',
+            footer: h('button', { className: 'btn bs', style: { width: '100%', justifyContent: 'center' }, onClick: function () { sMoKartu(null) } }, 'Batal')
+          },
+            h('div', { className: 'fg' }, h('label', null, 'Kartu'),
+              h('select', {
+                className: 'fi', value: moKartu.wallet_id,
+                onChange: function (e) { var v = e.target.value; sMoKartu(function (m) { return Object.assign({}, m, { wallet_id: v }) }) }
+              }, kartuW.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name) }))),
+            h('button', {
+              className: 'btn bp', style: { width: '100%', justifyContent: 'center', marginBottom: 10 },
+              onClick: function () { if (kartuRef.current) kartuRef.current.click() }
+            }, '📄 Pilih berkas (PDF atau gambar)'),
+            h('div', { style: { fontSize: '.72rem', color: 'var(--t3)', marginBottom: 14 } },
+              'PDF e-statement paling tepat dibaca: tabelnya utuh dan angkanya tak lewat OCR. PDF berkata sandi harus dibuka sandinya dulu.'),
+            h('div', { className: 'fg' }, h('label', null, 'Atau tempel teksnya'),
+              h('textarea', {
+                className: 'fi', rows: 5, placeholder: 'Salin isi lembar tagihan dari email atau app bank, lalu tempel di sini...',
+                value: moKartu.teks,
+                onChange: function (e) { var v = e.target.value; sMoKartu(function (m) { return Object.assign({}, m, { teks: v }) }) }
+              })),
+            h('button', {
+              className: 'btn bp', style: { width: '100%', justifyContent: 'center' },
+              disabled: !moKartu.teks.trim(),
+              onClick: function () { bacaTagihan([{ type: 'text', text: 'Isi lembar tagihan:\n\n' + moKartu.teks.trim() }], moKartu.wallet_id) }
+            }, 'Baca teks ini'));
+        }
+
+        function modalTagihan() {
+          if (!tagihan) return null;
+          var r0 = tagihan.ringkas;
+          var dipilih = tagihan.baris.filter(function (r) { return r.pilih });
+          var kartuNama = (fid(W, tagihan.wallet_id) || {}).name || 'Kartu';
+          return h(Mod, {
+            open: true, onClose: function () { sTagihan(null) },
+            title: '💳 ' + (r0.nama || kartuNama),
+            footer: h(F, null,
+              h('button', { className: 'btn bs', onClick: function () { sTagihan(null) }, disabled: kartuBusy }, 'Batal'),
+              h('button', { className: 'btn bp', onClick: simpanTagihan, disabled: kartuBusy }, kartuBusy ? 'Menyimpan...' : 'Simpan ' + dipilih.length + ' transaksi'))
+          },
+            // Ringkasan tagihan
+            h('div', { style: { background: 'var(--bgi)', borderRadius: 8, padding: '10px 12px', marginBottom: 12 } },
+              h('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: 6 } },
+                h('span', { style: { fontSize: '.72rem', color: 'var(--t3)' } }, 'Total tagihan'),
+                h('span', { style: { fontWeight: 800, fontSize: '1.05rem' } }, fmt(r0.total))),
+              h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '.75rem' } },
+                h('span', { style: { color: 'var(--t3)' } }, 'Pembayaran minimum'),
+                h('b', null, fmt(r0.minimum))),
+              h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '.75rem', marginTop: 3 } },
+                h('span', { style: { color: 'var(--t3)' } }, 'Jatuh tempo'),
+                h('b', { style: { color: r0.jatuh_tempo ? 'var(--org)' : 'var(--t3)' } }, r0.jatuh_tempo ? fdt(r0.jatuh_tempo) : 'tak terbaca'))),
+
+            h('div', { style: { fontSize: '.75rem', fontWeight: 600, color: 'var(--t3)', marginBottom: 6 } },
+              tagihan.baris.length + ' baris terbaca. Centang yang mau dicatat.'),
+
+            tagihan.baris.map(function (r, i) {
+              var warna = r.kredit ? 'var(--acc)' : 'var(--red)';
+              return h('div', {
+                key: i,
+                style: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < tagihan.baris.length - 1 ? '1px solid var(--brd)' : '', opacity: r.sudahAda && !r.pilih ? .55 : 1 },
+                onClick: function () { ubahBaris(i, !r.pilih) }
+              },
+                h('div', {
+                  style: {
+                    width: 18, height: 18, borderRadius: 4, flexShrink: 0, cursor: 'pointer',
+                    border: '2px solid ' + (r.pilih ? 'var(--acc)' : 'var(--brd)'),
+                    background: r.pilih ? 'var(--acc)' : 'transparent',
+                    color: '#fff', fontSize: 12, lineHeight: '14px', textAlign: 'center'
+                  }
+                }, r.pilih ? '✓' : ''),
+                h('div', { style: { flex: 1, minWidth: 0 } },
+                  h('div', { style: { fontSize: '.82rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, r.ket),
+                  h('div', { style: { fontSize: '.68rem', color: 'var(--t3)', marginTop: 1 } },
+                    r.tanggal ? fdt(r.tanggal) : 'tanggal tak terbaca',
+                    r.sudahAda ? ' · sudah tercatat' : '',
+                    r.kredit ? ' · kredit/pembayaran' : '')),
+                h('div', { style: { fontWeight: 700, fontSize: '.85rem', color: warna, flexShrink: 0 } },
+                  (r.kredit ? '+' : '-') + fmt(r.jumlah).replace('Rp', '').trim()));
+            }),
+
+            h('div', { style: { fontSize: '.7rem', color: 'var(--t3)', marginTop: 12, lineHeight: 1.5 } },
+              'Baris "sudah tercatat" tidak dicentang supaya belanjanya tidak terhitung dua kali. Baris kredit juga tidak dicentang: pembayaran tagihan biasanya sudah tercatat dari sisi rekening. Centang sendiri kalau memang refund atau cashback.'));
+        }
+
         function parseTxArray(content) {
           var t = String(content || '').replace(/```json|```/g, '').trim();
           var mulai = t.indexOf('[');
@@ -6447,6 +6835,18 @@
                     h('button', { className: 'btn bs', style: { fontSize: '.72rem', padding: '3px 10px', color: 'var(--red)' }, onClick: function () { removePendingTx(i) } }, 'Hapus')));
               })),
             h('div', { className: 'chat-input', style: { alignItems: 'center', gap: 8, position: 'relative' } },
+              h('input', {
+                ref: kartuRef, type: 'file', accept: 'image/*,application/pdf', style: { display: 'none' },
+                onChange: function (e) {
+                  var f = e.target.files && e.target.files[0]; e.target.value = '';
+                  if (!f || !moKartu) return;
+                  var wid = moKartu.wallet_id;
+                  siapkanBerkas(f, function (blok, galat) {
+                    if (!blok) { var em = ms.concat({ role: 'sys', text: '⚠️ ' + galat }); sMs(em); saveMem(em); sMoKartu(null); sTab('chat'); return }
+                    bacaTagihan([blok], wid);
+                  });
+                }
+              }),
               h('input', { ref: receiptRef, type: 'file', accept: 'image/*', style: { display: 'none' }, onChange: function (e) { var f = e.target.files && e.target.files[0]; if (f) { (scanModeRef.current === 'mutation' ? scanMutation : scanReceipt)(f) } e.target.value = '' } }),
               h('input', { className: 'fi', placeholder: 'Tanya atau tulis transaksi...', value: q, onChange: function (e) { sQ(e.target.value) }, onKeyDown: function (e) { if (e.key === 'Enter') send() }, style: { flex: 1, minWidth: 0 } }),
               rec ? h('button', { className: 'btn ' + (recPaused ? 'bp' : 'bs'), style: { flexShrink: 0, padding: '0 10px' }, onClick: pauseResumeMic, title: recPaused ? 'Lanjutkan' : 'Jeda' }, recPaused ? '▶️' : '⏸️') : null,
@@ -6456,7 +6856,7 @@
               h('button', { className: 'btn bp', style: { flexShrink: 0 }, onClick: send, disabled: ld || busy || rec || recBusy }, 'Kirim'),
               (featOpen && !rec && !recBusy && !scanBusy) ? h('div', { style: { position: 'fixed', inset: 0, zIndex: 40 }, onClick: function () { sFeatOpen(false) } }) : null,
               (featOpen && !rec && !recBusy && !scanBusy) ? h('div', { style: { position: 'absolute', bottom: 'calc(100% + 10px)', right: 0, background: 'var(--bgc)', border: '1px solid var(--brd)', borderRadius: 16, boxShadow: 'var(--csh)', padding: '12px 8px', display: 'flex', gap: 2, zIndex: 50, animation: 'popIn .18s ease' } },
-                [{ ic: 'edit', lb: 'Catat', bg: 'var(--accbg)', color: 'var(--acc)', act: parseTransaction }, { ic: 'camera', lb: 'Struk', bg: 'var(--blubg)', color: 'var(--blu)', act: function () { scanModeRef.current = 'receipt'; if (receiptRef.current) receiptRef.current.click() } }, { ic: 'doc', lb: 'Mutasi', bg: 'rgba(217,119,6,.12)', color: 'var(--org)', act: function () { scanModeRef.current = 'mutation'; if (receiptRef.current) receiptRef.current.click() } }].map(function (f, fi) {
+                [{ ic: 'edit', lb: 'Catat', bg: 'var(--accbg)', color: 'var(--acc)', act: parseTransaction }, { ic: 'camera', lb: 'Struk', bg: 'var(--blubg)', color: 'var(--blu)', act: function () { scanModeRef.current = 'receipt'; if (receiptRef.current) receiptRef.current.click() } }, { ic: 'doc', lb: 'Mutasi', bg: 'rgba(217,119,6,.12)', color: 'var(--org)', act: function () { scanModeRef.current = 'mutation'; if (receiptRef.current) receiptRef.current.click() } }, { ic: 'wallet', lb: 'Kartu', bg: 'var(--redbg)', color: 'var(--red)', act: bukaKartu }].map(function (f, fi) {
                   return h('button', { key: fi, onClick: function () { sFeatOpen(false); f.act() }, style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', minWidth: 60 } }, h('div', { style: { width: 44, height: 44, borderRadius: '50%', background: f.bg, color: f.color, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, h(Ic, { n: f.ic })), h('span', { style: { fontSize: '.68rem', color: 'var(--t2)', fontWeight: 500 } }, f.lb));
                 })) : null),
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 } },
@@ -6477,7 +6877,8 @@
           // GOALS TAB
           tab === 'goals' ? h('div', { className: 'cd' },
             h('div', { style: { fontWeight: 700, fontSize: '.88rem', marginBottom: 12 } }, 'Tujuan Keuangan'),
-            h(GoalsCard)) : null)
+            h(GoalsCard)) : null,
+          modalKartu(), modalTagihan())
       }
 
 
