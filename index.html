@@ -6453,7 +6453,20 @@
             var jmlAda = baris.filter(function (r) { return r.sudahAda }).length;
             var ok = nm.concat({ role: 'ai', text: '💳 Lembar terbaca: ' + baris.length + ' baris, ' + jmlBaru + ' belum tercatat, ' + jmlAda + ' sudah ada.' });
             sMs(ok); saveMem(ok);
-            sTagihan({ wallet_id: wid, ringkas: hasil.ringkas || { nama: '', periode: '', tgl_cetak: '', jatuh_tempo: '', total: 0, minimum: 0 }, baris: baris });
+            var rk = hasil.ringkas || { nama: '', periode: '', tgl_cetak: '', jatuh_tempo: '', total: 0, minimum: 0 };
+            /* Hutang yang sudah pernah dipakai untuk kartu ini dipilih lebih
+               dulu. Satu kartu pada dasarnya SATU hutang yang berjalan terus,
+               bukan hutang baru tiap bulan; tagihan bulan ini memperbarui
+               totalnya, bukan menambah baris kedua di halaman Hutang. */
+            var sudahAdaHutang = (D || []).filter(function (x) {
+              return x && x.type === 'hutang' && x.status !== 'paid' && x.kartu_wallet === wid;
+            })[0];
+            sTagihan({
+              wallet_id: wid, ringkas: rk, baris: baris,
+              tujuan: sudahAdaHutang ? 'ada' : 'baru',
+              debt_id: sudahAdaHutang ? sudahAdaHutang.id : '',
+              nama: rk.nama || (fid(W, wid) || {}).name || 'Kartu Kredit'
+            });
           }).catch(function (e) {
             sKartuBusy(false);
             var e2 = nm.concat({ role: 'sys', text: '❌ ' + (e && e.message ? e.message : 'Gagal membaca tagihan') }); sMs(e2); saveMem(e2);
@@ -6489,29 +6502,36 @@
           var delta = rows.reduce(function (s2, x) { return s2 + (x.type === 'income' ? x.amount : -x.amount) }, 0);
 
           function simpanHutang() {
-            if (!r0 || (!r0.total && !r0.jatuh_tempo)) { selesai('Transaksi disimpan. Ringkasan tagihan tidak terbaca, jadi baris hutangnya dilewati.'); return }
-            var nama = (r0.nama || 'Kartu Kredit') + (r0.periode ? ' · ' + r0.periode : '');
+            if (tagihan.tujuan === 'tidak') { selesai('Tagihannya tidak dicatat sebagai hutang, sesuai pilihanmu.'); return }
+            if (!r0 || (!r0.total && !r0.jatuh_tempo)) { selesai('Ringkasan tagihan tidak terbaca, jadi baris hutangnya dilewati.'); return }
+
+            /* Nominal & tanggal SELALU diperbarui, nama TIDAK. Nama hutang
+               adalah milik pengguna: kalau ikut ditimpa tiap bulan, hutang yang
+               sudah dinamai sendiri ("Kartu utama istri") berganti nama sendiri
+               tiap kali lembar dibaca. */
             var isi = {
-              user_id: UID, type: 'hutang', name: nama, category: 'kartu',
+              category: 'kartu',
               kartu_wallet: tagihan.wallet_id, periode: r0.periode || null,
               total_amount: r0.total || 0, remaining_amount: r0.total || 0,
               monthly_payment: r0.minimum || 0,
               due_date: r0.jatuh_tempo || null,
-              start_date: r0.tgl_cetak || td(), status: 'active'
+              status: 'active'
             };
-            /* Dicari dulu, baru disisipkan atau diperbarui. Membaca ulang lembar
-               yang sama adalah hal yang wajar dilakukan kalau hasil baca pertama
-               kurang pas, dan tanpa ini tiap pembacaan menumpuk tagihan kembar. */
-            var q = sb.from('debts').select('id').eq('user_id', UID).eq('kartu_wallet', tagihan.wallet_id);
-            q = r0.periode ? q.eq('periode', r0.periode) : q.is('periode', null);
-            q.limit(1).then(function (cari) {
-              if (cari.error) { selesaiGagal(cari.error.message); return }
-              var ada = cari.data && cari.data[0];
-              var op = ada ? sb.from('debts').update(isi).eq('id', ada.id) : sb.from('debts').insert(isi);
-              op.then(function (r2) {
+
+            if (tagihan.tujuan === 'ada' && tagihan.debt_id) {
+              sb.from('debts').update(isi).eq('id', tagihan.debt_id).then(function (r2) {
                 if (r2.error) { selesaiGagal(r2.error.message); return }
-                selesai((ada ? 'Tagihan diperbarui' : 'Tagihan dicatat') + ' di halaman Hutang.');
+                selesai('Hutangnya diperbarui dengan tagihan terbaru.');
               });
+              return;
+            }
+
+            isi.user_id = UID; isi.type = 'hutang';
+            isi.name = (tagihan.nama || 'Kartu Kredit').trim() || 'Kartu Kredit';
+            isi.start_date = r0.tgl_cetak || td();
+            sb.from('debts').insert(isi).then(function (r2) {
+              if (r2.error) { selesaiGagal(r2.error.message); return }
+              selesai('Hutang baru dibuat di halaman Hutang.');
             });
           }
 
@@ -6525,10 +6545,18 @@
           function selesaiGagal(pesan) {
             /* Kolom yang belum ada mustahil ditebak dari pesan Postgres yang
                serba umum, jadi sebabnya disebut langsung beserta nama berkasnya. */
-            var kurangKolom = /kartu_wallet|periode|column .* does not exist|schema cache/i.test(String(pesan || ''));
+            var p2 = String(pesan || '');
+            /* Indeks unik menolak tagihan kedua untuk kartu & periode yang sama.
+               Itu penjagaan yang benar, tapi "duplicate key value violates
+               unique constraint" tak memberi tahu apa yang harus dilakukan. */
+            if (/duplicate key|unique constraint|23505/i.test(p2)) {
+              kabar('⚠️ Transaksinya tersimpan. Hutang untuk kartu dan periode ini sudah ada, jadi baris barunya ditolak. Baca ulang lembarnya lalu pilih "Hutang yang ada" supaya totalnya diperbarui.', 'sys');
+              return;
+            }
+            var kurangKolom = /kartu_wallet|periode|column .* does not exist|schema cache/i.test(p2);
             kabar(kurangKolom
               ? '⚙️ Transaksinya tersimpan, tapi baris hutangnya belum bisa dibuat. Jalankan supabase-kartu-kredit-setup.sql di Supabase dulu, lalu baca ulang lembarnya.'
-              : '⚠️ Transaksinya tersimpan, baris hutangnya gagal: ' + pesan, 'sys');
+              : '⚠️ Transaksinya tersimpan, baris hutangnya gagal: ' + p2, 'sys');
           }
 
           if (!rows.length) { simpanHutang(); return }
@@ -6578,7 +6606,12 @@
             title: '💳 ' + (r0.nama || kartuNama),
             footer: h(F, null,
               h('button', { className: 'btn bs', onClick: function () { sTagihan(null) }, disabled: kartuBusy }, 'Batal'),
-              h('button', { className: 'btn bp', onClick: simpanTagihan, disabled: kartuBusy }, kartuBusy ? 'Menyimpan...' : 'Simpan ' + dipilih.length + ' transaksi'))
+              h('button', {
+                className: 'btn bp', onClick: simpanTagihan,
+                // Tujuan "hutang yang ada" tanpa hutang terpilih akan tersimpan
+                // separuh jalan: transaksinya masuk, tagihannya hilang.
+                disabled: kartuBusy || (tagihan.tujuan === 'ada' && !tagihan.debt_id)
+              }, kartuBusy ? 'Menyimpan...' : 'Simpan ' + dipilih.length + ' transaksi'))
           },
             // Ringkasan tagihan
             h('div', { style: { background: 'var(--bgi)', borderRadius: 8, padding: '10px 12px', marginBottom: 12 } },
@@ -6591,6 +6624,49 @@
               h('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: '.75rem', marginTop: 3 } },
                 h('span', { style: { color: 'var(--t3)' } }, 'Jatuh tempo'),
                 h('b', { style: { color: r0.jatuh_tempo ? 'var(--org)' : 'var(--t3)' } }, r0.jatuh_tempo ? fdt(r0.jatuh_tempo) : 'tak terbaca'))),
+
+            // Tujuan tagihan: hutang mana yang dicatat/diperbarui
+            (function () {
+              var pilihanHutang = (D || []).filter(function (x) { return x && x.type === 'hutang' && x.status !== 'paid' });
+              function set(k, v) { sTagihan(function (t2) { var o = {}; o[k] = v; return Object.assign({}, t2, o) }) }
+              function opsi(nilai, label) {
+                var aktif = tagihan.tujuan === nilai;
+                return h('button', {
+                  key: nilai, className: 'btn ' + (aktif ? 'bp' : 'bs'),
+                  style: { flex: 1, justifyContent: 'center', fontSize: '.75rem', padding: '6px 4px' },
+                  onClick: function () { set('tujuan', nilai) }
+                }, label);
+              }
+              return h('div', { style: { marginBottom: 12 } },
+                h('div', { style: { fontSize: '.75rem', fontWeight: 600, marginBottom: 6 } }, 'Catat tagihan ini sebagai'),
+                h('div', { style: { display: 'flex', gap: 6, marginBottom: 8 } },
+                  opsi('ada', 'Hutang yang ada'), opsi('baru', 'Hutang baru'), opsi('tidak', 'Jangan dicatat')),
+
+                tagihan.tujuan === 'ada' ? (pilihanHutang.length
+                  ? h('select', {
+                      className: 'fi', value: tagihan.debt_id || '',
+                      onChange: function (e) { set('debt_id', e.target.value) }
+                    },
+                    h('option', { value: '' }, '-- Pilih hutang --'),
+                    pilihanHutang.map(function (x) {
+                      return h('option', { key: x.id, value: x.id }, x.name + ' · sisa ' + fmt(x.remaining_amount));
+                    }))
+                  : h('div', { style: { fontSize: '.72rem', color: 'var(--org)' } },
+                      'Belum ada hutang aktif untuk dipilih. Pakai "Hutang baru".')) : null,
+
+                tagihan.tujuan === 'baru' ? h(F, null,
+                  h('input', {
+                    className: 'fi', value: tagihan.nama || '', placeholder: 'Nama hutang',
+                    onChange: function (e) { set('nama', e.target.value) }
+                  }),
+                  /* Disebut sekali di sini supaya tak ada yang membuat hutang
+                     baru tiap bulan lalu heran halaman Hutangnya penuh. */
+                  h('div', { style: { fontSize: '.7rem', color: 'var(--t3)', marginTop: 4 } },
+                    'Satu kartu cukup satu hutang. Bulan depan pilih "Hutang yang ada" supaya totalnya diperbarui, bukan bertambah baris.')) : null,
+
+                tagihan.tujuan === 'tidak' ? h('div', { style: { fontSize: '.72rem', color: 'var(--t3)' } },
+                  'Transaksinya tetap dicatat ke dompet kartu. Hanya ringkasan tagihannya yang tidak dibuatkan baris hutang.') : null);
+            })(),
 
             h('div', { style: { fontSize: '.75rem', fontWeight: 600, color: 'var(--t3)', marginBottom: 6 } },
               tagihan.baris.length + ' baris terbaca. Centang yang mau dicatat.'),
