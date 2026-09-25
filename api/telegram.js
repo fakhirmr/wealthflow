@@ -4,7 +4,8 @@
 // Environment variables (Vercel → Settings → Environment Variables):
 //   TELEGRAM_BOT_TOKEN        → token bot dari @BotFather (RAHASIA)
 //   TELEGRAM_WEBHOOK_SECRET   → string acak buatan sendiri (RAHASIA) — dipakai saat set webhook
-//   GEMINI_API_KEY            → (sudah ada) untuk parse teks/struk
+//   ANTHROPIC_API_KEY         → kunci dari console.anthropic.com (RAHASIA)
+//   ANTHROPIC_MODEL           → (opsional) ganti model tanpa menyentuh kode
 //   SUPABASE_URL              → (sudah ada)
 //   SUPABASE_SERVICE_ROLE_KEY → (sudah ada, RAHASIA)
 //   AI_FREE_LIMIT             → (opsional) jatah pesan/bulan free, default 30 — SAMA dengan kuota di app
@@ -12,13 +13,14 @@
 
 export const config = { runtime: 'edge' };
 
-var GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
-/* Model pembaca gambar. Lite dipilih karena tugasnya ekstraksi berformat tetap,
-   bukan penalaran, dan lite menjawab jauh lebih cepat. Bisa ditimpa lewat env
-   kalau ternyata ketepatannya kurang. */
-/* Bawaannya model STABIL, bukan alias -latest. Alias itulah yang ditolak Google
-   dengan "experiencing high traffic". Masih bisa ditimpa lewat env kalau perlu. */
-var MODEL_GAMBAR = process.env.GEMINI_IMAGE_MODEL || 'gemini-3.5-flash-lite';
+import Anthropic from '@anthropic-ai/sdk';
+
+/* Satu model untuk semua tugas bot: baca struk, baca mutasi, urai kalimat.
+   Dulu ada tiga nama model dan rantai cadangan, seluruhnya untuk menyiasati
+   Google yang menolak alias -latest dengan "high traffic". Penyiasatan itu
+   tidak punya pekerjaan lagi, jadi ikut dibuang bersama penyedianya.
+   Bisa ditimpa lewat env kalau ingin menurunkan biaya tanpa menyentuh kode. */
+var MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 
 /* Disusun per potongan 32KB. Versi sebelumnya menyambung string byte demi byte,
    jadi gambar 3MB berarti tiga juta iterasi penyambungan sebelum permintaan ke
@@ -215,7 +217,6 @@ function sb(url, opts, SB_URL, KEY) {
   return fetch(SB_URL + url, opts);
 }
 
-// Panggil Gemini, ekstrak array transaksi dari teks atau gambar
 /* Batas waktu WAJIB di sini. Tanpa ini, permintaan yang lama (mis. mutasi
    panjang) membuat fungsi dibunuh Vercel sebelum sempat menjawab 200, lalu
    Telegram MENGIRIM ULANG update yang sama berkali-kali dan bot memulai
@@ -234,110 +235,119 @@ async function fetchTO(url, opts, ms) {
    batas laju, bot menyimpulkan 'tidak ada transaksi terdeteksi' lalu menyuruh
    pengguna menulis lebih jelas, padahal tulisannya sudah benar. Galat penyedia
    harus terlihat apa adanya; kalau tidak, setiap penelusuran jadi menebak. */
-/* Endpoint kompatibel-OpenAI milik Gemini kadang MEMBUNGKUS balasannya dalam
-   array: [{ "error": {...} }] dan, pada sebagian jalur, [{ "choices": [...] }].
-   Seluruh kode di sini memeriksa d.error dan d.choices seolah balasannya objek,
-   dan pada array keduanya undefined. Akibatnya galat asli Google tak pernah
-   terbaca, dan balasan yang SUKSES pun dianggap kosong. Bungkusnya dibuka di
-   satu tempat supaya tak ada lagi pemeriksaan yang salah sasaran. */
-function bukaBungkus(d) {
-  if (Array.isArray(d)) return d.length ? d[0] : null;
-  return d;
+/* === LAPISAN AI (Claude) ===
+   Pemanggil di bawah tetap menyusun isi pesan dalam bentuk blok OpenAI
+   ({type:'text'} dan {type:'image_url'}), sama seperti sebelumnya. Bentuknya
+   diterjemahkan ke bentuk Claude di SATU tempat di sini, jadi tak satu pun
+   pemanggilnya perlu ikut berubah saat penyedianya berganti. */
+function blokClaude(content) {
+  var out = [];
+  (Array.isArray(content) ? content : []).forEach(function (b) {
+    if (!b) return;
+    if (b.type === 'text' && b.text) { out.push({ type: 'text', text: b.text }); return; }
+    if (b.type === 'image_url' && b.image_url && b.image_url.url) {
+      var d = /^data:([^;,]+);base64,(.+)$/.exec(String(b.image_url.url));
+      if (d) out.push({ type: 'image', source: { type: 'base64', media_type: d[1], data: d[2] } });
+    }
+  });
+  return out;
 }
 
-function bacaBalasanAI(d, status) {
-  d = bukaBungkus(d);
-  var e;
-  if (d && d.error) {
-    var pesan = d.error.message || d.error.status || JSON.stringify(d.error);
-    e = new Error(String(pesan).slice(0, 250));
-    e.dariAI = true; e.kode = d.error.code || status || 0;
-    throw e;
-  }
-  if (!d || !d.choices || !d.choices[0] || !d.choices[0].message) {
-    e = new Error('balasan tanpa isi' + (status ? ' (HTTP ' + status + ')' : ''));
-    e.dariAI = true; e.kode = status || 0;
-    throw e;
-  }
-  return d.choices[0].message.content || '';
+function klienAI(AKEY, batas) {
+  return new Anthropic({ apiKey: AKEY, maxRetries: 1, timeout: batas || 20000 });
 }
 
-/* Saat SEMUA kandidat gagal, kunci diperiksa langsung ke Google. Endpoint daftar
-   model memakai jatah berbeda dari endpoint chat, jadi ia tetap menjawab walau
-   chat ditolak. Hasilnya memisahkan tiga kemungkinan yang selama ini tercampur:
-   kunci memang tak sah, kunci sah tapi nama modelnya tak ada, atau kunci sah dan
-   modelnya ada sehingga penolakannya benar-benar dari sisi kapasitas Google. */
-async function periksaKunci(GKEY) {
+/* Satu panggilan, tanpa rantai model dan tanpa coba-ulang buatan sendiri.
+   Rantai itu dulu perlu karena Google menolak sebagian nama model; SDK
+   Anthropic sudah menangani coba-ulang untuk galat yang memang sementara,
+   jadi menumpuk lapisan kedua di atasnya hanya memakan anggaran waktu Vercel.
+
+   effort 'low' jadi bawaan: tugas bot ini ekstraksi berformat tetap, bukan
+   penalaran. Menyuruhnya berpikir panjang menambah biaya dan waktu tunggu
+   tanpa menambah ketepatan. */
+async function panggilAI(AKEY, content, maxTok, opsi) {
+  opsi = opsi || {};
   try {
-    var r = await fetchTO('https://generativelanguage.googleapis.com/v1beta/models?key=' + GKEY + '&pageSize=200', {}, 4000);
-    var j = await r.json();
-    if (!r.ok || !j || !Array.isArray(j.models)) {
-      var pesan = (j && j.error && j.error.message) || ('HTTP ' + r.status);
-      return { ok: false, pesan: pesan };
-    }
-    var chat = j.models.filter(function (mm) {
-      return (mm.supportedGenerationMethods || []).indexOf('generateContent') >= 0;
-    }).map(function (mm) { return String(mm.name || '').replace('models/', ''); });
-    return { ok: true, model: chat };
-  } catch (e) { return { ok: false, pesan: String(e && e.message || e) }; }
+    var resp = await klienAI(AKEY, opsi.batas || 20000).beta.messages.create({
+      model: MODEL,
+      max_tokens: maxTok || 3072,
+      messages: [{ role: 'user', content: blokClaude(content) }],
+      output_config: { effort: opsi.effort || 'low' },
+      /* Penolakan penyaring keamanan dialihkan server ke model lain, bukan
+         dijatuhkan sebagai galat ke muka pengguna. */
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default'
+    });
+    var teks = (resp.content || [])
+      .filter(function (b) { return b && b.type === 'text'; })
+      .map(function (b) { return b.text || ''; })
+      .join('').trim();
+    if (!teks) { var kosong = new Error('balasan tanpa isi'); kosong.dariAI = true; kosong.kode = 0; throw kosong; }
+    return teks;
+  } catch (e) {
+    if (!e.dariAI) { e.dariAI = true; e.kode = (e && e.status) || 0; }
+    throw e;
+  }
 }
 
-// Menerjemahkan galat penyedia jadi kalimat yang bisa ditindaklanjuti.
-function pesanGalatAI(e) {
-  var m = String(e && e.message || '').toLowerCase();
-  var kode = (e && e.kode) || 0;
-  if (kode === 429 || m.indexOf('quota') >= 0 || m.indexOf('rate limit') >= 0 || m.indexOf('exhaust') >= 0) {
-    var asliK = String(e && e.message || '').slice(0, 180).replace(/[<>&]/g, '');
-    return '🚫 <b>Jatah AI di Google habis atau kena batas laju.</b>\n\nBukan salah tulisanmu. Tunggu beberapa menit lalu coba lagi.' + (asliK ? '\n\n<code>' + asliK + '</code>' : '');
-  }
-  if (kode >= 500 || m.indexOf('penuh') >= 0 || m.indexOf('overload') >= 0 || m.indexOf('unavailable') >= 0 || m.indexOf('high traffic') >= 0) {
-    return '🌧 <b>Semua model AI menolak.</b>\n\nGoogle membalas bahwa modelnya sedang penuh. Ini dari pihak Google, bukan dari tulisanmu.';
-  }
-  if (kode === 401 || kode === 403 || m.indexOf('api key') >= 0 || m.indexOf('permission') >= 0) {
-    /* Tiga keadaan yang sangat berbeda dulu dibalas satu kalimat yang sama,
-       padahal tak ada satu pun tindakannya yang sama: kunci salah dibetulkan
-       di Vercel, API yang belum aktif dibetulkan di Google Cloud, kunci yang
-       dibatasi dibetulkan di AI Studio. Lebih buruk lagi, kalimat lama
-       membuang pesan asli Google, satu-satunya keterangan yang bisa
-       membedakan ketiganya, sehingga penerimanya justru dikirim menebak. */
-    var asli = String(e && e.message || '').slice(0, 180).replace(/[<>&]/g, '');
-    var ekor = asli ? '\n\n<code>' + asli + '</code>' : '';
-    /* "dunning" itu istilah penagihan, bukan istilah teknis: Google memblokir
-       project karena tagihannya gagal ditarik atau lewat jatuh tempo. Ia datang
-       sebagai 403 PERMISSION_DENIED, persis seperti kunci yang tak sah, jadi
-       tanpa pemeriksaan ini pemiliknya dikirim mengutak-atik GEMINI_API_KEY
-       yang sebenarnya tidak apa-apa. Diperiksa PALING AWAL karena pesannya
-       kadang menyebut project yang "disabled" juga. */
-    if (m.indexOf('dunning') >= 0 || m.indexOf('delinquen') >= 0 || m.indexOf('billing') >= 0 || m.indexOf('suspend') >= 0) {
-      return '💳 <b>Tagihan Google Cloud belum lunas, project-nya diblokir.</b>\n\nKuncinya sendiri tidak apa-apa. Buka Google Cloud Console lalu menu Billing, periksa tagihan yang lewat jatuh tempo atau kartu yang gagal ditarik, betulkan metode pembayarannya, lalu bayar tagihannya. Akses biasanya pulih dalam hitungan menit sampai beberapa jam setelah pembayaran masuk.\n\nKartu Indonesia sering ditolak untuk tagihan dolar berulang, jadi periksa juga ke banknya.' + ekor;
-    }
-    if (m.indexOf('has not been used') >= 0 || m.indexOf('is disabled') >= 0 || m.indexOf('not enabled') >= 0) {
-      return '🔌 <b>Generative Language API belum aktif di project Google-nya.</b>\n\nAktifkan API itu di Google Cloud Console untuk project pemilik kunci ini, lalu tunggu beberapa menit sampai menyebar.' + ekor;
-    }
-    if (m.indexOf('referer') >= 0 || m.indexOf('referrer') >= 0 || m.indexOf('ip address') >= 0 || m.indexOf('blocked') >= 0 || m.indexOf('restrict') >= 0) {
-      return '⛔ <b>Kunci AI dibatasi, jadi ditolak dari server.</b>\n\nBuang pembatasan referrer/IP pada kunci ini. Panggilannya datang dari server Vercel, bukan dari peramban, jadi pembatasan apa pun akan menolaknya.' + ekor;
-    }
-    return '🔑 <b>Kunci AI ditolak Google.</b>\n\nPeriksa GEMINI_API_KEY di Vercel. Kunci yang dibuat ulang di AI Studio membuat kunci lama langsung mati, dan env di Vercel tidak ikut berubah sendiri.' + ekor + '\n\nKetik /model untuk melihat jawaban mentah Google.';
-  }
-  if (m.indexOf('not found') >= 0 || m.indexOf('model') >= 0) {
-    return '⚠️ <b>Model AI tidak tersedia.</b>\n\n<code>' + String(e.message).slice(0, 120).replace(/[<>&]/g, '') + '</code>';
-  }
-  return '❌ <b>AI menolak permintaan.</b>\n\n<code>' + String(e.message).slice(0, 160).replace(/[<>&]/g, '') + '</code>';
+async function aiMentah(AKEY, content, maxTok, opsi) {
+  return panggilAI(AKEY, content, maxTok, opsi);
 }
 
-async function geminiExtract(GKEY, content, maxTok) {
-  // Jalur teks ikut dapat coba-ulang; dulu ia menyerah begitu Google membalas 503.
-  var txt = await panggilAI(GKEY, content, maxTok || 1500, { model: MODEL_CADANGAN });
+async function aiEkstrak(AKEY, content, maxTok) {
+  var txt = await panggilAI(AKEY, content, maxTok || 1500);
   txt = txt.replace(/```json/gi, '').replace(/```/g, '').replace(/^[^\[]*/, '').replace(/[^\]]*$/, '').trim();
   var arr = [];
   try { arr = JSON.parse(txt); } catch (e) { arr = []; }
   return Array.isArray(arr) ? arr : [];
 }
 
-/* Mutasi diminta dalam format "tipe|nominal|keterangan|tanggal" satu baris per
-   transaksi. JSON menghabiskan sekitar 30 token per baris, format ini sekitar 12,
-   dan menghasilkan token itulah bagian paling lambat. Untuk mutasi 30 baris
-   selisihnya ratusan token, cukup untuk tidak menabrak batas waktu. */
+/* Saat panggilan gagal, kunci diperiksa lewat daftar model. Endpoint itu
+   jalur lain dari endpoint pesan, jadi ia tetap menjawab walau kuota pesan
+   habis, dan itulah yang memisahkan "kunci tak sah" dari "kapasitas penuh".
+   Tanpa pemisahan ini keduanya terbaca sama dan pemiliknya cuma bisa menebak. */
+async function periksaKunci(AKEY) {
+  try {
+    var daftar = await klienAI(AKEY, 6000).models.list();
+    var nama = ((daftar && daftar.data) || []).map(function (m) { return m.id; });
+    return { ok: true, model: nama };
+  } catch (e) {
+    return { ok: false, pesan: String((e && e.message) || e) };
+  }
+}
+
+// Menerjemahkan galat penyedia jadi kalimat yang bisa ditindaklanjuti.
+function pesanGalatAI(e) {
+  var kode = (e && (e.kode || e.status)) || 0;
+  var m = String((e && e.message) || '').toLowerCase();
+  var asli = String((e && e.message) || '').slice(0, 180).replace(/[<>&]/g, '');
+  var ekor = asli ? '\n\n<code>' + asli + '</code>' : '';
+
+  if (kode === 429 || m.indexOf('rate limit') >= 0) {
+    return '🚫 <b>Permintaan ke AI terlalu rapat.</b>\n\nBukan salah tulisanmu. Tunggu sebentar lalu kirim lagi.' + ekor;
+  }
+  /* Kehabisan saldo BUKAN kunci yang salah, dan tindakannya jauh berbeda:
+     satu diisi ulang di Console, satu lagi diganti di Vercel. Google dulu
+     mencampur keduanya jadi 403 yang sama, dan itu mengirim pemiliknya
+     mengutak-atik kunci yang sebenarnya tidak apa-apa. */
+  if (kode === 402 || m.indexOf('credit balance') >= 0 || m.indexOf('billing') >= 0) {
+    return '💳 <b>Saldo kredit Anthropic habis.</b>\n\nKuncinya tidak apa-apa. Isi ulang di console.anthropic.com pada menu Billing, lalu coba lagi.' + ekor;
+  }
+  if (kode === 401 || kode === 403) {
+    return '🔑 <b>Kunci AI ditolak.</b>\n\nPeriksa ANTHROPIC_API_KEY di Vercel. Kunci yang dicabut di Console mati seketika, dan env di Vercel tidak ikut berubah sendiri.' + ekor + '\n\nKetik /model untuk melihat jawaban mentah dari Anthropic.';
+  }
+  if (kode === 404) {
+    return '⚠️ <b>Model AI tidak dikenal.</b>\n\nNama model di env ANTHROPIC_MODEL mungkin salah ketik. Ketik /model untuk melihat yang tersedia.' + ekor;
+  }
+  if (kode >= 500 || m.indexOf('overload') >= 0) {
+    return '🌧 <b>Layanan AI sedang penuh.</b>\n\nIni dari pihak penyedianya, bukan dari tulisanmu. Coba lagi sebentar.' + ekor;
+  }
+  if (/abort|timeout|timed out/i.test(m)) {
+    return '⏱️ <b>AI kelamaan menjawab.</b>\n\nCoba kirim lagi sebentar.' + ekor;
+  }
+  return '❌ <b>AI menolak permintaan.</b>' + ekor;
+}
+
 var BA_KELUAR = ['K', 'KELUAR', 'D', 'DB', 'DEBIT', 'DEBET', 'EXPENSE', 'PENGELUARAN', '-'];
 var BA_MASUK = ['M', 'MASUK', 'C', 'CR', 'KREDIT', 'CREDIT', 'INCOME', 'PEMASUKAN', '+'];
 function parseBaris(teks) {
@@ -363,122 +373,6 @@ function parseBaris(teks) {
    keterangan yang diketik pengguna, melainkan ditentukan AI sendiri; balasannya
    bisa berupa JSON (struk) atau baris berpipa (mutasi), jadi teksnya diambil
    mentah lalu dicoba kedua pembaca. */
-/* Rantai model, dicoba berurutan. Alias -latest ditaruh PALING BELAKANG:
-   Google membalas "This model is currently experiencing high traffic" untuknya,
-   sebab alias itu menunjuk model terbaru yang kapasitasnya paling diperebutkan.
-   Model stabil bernomor versi biasanya jauh lebih lega.
-
-   Kandidat yang namanya tidak dikenal (404) DILEWATI, bukan dianggap gagal, jadi
-   rantainya tetap jalan walau salah satu nama sudah dipensiunkan Google. Dengan
-   begitu kode tak bergantung pada satu nama yang kebetulan benar hari ini. */
-/* Hanya tiga percobaan yang muat di bawah batas Vercel, jadi isinya harus terpilih:
-   satu model stabil, lalu alias -latest sebagai jaring terakhir. Alias itu memang
-   yang penuh, TAPI ia satu-satunya yang terbukti ada (balasannya 503, bukan 404),
-   sementara nama stabil di atas belum terverifikasi. Menyingkirkannya berarti
-   bertaruh pada nama yang mungkin salah. */
-var RANTAI_MODEL = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
-var MODEL_CADANGAN = RANTAI_MODEL[0];
-function tidur(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
-
-/* HTTP 5xx dari Google berarti servernya sedang penuh, bukan permintaan kita yang
-   salah. Menyerah di percobaan pertama membuat bot terasa rusak padahal cukup
-   diulang sebentar. Percobaan kedua sengaja memakai model lain, sebab yang penuh
-   biasanya satu model tertentu, bukan seluruh layanan.
-
-   Batas waktu per percobaan dipersingkat jadi 9 detik supaya dua percobaan plus
-   jeda tetap muat di bawah batas Vercel; satu percobaan 20 detik justru tak
-   menyisakan ruang untuk mencoba lagi. */
-async function panggilAI(GKEY, content, maxTok, opsi) {
-  opsi = opsi || {};
-  /* Jejak SETIAP percobaan dicatat. Sebelumnya hanya percobaan terakhir yang
-     dilaporkan, sehingga tak bisa dibedakan antara "ketiganya dicoba dan semua
-     ditolak" dengan "baru satu yang dicoba". Tanpa itu penelusuran cuma menebak. */
-  var jejak = [];
-  var utama = opsi.model || MODEL_GAMBAR;
-  var urutan = [utama];
-  if (!opsi.tanpaCadangan) {
-    RANTAI_MODEL.forEach(function (m) { if (urutan.indexOf(m) < 0) urutan.push(m); });
-    urutan = urutan.slice(0, 3);   // tiga percobaan, masih muat di bawah batas Vercel
-  }
-  /* Anggaran waktu dibagi menurut SISA, bukan dipatok mati per percobaan.
-
-     Versi sebelumnya memberi 7 detik ke tiap percobaan seolah semuanya pasti
-     memakannya habis. Kenyataannya penolakan 503 datang dalam waktu di bawah
-     satu detik, sedangkan panggilan yang benar-benar bekerja perlu 10-15 detik.
-     Akibatnya percobaan yang sehat justru dicekik dan permintaan teks sesederhana
-     "beli kopi 21rb" pun ikut gagal.
-
-     Sekarang tiap percobaan boleh memakai sampai 12 detik, tapi tak pernah
-     melebihi sisa anggaran keseluruhan, jadi rangkaiannya tetap berhenti sebelum
-     batas Vercel. Kandidat yang ditolak cepat menyisakan waktu untuk kandidat
-     berikutnya, persis yang dibutuhkan saat model pertama sedang penuh. */
-  var mulai = Date.now();
-  /* 18 detik, bukan 21. Sisanya disediakan untuk MEMBALAS dan untuk pemeriksaan
-     kunci saat semuanya gagal. Versi sebelumnya memakai 21 detik lalu menambah
-     pemeriksaan 8 detik sesudahnya, totalnya melewati batas Vercel, dan fungsinya
-     dibunuh sebelum sempat mengirim apa pun. Diagnostiknya justru membunuh
-     balasan yang mau didiagnosis. */
-  var anggaran = opsi.total || 18000;
-  var batasSatuan = opsi.batas || 12000;
-  var galat = null;
-
-  for (var i = 0; i < urutan.length; i++) {
-    var sisa = anggaran - (Date.now() - mulai);
-    // Kurang dari 3 detik tak cukup untuk apa pun; berhenti daripada gagal percuma
-    if (sisa < 3000) break;
-    var batas = Math.min(batasSatuan, sisa);
-    try {
-      var body = { model: urutan[i], max_tokens: maxTok || 3072, messages: [{ role: 'user', content: content }] };
-      if (!opsi.tanpaPikir) body.reasoning_effort = opsi.pikir || 'low';
-      var r = await fetchTO(GEMINI_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY },
-        body: JSON.stringify(body)
-      }, batas);
-      // Badan balasan hanya boleh dibaca SEKALI. Diambil sebagai teks dulu supaya
-      // cuplikannya masih bisa dilaporkan saat penguraian JSON gagal.
-      var mentahTeks = '';
-      try { mentahTeks = await r.text(); } catch (e2) { mentahTeks = ''; }
-      var d = null;
-      try { d = mentahTeks ? JSON.parse(mentahTeks) : null; } catch (e2b) { d = null; }
-
-      if (r.status >= 500) {
-        // Cuplikan badan balasan disimpan; 503 dari Google sering berbadan kosong,
-        // dan mengetahui KOSONG atau berisi apa itu justru petunjuk yang berguna.
-        var pesanG = '';
-        try { var db2 = bukaBungkus(JSON.parse(mentahTeks || '{}')); pesanG = (db2 && db2.error && db2.error.message) || ''; } catch (eJ) { }
-        jejak.push(urutan[i] + ': ' + r.status + (pesanG ? ' ' + pesanG.slice(0, 60) : ''));
-        galat = new Error('server AI sedang penuh');
-        galat.dariAI = true; galat.kode = r.status; galat.sementara = true;
-        throw galat;
-      }
-      // Nama model tak dikenal: lanjut ke kandidat berikutnya, jangan menyerah
-      if (r.status === 404) {
-        // Pesan asli Google ikut dibawa; tanpa itu sebabnya hilang saat ditelusuri
-        var db = bukaBungkus(d);
-        var kataGoogle = (db && db.error && db.error.message) ? (': ' + db.error.message) : '';
-        jejak.push(urutan[i] + ': 404 tidak dikenal');
-        galat = new Error('model ' + urutan[i] + ' tidak dikenal' + kataGoogle);
-        galat.dariAI = true; galat.kode = 404; galat.sementara = true;
-        throw galat;
-      }
-      return bacaBalasanAI(d, r.status);
-    } catch (e) {
-      galat = e;
-      if (/abort/i.test(String(e && e.message || ''))) jejak.push(urutan[i] + ': kehabisan waktu');
-      e.jejak = jejak.slice();
-      var bolehUlang = !!e.sementara || (e.kode >= 500) || e.kode === 404 || /abort/i.test(String(e && e.message || ''));
-      if (i < urutan.length - 1 && bolehUlang) { await tidur(600); continue; }
-      throw e;
-    }
-  }
-  throw galat;
-}
-
-async function geminiRaw(GKEY, content, maxTok, opsi) {
-  return panggilAI(GKEY, content, maxTok, opsi);
-}
-
 function parseJsonArr(teks) {
   var t = String(teks || '').replace(/```json/gi, '').replace(/```/g, '').trim();
   var i = t.indexOf('[');
@@ -781,7 +675,7 @@ export default async function handler(req) {
   if (req.method !== 'POST') return new Response('ok');
   var TOKEN = process.env.TELEGRAM_BOT_TOKEN;
   var SECRET = process.env.TELEGRAM_WEBHOOK_SECRET;
-  var GKEY = process.env.GEMINI_API_KEY;
+  var AKEY = process.env.ANTHROPIC_API_KEY;
   var SB_URL = process.env.SUPABASE_URL;
   var KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
   /* Env yang kosong dulu dijawab 500 tanpa sepatah kata pun ke pengguna, jadi
@@ -789,7 +683,7 @@ export default async function handler(req) {
      tokennya sendiri ada, kita masih bisa MEMBALAS, dan diam itu diubah jadi
      diagnosa. Yang disebut hanya NAMA env-nya, tak pernah isinya. */
   var kurang = [];
-  if (!GKEY) kurang.push('GEMINI_API_KEY');
+  if (!AKEY) kurang.push('ANTHROPIC_API_KEY');
   if (!SB_URL) kurang.push('SUPABASE_URL');
   if (!KEY) kurang.push('SUPABASE_SERVICE_ROLE_KEY');
   if (!SECRET) kurang.push('TELEGRAM_WEBHOOK_SECRET');
@@ -1108,70 +1002,54 @@ export default async function handler(req) {
       return new Response('ok');
     }
 
-    /* Menguji AI dengan gambar 1 piksel. Kalau ini pun lambat, masalahnya ada di
-       layanan AI-nya (mis. kunci masih tier gratis yang diantre), bukan di ukuran
-       gambar atau prompt. Tanpa alat ini kita cuma bisa menebak. */
-    /* Membandingkan beberapa konfigurasi dengan gambar 1 piksel. Semua tebakan
-       soal ukuran gambar sudah gugur (65KB pun kena batas waktu), jadi yang perlu
-       dibuktikan sekarang: model mana dan tingkat berpikir mana yang cepat.
-       Batas per percobaan 6 detik supaya ketiganya muat dalam satu permintaan. */
-    /* Menanyakan langsung ke Google model apa yang tersedia untuk kunci ini.
-       Selama ini nama model dipilih dari ingatan dan alias -latest bisa menunjuk
-       ke model yang sedang dipensiunkan; menebak-nebak namanya tak ada gunanya
-       kalau daftar sebenarnya bisa ditanyakan. */
+    /* Menanyakan langsung ke penyedianya model apa yang tersedia untuk kunci
+       ini. Selama ini nama model dipilih dari ingatan, dan menebak-nebak tak
+       ada gunanya kalau daftar sebenarnya bisa ditanyakan. */
     if (/^\/model\b/i.test(text)) {
-      try {
-        var mr = await fetchTO('https://generativelanguage.googleapis.com/v1beta/models?key=' + GKEY + '&pageSize=200', {}, 12000);
-        var mj = await mr.json();
-        if (!mr.ok || !mj || !Array.isArray(mj.models)) {
-          await reply(TOKEN, chatId, '❌ Gagal mengambil daftar model (HTTP ' + mr.status + ').\n\n<code>' + JSON.stringify(mj || {}).slice(0, 200).replace(/[<>&]/g, '') + '</code>');
-          return new Response('ok');
-        }
-        var bisaChat = mj.models.filter(function (mm) {
-          return (mm.supportedGenerationMethods || []).indexOf('generateContent') >= 0;
-        }).map(function (mm) { return String(mm.name || '').replace('models/', ''); });
-        // Yang relevan buat kita: keluarga flash, itu yang dipakai membaca gambar
-        var flash = bisaChat.filter(function (x) { return x.indexOf('flash') >= 0; });
-        var adaUtama = bisaChat.indexOf(MODEL_GAMBAR) >= 0;
-        var adaCadangan = bisaChat.indexOf(MODEL_CADANGAN) >= 0;
+      var pk = await periksaKunci(AKEY);
+      if (!pk.ok) {
         await reply(TOKEN, chatId,
-          '🧭 <b>Model tersedia di kunci ini</b>\n\n' +
-          'Dipakai sekarang: <code>' + MODEL_GAMBAR + '</code> ' + (adaUtama ? '✅ ada' : '❌ TIDAK ADA') + '\n' +
-          'Cadangan: <code>' + MODEL_CADANGAN + '</code> ' + (adaCadangan ? '✅ ada' : '❌ TIDAK ADA') + '\n\n' +
-          '<b>Keluarga flash (' + flash.length + '):</b>\n' + (flash.slice(0, 25).join('\n') || '(tidak ada)') +
-          '\n\nTotal model chat: ' + bisaChat.length +
-          '\n\n<i>Kalau yang dipakai bertanda TIDAK ADA, itu sebab kegagalannya. Setel env GEMINI_IMAGE_MODEL di Vercel ke salah satu nama di atas.</i>');
-      } catch (eM) {
-        await reply(TOKEN, chatId, '❌ Gagal menghubungi Google: <code>' + String(eM && eM.message || eM).slice(0, 150).replace(/[<>&]/g, '') + '</code>');
+          '❌ <b>Gagal mengambil daftar model.</b>\n\n<code>' + String(pk.pesan || '').slice(0, 200).replace(/[<>&]/g, '') + '</code>' +
+          '\n\n<i>Kalau ini soal kunci atau saldo, jawabannya ada di kalimat di atas.</i>');
+        return new Response('ok');
       }
+      var punya = pk.model || [];
+      var adaDipakai = punya.indexOf(MODEL) >= 0;
+      await reply(TOKEN, chatId,
+        '🧭 <b>Model tersedia untuk kunci ini</b>\n\n' +
+        'Dipakai sekarang: <code>' + MODEL + '</code> ' + (adaDipakai ? '✅ ada' : '❌ TIDAK ADA') + '\n\n' +
+        '<b>Daftar (' + punya.length + '):</b>\n' + (punya.slice(0, 25).join('\n').replace(/[<>&]/g, '') || '(kosong)') +
+        '\n\n<i>Kalau yang dipakai bertanda TIDAK ADA, itu sebab kegagalannya. Setel env ANTHROPIC_MODEL di Vercel ke salah satu nama di atas.</i>');
       return new Response('ok');
     }
 
+    /* Menguji AI dengan gambar 1 piksel. Kalau ini pun lambat, yang bermasalah
+       layanannya, bukan ukuran gambar atau prompt. Tanpa alat ini kita cuma
+       bisa menebak. Tiga tingkat kedalaman diuji karena itu satu-satunya tuas
+       kecepatan yang tersisa setelah rantai modelnya dibuang. */
     if (/^\/diag\b/i.test(text)) {
       var px = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
       var isi = [{ type: 'text', text: 'Balas satu kata: OK' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,' + px } }];
       var uji = [
-        { nama: 'flash + pikir low', o: { model: 'gemini-flash-latest', pikir: 'low', batas: 6000, tanpaCadangan: true } },
-        { nama: 'lite + pikir low', o: { model: 'gemini-flash-lite-latest', pikir: 'low', batas: 6000, tanpaCadangan: true } },
-        { nama: 'lite tanpa pikir', o: { model: 'gemini-flash-lite-latest', tanpaPikir: true, batas: 6000, tanpaCadangan: true } }
+        { nama: 'effort low', o: { effort: 'low', batas: 8000 } },
+        { nama: 'effort medium', o: { effort: 'medium', batas: 8000 } }
       ];
       var barisUji = [];
       for (var ui = 0; ui < uji.length; ui++) {
         var t0 = Date.now(), tanda = '';
         try {
-          var jw = await geminiRaw(GKEY, isi, 32, uji[ui].o);
+          var jw = await aiMentah(AKEY, isi, 32, uji[ui].o);
           tanda = jw ? '✅' : '⚠️ kosong';
         } catch (eD) {
-          tanda = /abort/i.test(String(eD && eD.message || eD)) ? '⏱️ >6s' : '❌ galat';
+          tanda = /abort/i.test(String((eD && eD.message) || eD)) ? '⏱️ kehabisan waktu' : '❌ ' + ((eD && eD.status) || 'galat');
         }
         barisUji.push(uji[ui].nama + ': <b>' + (Date.now() - t0) + 'ms</b> ' + tanda);
       }
       await reply(TOKEN, chatId, '🩺 <b>Uji kecepatan AI</b>\nGambar uji 1 piksel (70 byte)\n\n' + barisUji.join('\n') +
-        '\n\nDipakai sekarang: <code>' + MODEL_GAMBAR + '</code>' +
-        '\n\n<i>Kalau ketiganya lambat, yang bermasalah layanan AI-nya, bukan gambar atau prompt.</i>');
+        '\n\nModel: <code>' + MODEL + '</code>' +
+        '\n\n<i>Kalau keduanya lambat, yang bermasalah layanan AI-nya, bukan gambar atau prompt.</i>');
       return new Response('ok');
     }
-
 
     if (/^\/(bantuan|perintah)\b/i.test(text)) {
       await reply(TOKEN, chatId, '📖 <b>Yang bisa dilakukan</b>\n\n' +
@@ -1292,7 +1170,7 @@ export default async function handler(req) {
           'Kategori: ' + namaKatList(cats);
 
         var tAI = Date.now();
-        var mentah = await geminiRaw(GKEY, [{ type: 'text', text: gprompt }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }], 2048);
+        var mentah = await aiMentah(AKEY, [{ type: 'text', text: gprompt }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b64 } }], 2048);
         jam.ai = Date.now() - tAI;
         txList = parseBaris(mentah);
         // Sesekali model tetap menjawab JSON walau diminta baris
@@ -1311,7 +1189,7 @@ export default async function handler(req) {
       }
     } else if (text) {
       var tprompt = 'Kamu parser transaksi keuangan Bahasa Indonesia. Ekstrak dari pesan user jadi JSON array. Balas HANYA JSON valid: [{"type":"expense"|"income","amount":number,"description":"singkat","date":"YYYY-MM-DD","category_id":"id atau null","sub_category_id":"id atau null","wallet_id":"id atau null"}].\nATURAN:\n1) uang keluar/beli/bayar = expense; uang masuk/terima/gaji = income.\n2) Cocokkan dompet dari nama yang disebut user.\n3) PENTING: pilih kategori SESPESIFIK mungkin: kalau barang/jasa yang disebut user cocok dengan salah satu SUB-KATEGORI, WAJIB isi sub_category_id dengan sub itu, dan category_id dengan induknya. Contoh: user tulis "kopi" dan ada sub-kategori "Kopi" -> sub_category_id = id sub "Kopi", category_id = id induknya. Jangan biarkan sub_category_id null kalau ada sub yang cocok.\n4) sub_category_id HARUS anak dari category_id yang dipilih (lihat penanda [induk:...]).\n5) description = keterangan tambahan/detail (mis. nama tempat atau merek). Kalau tidak ada detail lain, boleh diisi nama barangnya.\n6) Tanggal default ' + today() + '. Jika bukan transaksi, balas [].\nDompet: ' + wList(wallets) + '\nKategori: ' + cList(cats) + '\nSub-Kategori: ' + sList(cats) + '\n\nPesan: "' + text + '"';
-      txList = await geminiExtract(GKEY, [{ type: 'text', text: tprompt }]);
+      txList = await aiEkstrak(AKEY, [{ type: 'text', text: tprompt }]);
     } else {
       await reply(TOKEN, chatId, 'Kirim teks transaksi atau foto struk ya 🙂\nContoh: <i>bayar parkir 5rb cash</i>');
       return new Response('ok');
@@ -1428,32 +1306,19 @@ export default async function handler(req) {
          bot diam total, keadaan terburuk dari semua kemungkinan. */
       var pesanUtama = '❌ AI gagal.';
       try { pesanUtama = pesanGalatAI(e); } catch (e5) { }
-      try {
-        if (e.jejak && e.jejak.length) {
-          pesanUtama += '\n\n<b>Yang dicoba:</b>\n<code>' + e.jejak.join('\n').replace(/[<>&]/g, '') + '</code>';
-        }
-      } catch (e6) { }
       try { await reply(TOKEN, chatId, pesanUtama); } catch (e7) { }
 
-      // Diagnosa dikirim terpisah; kegagalannya tak lagi bisa membungkam bot
-      if (e.jejak && e.jejak.length >= 2) {
+      /* Diagnosa lanjutan dikirim TERPISAH; kegagalannya tak boleh membungkam
+         bot. Hanya untuk galat yang sebabnya benar-benar kabur: kalau
+         penyedianya sudah menyebut kunci, saldo, atau kapasitas, pesan di atas
+         sudah menjawabnya dan bertanya lagi cuma menambah bising. */
+      var kodeE = (e && (e.kode || e.status)) || 0;
+      if (!kodeE || kodeE === 404) {
         try {
-          var pk = await periksaKunci(GKEY);
-          var lanjut;
-          if (!pk.ok) {
-            lanjut = '🔑 <b>Kuncinya sendiri ditolak Google:</b>\n<code>' + String(pk.pesan || '').slice(0, 140).replace(/[<>&]/g, '') + '</code>\n\nBerarti masalahnya di GEMINI_API_KEY, bukan kapasitas.';
-          } else {
-            var punya = pk.model || [];
-            var namaDicoba = (e.jejak || []).map(function (b) { return String(b).split(':')[0]; });
-            var adaSemua = namaDicoba.every(function (nm) { return punya.indexOf(nm) >= 0; });
-            var pilihan = punya.filter(function (x) { return x.indexOf('flash') >= 0 || x.indexOf('pro') >= 0; }).slice(0, 12);
-            lanjut = '✅ Kunci sah, ' + punya.length + ' model tersedia.\n' +
-              (adaSemua
-                ? 'Semua model yang dicoba memang ada, jadi penolakannya benar-benar soal kapasitas Google.'
-                : '⚠️ Sebagian nama yang dicoba TIDAK ada di daftar ini.') +
-              '\n\n<b>Yang tersedia:</b>\n<code>' + pilihan.join('\n').replace(/[<>&]/g, '') + '</code>';
-          }
-          await reply(TOKEN, chatId, lanjut);
+          var pk2 = await periksaKunci(AKEY);
+          await reply(TOKEN, chatId, pk2.ok
+            ? '✅ Kunci sah, ' + (pk2.model || []).length + ' model tersedia. Berarti penolakannya bukan soal kunci.'
+            : '🔑 <b>Kunci ditolak penyedianya:</b>\n<code>' + String(pk2.pesan || '').slice(0, 140).replace(/[<>&]/g, '') + '</code>');
         } catch (e8) { }
       }
       return new Response('ok');

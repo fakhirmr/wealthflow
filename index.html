@@ -5731,8 +5731,9 @@
             return fetch('/api/ai', { method: 'POST', headers: { 'Authorization': 'Bearer ' + tok }, body: fd }).then(function (r) { syncQuota(r); return r });
           });
         }
-        /* Jaring terakhir: balasan Gemini kadang terbungkus array. Proxy sudah
-           membukanya, tapi pemeriksaan di sini dibuat tak bergantung pada itu. */
+        /* Jaring terakhir: balasan dibaca tanpa mengandaikan bentuknya sudah
+           rapi. Proxy sudah menormalkannya, tapi pemeriksaan di sini sengaja
+           tidak bergantung pada itu. */
         function pj(r) {
           return r.text().then(function (t) {
             try {
@@ -5752,7 +5753,11 @@
              sering kosong, yang sampai ke pengguna cuma "respons kosong". */
           if (d.error === 'ai_penuh') return '🌧 Server AI Google sedang penuh. Sudah dicoba dua kali dengan model berbeda. Ini dari pihak Google, bukan datamu. Tunggu sebentar lalu coba lagi.';
           if (d.error === 'ai_kuota') return '⏳ Jatah AI di Google penuh sesaat. Tunggu ~1 menit lalu coba lagi.';
-          if (d.error === 'ai_kunci') return '🔑 Kunci AI ditolak Google. Hubungi admin untuk memeriksa GEMINI_API_KEY' + (d.detail ? ': ' + d.detail : '') + '.';
+          if (d.error === 'ai_kunci') return '🔑 Kunci AI ditolak. Hubungi admin untuk memeriksa ANTHROPIC_API_KEY' + (d.detail ? ': ' + d.detail : '') + '.';
+          /* Klien lama yang masih tersimpan di cache peramban bisa tetap
+             mengirim audio. Dijawab dengan kalimat yang sama seperti server,
+             bukan dibiarkan jatuh ke pesan umum yang tak menjelaskan apa pun. */
+          if (d.error === 'audio_tak_didukung') return '🎤 ' + (d.detail || 'Catat lewat suara belum tersedia.');
           if (d.error === 'ai_model') return '⚠️ Model AI tidak tersedia' + (d.detail ? ': ' + d.detail : '') + '.';
           if (d.error === 'ai_gagal') return '❌ AI menolak permintaan' + (d.detail ? ': ' + d.detail : '') + '.';
           if (d.error === 'upstream_failed') {
@@ -5914,7 +5919,7 @@
           var sList = C.filter(function (c) { return !!c.parent_id }).map(function (c) { return c.id + '=' + c.name + '[parent:' + c.parent_id + ']' }).join(',');
           var sysPrompt = 'Kamu adalah WealthFlow AI, asisten keuangan pribadi yang cerdas dan analitis untuk pengguna Indonesia.\n\nGAYA: Bahasa Indonesia sehari-hari, seperti teman yang paham keuangan. Kalimat pendek dan langsung. Emoji secukupnya. Jawaban terstruktur (bullet/list jika perlu). Maksimal 300 kata kecuali diminta lebih detail.\n\nDILARANG: jangan pakai tanda pisah em-dash. Pakai titik, koma, atau titik dua. Hindari gaya bahasa AI seperti "bukan X, melainkan Y", "mari kita", "penting untuk dicatat", atau kalimat penutup yang cuma mengulang isi jawaban.\n\nDATA KEUANGAN: Gunakan HANYA angka dari data di bawah. Jangan pernah mengarang angka. Jika data tidak ada atau kurang, minta user input dengan jelas.\n\nPANDUAN RESPONS:\n• Kondisi umum → highlight surplus/defisit, perbandingan bulan lalu, kategori pengeluaran terbesar\n• Analisis pengeluaran → sebutkan angka spesifik per kategori, tandai yang perlu diwaspadai\n• Status budget → tampilkan % terpakai tiap kategori, yang sudah over, estimasi sisa bulan\n• Jatah harian ("jatah makan hari ini berapa?", "masih boleh jajan?") → sebut SISA JATAH HARI INI kategori itu, lalu jatah penuhnya dan yang sudah dipakai hari ini. Angkanya SUDAH ADA di data, salin apa adanya, JANGAN hitung ulang. Kalau kategori yang ditanya belum punya anggaran, katakan begitu, jangan mengarang jatah.\n• Hutang → total beban cicilan/bulan, rekomendasikan urutan prioritas pelunasan\n• Tips hemat → SPESIFIK berdasarkan pola pengeluaran user, bukan saran generik\n• Pertanyaan di luar keuangan → bantu singkat lalu arahkan ke konteks keuangan user\n\nCATAT TRANSAKSI OTOMATIS: Jika pesan user mengandung transaksi keuangan (beli, bayar, makan, transfer, terima, gaji, dll), sertakan di AKHIR respons satu blok [TX] per transaksi dalam SATU BARIS:\n[TX]{"type":"expense","amount":0,"description":"","date":"' + td() + '","wallet_id":"UUID_ATAU_null","category_id":"UUID_ATAU_null","sub_category_id":"UUID_ATAU_null"}[/TX]\nATURAN KETAT: (1) Setiap blok [TX]...{json}...[/TX] harus ditulis dalam SATU BARIS, jangan dipecah. (2) Semua ID harus UUID TUNGGAL, bukan gabungan koma. (3) sub_category_id harus anak dari category_id yang dipilih, atau null. (4) Jika tidak ada transaksi, JANGAN sertakan [TX].\nDompet: ' + wList + '\nKategori: ' + cList + '\nSub-Kategori: ' + sList + '\n\nPENTING: Fokus pada insight yang actionable. Ingat percakapan sebelumnya.\n\n' + buildCtx();
           aiFetch({
-            model: 'gemini-flash-latest', max_tokens: 4096,
+            model: 'wf-chat', max_tokens: 4096,
             messages: [{ role: 'system', content: sysPrompt }].concat(hist)
           }).then(pj).then(function (d) {
             sLd(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
@@ -6012,7 +6017,7 @@
           var wList = W.map(function (w) { return w.id + '=' + w.name }).join(',');
           var cList = C.filter(function (c) { return !c.parent_id }).map(function (c) { return c.id + '=' + c.name + '(' + c.type + ')' }).join(',');
           aiFetch({
-            model: 'gemini-flash-lite-latest', max_tokens: 1024,
+            model: 'wf-lite', max_tokens: 1024,
             messages: [{ role: 'system', content: 'Parser transaksi. Jawab HANYA JSON. Format: {"type":"expense"|"income","amount":number,"description":"string","date":"YYYY-MM-DD","wallet_id":"id atau null","category_id":"id atau null"}\nDompet: ' + wList + '\nKategori: ' + cList + '\nHari ini: ' + td() }, { role: 'user', content: input }]
           }).then(pj).then(function (d) {
             sBusy(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
@@ -6045,7 +6050,7 @@
               var dataUrl = cv.toDataURL('image/jpeg', 0.8);
               var cList = C.filter(function (c) { return !c.parent_id }).map(function (c) { return c.id + '=' + c.name + '(' + c.type + ')' }).join(',');
               aiFetch({
-                model: 'gemini-flash-latest', max_tokens: 1536,
+                model: 'wf-chat', max_tokens: 1536,
                 messages: [{
                   role: 'user', content: [
                     { type: 'text', text: 'Ini foto struk belanja. Ekstrak menjadi JSON array transaksi pengeluaran. Balas HANYA JSON valid tanpa penjelasan, format: [{"type":"expense","amount":number,"description":"nama toko atau item","date":"YYYY-MM-DD","category_id":"id atau null"}]. Gunakan TOTAL akhir struk sebagai 1 transaksi (bukan per item). Tanggal dari struk; jika tak ada pakai ' + td() + '. Cocokkan kategori dari daftar ini jika relevan: ' + cList + '. Jika bukan struk, balas [].' },
@@ -6094,7 +6099,7 @@
                 // Plafon diturunkan lagi setelah formatnya diringkas. Mutasi 40 baris
                 // kini cuma ~500 token, dan plafon rendah membatasi waktu berpikir
                 // model sehingga tak menabrak batas 24 detik di proxy.
-                model: 'gemini-flash-latest', max_tokens: 3072,
+                model: 'wf-chat', max_tokens: 3072,
                 messages: [{
                   role: 'user', content: [
                     { type: 'text', text: 'Ini screenshot mutasi rekening bank atau e-wallet. Tulis SEMUA transaksi yang terlihat, SATU transaksi per baris, dengan format persis:\ntipe|nominal|keterangan|tanggal\n\ntipe: M kalau uang masuk (kredit, CR, tanda +). K kalau uang keluar (debit, DB, tanda -).\nnominal: angka saja, tanpa titik, koma, atau Rp.\nketerangan: singkat, maksimal 4 kata.\ntanggal: YYYY-MM-DD. Kalau tahun tidak terlihat pakai ' + thisYear + '.\n\nContoh:\nK|25000|Kopi|' + thisYear + '-08-21\nM|8500000|Gaji|' + thisYear + '-08-18\n\nLewati baris saldo dan total. JANGAN tulis header, nomor urut, tanda kutip, atau penjelasan apa pun. Kalau tak ada transaksi terbaca, balas: KOSONG' },
@@ -6186,7 +6191,7 @@
           var msg = 'Analisis tujuan tabungan: "' + goal.name + '" target ' + fmt(goal.amount) + (goal.deadline ? ' dalam waktu sampai ' + goal.deadline : '');
           var nm = ms.concat({ role: 'user', text: msg }); sMs(nm); saveMem(nm);
           var hist = buildHistory(); hist.push({ role: 'user', content: msg + '.\nBeri analisis: apakah realistis? berapa lama? berapa nabung/bln yang dibutuhkan? rekomendasi cara mencapainya.' });
-          aiFetch({ model: 'gemini-flash-latest', max_tokens: 4096, messages: [{ role: 'system', content: 'Kamu WealthFlow AI, asisten keuangan pribadi. Bahasa Indonesia natural. Analisis secara mendalam dan spesifik. Gunakan HANYA angka dari data. Beri rekomendasi yang actionable.\n\n' + buildCtx() }].concat(hist) })
+          aiFetch({ model: 'wf-chat', max_tokens: 4096, messages: [{ role: 'system', content: 'Kamu WealthFlow AI, asisten keuangan pribadi. Bahasa Indonesia natural. Analisis secara mendalam dan spesifik. Gunakan HANYA angka dari data. Beri rekomendasi yang actionable.\n\n' + buildCtx() }].concat(hist) })
             .then(pj).then(function (d) {
               sLd(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
               if (!d.choices || !d.choices[0] || !d.choices[0].message) { var emc = nm.concat({ role: 'sys', text: '❌ AI tidak mengirim jawaban. Coba lagi sebentar; kalau berulang, layanan AI-nya sedang bermasalah.' }); sMs(emc); saveMem(emc); return }
@@ -6203,7 +6208,7 @@
           var wkTxns = T.filter(function (t) { return t.date && new Date(t.date) >= wkStart });
           var wkCtx = 'Transaksi 7 hari terakhir (' + wkTxns.length + ' transaksi): ' + wkTxns.slice(0, 20).map(function (t) { return t.date + ' ' + t.type + ' ' + fmt(t.amount) + ' ' + cn(C, t.category_id) }).join('; ');
           aiFetch({
-            model: 'gemini-flash-latest', max_tokens: 4096,
+            model: 'wf-chat', max_tokens: 4096,
             messages: [{ role: 'system', content: 'Kamu WealthFlow AI. Buat weekly digest keuangan yang tajam dan informatif dalam Bahasa Indonesia. Gunakan angka spesifik dari data. Saran harus actionable.\n\nFormat OUTPUT wajib menggunakan markdown:\n- Judul section pakai ## (contoh: ## 📊 Pemasukan & Pengeluaran)\n- Sub-poin pakai **teks tebal** untuk angka/highlight\n- Daftar saran pakai 1. 2. 3.\n- Jangan pakai *** atau ___ sebagai pemisah\n\n' + buildCtx() + '\n\n' + wkCtx }, { role: 'user', content: 'Buat weekly digest minggu ini. Sertakan: 1) Total pemasukan & pengeluaran minggu ini, 2) Kategori pengeluaran terbesar dengan angka, 3) Transaksi atau pola yang perlu diperhatikan, 4) Perbandingan dengan tren bulanan, 5) 2-3 saran konkret untuk minggu depan.' }]
           }).then(pj).then(function (d) {
             sLd(false); var errM = aiErrMsg(d); if (errM) { var em = nm.concat({ role: 'sys', text: errM }); sMs(em); saveMem(em); return }
@@ -6451,7 +6456,7 @@
               h('button', { className: 'btn bp', style: { flexShrink: 0 }, onClick: send, disabled: ld || busy || rec || recBusy }, 'Kirim'),
               (featOpen && !rec && !recBusy && !scanBusy) ? h('div', { style: { position: 'fixed', inset: 0, zIndex: 40 }, onClick: function () { sFeatOpen(false) } }) : null,
               (featOpen && !rec && !recBusy && !scanBusy) ? h('div', { style: { position: 'absolute', bottom: 'calc(100% + 10px)', right: 0, background: 'var(--bgc)', border: '1px solid var(--brd)', borderRadius: 16, boxShadow: 'var(--csh)', padding: '12px 8px', display: 'flex', gap: 2, zIndex: 50, animation: 'popIn .18s ease' } },
-                [{ ic: 'edit', lb: 'Catat', bg: 'var(--accbg)', color: 'var(--acc)', act: parseTransaction }, { ic: 'camera', lb: 'Struk', bg: 'var(--blubg)', color: 'var(--blu)', act: function () { scanModeRef.current = 'receipt'; if (receiptRef.current) receiptRef.current.click() } }, { ic: 'doc', lb: 'Mutasi', bg: 'rgba(217,119,6,.12)', color: 'var(--org)', act: function () { scanModeRef.current = 'mutation'; if (receiptRef.current) receiptRef.current.click() } }, { ic: 'mic', lb: 'Suara', bg: 'var(--redbg)', color: 'var(--red)', act: startMic }].map(function (f, fi) {
+                [{ ic: 'edit', lb: 'Catat', bg: 'var(--accbg)', color: 'var(--acc)', act: parseTransaction }, { ic: 'camera', lb: 'Struk', bg: 'var(--blubg)', color: 'var(--blu)', act: function () { scanModeRef.current = 'receipt'; if (receiptRef.current) receiptRef.current.click() } }, { ic: 'doc', lb: 'Mutasi', bg: 'rgba(217,119,6,.12)', color: 'var(--org)', act: function () { scanModeRef.current = 'mutation'; if (receiptRef.current) receiptRef.current.click() } }].map(function (f, fi) {
                   return h('button', { key: fi, onClick: function () { sFeatOpen(false); f.act() }, style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', minWidth: 60 } }, h('div', { style: { width: 44, height: 44, borderRadius: '50%', background: f.bg, color: f.color, display: 'flex', alignItems: 'center', justifyContent: 'center' } }, h(Ic, { n: f.ic })), h('span', { style: { fontSize: '.68rem', color: 'var(--t2)', fontWeight: 500 } }, f.lb));
                 })) : null),
             h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 } },

@@ -5,10 +5,12 @@
 // Menjawab tiga pertanyaan yang selama ini hanya bisa ditebak:
 //   1. Env mana yang benar-benar terpasang di Vercel
 //   2. Apakah webhook Telegram masih terdaftar, dan galat terakhirnya apa
-//   3. Apakah kunci Gemini sah, dan model apa saja yang tersedia untuknya
+//   3. Apakah kunci Anthropic sah, dan model apa saja yang tersedia untuknya
 //
 // Dijaga CRON_SECRET supaya tak jadi jalan pintas mengintip pengaturan.
 // Isi env TIDAK PERNAH ditampilkan — hanya ada/tidak dan panjangnya.
+
+import Anthropic from '@anthropic-ai/sdk';
 
 export const config = { runtime: 'edge' };
 
@@ -38,7 +40,7 @@ export default async function handler(req) {
   }
 
   var TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  var GKEY = process.env.GEMINI_API_KEY;
+  var AKEY = process.env.ANTHROPIC_API_KEY;
 
   var hasil = {
     waktu_server: new Date().toISOString(),
@@ -47,8 +49,8 @@ export default async function handler(req) {
     env: {
       TELEGRAM_BOT_TOKEN: petunjuk(TOKEN),
       TELEGRAM_WEBHOOK_SECRET: petunjuk(process.env.TELEGRAM_WEBHOOK_SECRET),
-      GEMINI_API_KEY: petunjuk(GKEY),
-      GEMINI_IMAGE_MODEL: { ada: !!process.env.GEMINI_IMAGE_MODEL, nilai: process.env.GEMINI_IMAGE_MODEL || '(pakai bawaan)' },
+      ANTHROPIC_API_KEY: petunjuk(AKEY),
+      ANTHROPIC_MODEL: { ada: !!process.env.ANTHROPIC_MODEL, nilai: process.env.ANTHROPIC_MODEL || '(pakai bawaan: claude-opus-5)' },
       SUPABASE_URL: petunjuk(process.env.SUPABASE_URL),
       SUPABASE_ANON_KEY: petunjuk(process.env.SUPABASE_ANON_KEY),
       SUPABASE_SERVICE_ROLE_KEY: petunjuk(process.env.SUPABASE_SERVICE_ROLE_KEY),
@@ -56,7 +58,7 @@ export default async function handler(req) {
       MIDTRANS_SERVER_KEY: petunjuk(process.env.MIDTRANS_SERVER_KEY)
     },
     telegram: null,
-    gemini: null
+    ai: null
   };
 
   // ── Webhook Telegram ──
@@ -184,49 +186,52 @@ export default async function handler(req) {
     } catch (e) { hasil.webhook_dipanggil = { error: String(e && e.message || e) }; }
   }
 
-  // ── Kunci & model Gemini ──
-  if (!GKEY) {
-    hasil.gemini = { error: 'GEMINI_API_KEY kosong, tak bisa diperiksa.' };
+  // ── Kunci & model AI ──
+  /* Daftar model dipakai sebagai uji kunci karena ia jalur lain dari endpoint
+     pesan: ia tetap menjawab walau kuota pesan habis, jadi "kunci tak sah" bisa
+     dipisahkan dari "kapasitas penuh" tanpa membakar satu permintaan pesan. */
+  var MODEL_DIPAKAI = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
+  if (!AKEY) {
+    hasil.ai = { error: 'ANTHROPIC_API_KEY kosong, tak bisa diperiksa.' };
   } else {
     try {
-      var mr = await fetchTO('https://generativelanguage.googleapis.com/v1beta/models?key=' + GKEY + '&pageSize=200', {}, 8000);
-      var mj = await mr.json();
-      if (mr.ok && mj && Array.isArray(mj.models)) {
-        var chat = mj.models.filter(function (m) {
-          return (m.supportedGenerationMethods || []).indexOf('generateContent') >= 0;
-        }).map(function (m) { return String(m.name || '').replace('models/', ''); });
-        var dipakai = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
-        hasil.gemini = {
-          kunci_sah: true,
-          jumlah_model_chat: chat.length,
-          model_yang_dipakai_kode: dipakai.map(function (nm) { return nm + (chat.indexOf(nm) >= 0 ? ' ✓ ADA' : ' ✗ TIDAK ADA'); }),
-          keluarga_flash: chat.filter(function (x) { return x.indexOf('flash') >= 0; }).slice(0, 25)
-        };
-        var hilang = dipakai.filter(function (nm) { return chat.indexOf(nm) < 0; });
-        hasil.gemini.artinya = hilang.length
-          ? 'Nama model berikut TIDAK ada di kunci ini: ' + hilang.join(', ') + '. Setel GEMINI_IMAGE_MODEL ke salah satu nama dari keluarga_flash.'
-          : 'Kunci sah dan semua model yang dipakai kode memang tersedia.';
-      } else {
-        hasil.gemini = {
-          kunci_sah: false,
-          http: mr.status,
-          pesan_google: (mj && mj.error && mj.error.message) || '(kosong)',
-          artinya: 'Google menolak KUNCINYA sendiri. Masalahnya di GEMINI_API_KEY, bukan kapasitas model.'
-        };
-      }
+      var klien = new Anthropic({ apiKey: AKEY, maxRetries: 0, timeout: 8000 });
+      var daftar = await klien.models.list();
+      var nama = ((daftar && daftar.data) || []).map(function (m) { return m.id; });
+      var ada = nama.indexOf(MODEL_DIPAKAI) >= 0;
+      hasil.ai = {
+        kunci_sah: true,
+        jumlah_model: nama.length,
+        model_yang_dipakai_kode: MODEL_DIPAKAI + (ada ? ' ✓ ADA' : ' ✗ TIDAK ADA'),
+        tersedia: nama.slice(0, 25),
+        artinya: ada
+          ? 'Kunci sah dan model yang dipakai kode memang tersedia.'
+          : 'Model "' + MODEL_DIPAKAI + '" TIDAK ada di kunci ini. Setel env ANTHROPIC_MODEL ke salah satu nama di daftar tersedia.'
+      };
     } catch (e) {
-      hasil.gemini = { error: String(e && e.message || e) };
+      var st = (e && e.status) || 0;
+      hasil.ai = {
+        kunci_sah: false,
+        http: st,
+        pesan_penyedia: String((e && e.message) || e).slice(0, 300),
+        /* Saldo habis dan kunci salah dibetulkan di tempat yang berbeda, jadi
+           keduanya tidak boleh dijawab dengan kalimat yang sama. */
+        artinya: st === 402
+          ? 'Saldo kredit Anthropic habis. Kuncinya tidak apa-apa; isi ulang di console.anthropic.com pada menu Billing.'
+          : (st === 401 || st === 403)
+            ? 'Kunci ditolak. Masalahnya di ANTHROPIC_API_KEY, bukan kapasitas.'
+            : 'Gagal menghubungi penyedia AI. Lihat pesan_penyedia.'
+      };
     }
   }
 
   // ── Kesimpulan ringkas, supaya tak perlu membaca seluruh JSON ──
   var catatan = [];
   Object.keys(hasil.env).forEach(function (k) {
-    if (k !== 'GEMINI_IMAGE_MODEL' && k !== 'MIDTRANS_SERVER_KEY' && !hasil.env[k].ada) catatan.push('Env ' + k + ' KOSONG.');
+    if (k !== 'ANTHROPIC_MODEL' && k !== 'MIDTRANS_SERVER_KEY' && !hasil.env[k].ada) catatan.push('Env ' + k + ' KOSONG.');
   });
   if (hasil.telegram && hasil.telegram.artinya && hasil.telegram.artinya !== 'Webhook sehat.') catatan.push('Telegram: ' + hasil.telegram.artinya);
-  if (hasil.gemini && hasil.gemini.artinya && hasil.gemini.kunci_sah !== true) catatan.push('Gemini: ' + hasil.gemini.artinya);
-  else if (hasil.gemini && hasil.gemini.artinya && /TIDAK ada/.test(hasil.gemini.artinya)) catatan.push('Gemini: ' + hasil.gemini.artinya);
+  if (hasil.ai && hasil.ai.artinya && (hasil.ai.kunci_sah !== true || /TIDAK ada/.test(hasil.ai.artinya))) catatan.push('AI: ' + hasil.ai.artinya);
   if (Array.isArray(hasil.uji_kirim)) {
     hasil.uji_kirim.forEach(function (u) {
       if (u.catatan) catatan.push('Kirim: ' + u.catatan);

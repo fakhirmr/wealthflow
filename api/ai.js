@@ -1,22 +1,22 @@
-// WealthFlow AI Proxy — Vercel Edge Function (Google Gemini)
-// Menyembunyikan GEMINI_API_KEY di server, verifikasi login Supabase,
+// WealthFlow AI Proxy — Vercel Edge Function (Claude / Anthropic)
+// Menyembunyikan ANTHROPIC_API_KEY di server, verifikasi login Supabase,
 // dan menegakkan kuota pemakaian per-customer.
 //
 // Environment variables yang WAJIB diset di Vercel (Project Settings → Environment Variables):
-//   GEMINI_API_KEY              → API key Gemini Anda dari aistudio.google.com (RAHASIA)
+//   ANTHROPIC_API_KEY           → API key dari console.anthropic.com (RAHASIA)
 //   SUPABASE_URL                → https://wkhjxgrjkrakfhwckriu.supabase.co
 //   SUPABASE_ANON_KEY           → anon key (boleh publik)
 //   SUPABASE_SERVICE_ROLE_KEY   → service_role key (SANGAT RAHASIA — jangan pernah taruh di frontend)
+//   ANTHROPIC_MODEL             → (opsional) ganti model tanpa menyentuh kode, default claude-opus-5
 //   AI_FREE_LIMIT               → (opsional) jatah pesan/bulan tier gratis, default 30
-//   AI_PREMIUM_LIMIT             → (opsional) jatah pesan/bulan tier premium (fair-use, bukan unlimited penuh), default 500
+//   AI_PREMIUM_LIMIT            → (opsional) jatah pesan/bulan tier premium (fair-use), default 500
+
+import Anthropic from '@anthropic-ai/sdk';
 
 export const config = { runtime: 'edge' };
 
-// Model yang boleh dipanggil (mencegah customer meminta model mahal).
-var ALLOWED_CHAT_MODELS = ['gemini-flash-latest', 'gemini-flash-lite-latest']; // alias rolling — selalu ke model terbaru; flash juga menangani vision
-var AUDIO_MODEL = 'gemini-flash-latest';
-var MAX_TOKENS_CAP = 8192; // ruang ekstra: Gemini Flash pakai token untuk "thinking"
-var GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+var MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
+var MAX_TOKENS_CAP = 8192;
 
 function json(obj, status) {
   return new Response(JSON.stringify(obj), {
@@ -25,114 +25,107 @@ function json(obj, status) {
   });
 }
 
-function b64FromBuffer(buf) {
-  var bytes = new Uint8Array(buf); var bin = '';
-  for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
-}
+/* Peramban tetap berbicara dalam bentuk OpenAI: messages dengan role 'system',
+   blok image_url, dan balasan choices[0].message.content. Bentuk itu
+   DIPERTAHANKAN dengan sengaja, dan seluruh penerjemahannya dikumpulkan di dua
+   fungsi di bawah. Alasannya bukan kemalasan: index.html memakai bentuk itu di
+   enam tempat, berkasnya 520 KB, dan ia baru saja pulih dari gangguan.
+   Menerjemahkan di satu titik di server jauh lebih kecil risikonya daripada
+   menyunting enam titik di klien untuk hasil yang sama persis. */
+function keClaude(messages) {
+  var sistem = [];
+  var pesan = [];
 
-// fetch dengan batas waktu — cegah function dibunuh Vercel (timeout mentah)
-async function fetchTO(url, opts, ms) {
-  var ctrl = new AbortController();
-  var id = setTimeout(function () { ctrl.abort(); }, ms || 24000);
-  try { return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal })); }
-  finally { clearTimeout(id); }
-}
+  (messages || []).forEach(function (m) {
+    if (!m) return;
 
-/* Endpoint kompatibel-OpenAI milik Gemini kadang MEMBUNGKUS balasannya dalam
-   array: [{ "error": {...} }] dan, pada sebagian jalur, [{ "choices": [...] }].
-   Seluruh kode di sini memeriksa d.error dan d.choices seolah balasannya objek,
-   dan pada array keduanya undefined. Akibatnya galat asli Google tak pernah
-   terbaca, dan balasan yang SUKSES pun dianggap kosong. Bungkusnya dibuka di
-   satu tempat supaya tak ada lagi pemeriksaan yang salah sasaran. */
-function bukaBungkus(d) {
-  if (Array.isArray(d)) return d.length ? d[0] : null;
-  return d;
-}
-
-function tidur(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
-
-/* HTTP 5xx dari Google berarti servernya sedang penuh, bukan permintaan kita yang
-   salah. Sebelumnya proxy menyerah di percobaan pertama dan meneruskan balasan
-   503 apa adanya ke peramban, yang lalu menampilkannya sebagai "Respons AI kosong
-   atau terpotong" — pesan yang menyesatkan sebab responsnya tidak kosong,
-   melainkan tak pernah ada.
-
-   Dua percobaan, yang kedua memakai model lain sebab yang penuh biasanya satu
-   model tertentu. Batas per percobaan 10 detik supaya keduanya plus jeda tetap
-   muat di bawah batas Vercel; satu percobaan 24 detik tak menyisakan ruang.
-   Galat yang bukan sementara (kunci, kuota) tidak diulang, sebab hasilnya pasti
-   sama dan hanya membuang waktu pengguna. */
-/* Rantai model, sama alasannya dengan di bot: Google menolak alias -latest dengan
-   "This model is currently experiencing high traffic", sebab alias menunjuk model
-   terbaru yang kapasitasnya paling diperebutkan. Model stabil didahulukan, dan
-   kandidat bernama asing (404) dilewati supaya rantainya tetap jalan. */
-/* Hanya tiga percobaan yang muat di bawah batas Vercel, jadi isinya harus terpilih:
-   satu model stabil, lalu alias -latest sebagai jaring terakhir. Alias itu memang
-   yang penuh, TAPI ia satu-satunya yang terbukti ada (balasannya 503, bukan 404),
-   sementara nama stabil di atas belum terverifikasi. Menyingkirkannya berarti
-   bertaruh pada nama yang mungkin salah. */
-var RANTAI_MODEL = ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'];
-
-async function panggilGemini(GKEY, body) {
-  var urutan = [body.model];
-  RANTAI_MODEL.forEach(function (m) { if (urutan.indexOf(m) < 0) urutan.push(m); });
-  urutan = urutan.slice(0, 3);
-  var akhir = null;
-
-  /* Anggaran waktu dibagi menurut sisa, sama alasannya dengan di bot: penolakan
-     503 datang cepat, sedangkan panggilan yang bekerja perlu belasan detik. */
-  var mulai = Date.now();
-  var anggaran = 21000;
-
-  for (var i = 0; i < urutan.length; i++) {
-    var sisa = anggaran - (Date.now() - mulai);
-    if (sisa < 3000) break;
-    var batasKini = Math.min(12000, sisa);
-    var kirim = Object.assign({}, body, { model: urutan[i] });
-    try {
-      var r = await fetchTO(GEMINI_BASE + '/openai/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + GKEY },
-        body: JSON.stringify(kirim)
-      }, batasKini);
-      var teks = await r.text();
-      // 404 berarti nama modelnya tak dikenal: lanjut, bukan menyerah
-      if (r.status === 404) { akhir = { teks: teks, status: 404, ok: false }; }
-      else if (r.status < 500) {
-        /* Balasan SUKSES ikut dinormalkan sebelum diteruskan. Kalau array-nya
-           diteruskan apa adanya, peramban memeriksa d.choices pada array,
-           mendapat undefined, lalu menyimpulkan "AI tidak mengirim jawaban"
-           padahal jawabannya ada di dalam bungkus itu. */
-        var rapi = teks;
-        try {
-          var isi = JSON.parse(teks);
-          if (Array.isArray(isi)) rapi = JSON.stringify(bukaBungkus(isi) || {});
-        } catch (eN) { }
-        return { teks: rapi, status: r.status, ok: r.ok };
+    // Claude menerima system sebagai parameter TERSENDIRI, bukan sebagai pesan
+    if (m.role === 'system') {
+      if (typeof m.content === 'string') sistem.push(m.content);
+      else if (Array.isArray(m.content)) {
+        m.content.forEach(function (b) { if (b && b.type === 'text' && b.text) sistem.push(b.text); });
       }
-      else
-      akhir = { teks: teks, status: r.status, ok: false };
-    } catch (e) {
-      akhir = { teks: '', status: 0, ok: false, galat: String(e && e.message || e) };
-      // Batas waktu tercapai: percobaan kedua boleh, tapi jangan lebih
+      return;
     }
-    if (i < urutan.length - 1) await tidur(500);
-  }
-  return akhir;
+
+    var peran = m.role === 'assistant' ? 'assistant' : 'user';
+    if (typeof m.content === 'string') {
+      if (m.content) pesan.push({ role: peran, content: m.content });
+      return;
+    }
+
+    var blok = [];
+    (Array.isArray(m.content) ? m.content : []).forEach(function (b) {
+      if (!b) return;
+      if (b.type === 'text' && b.text) { blok.push({ type: 'text', text: b.text }); return; }
+      /* Hanya data URL yang diterima. Klien selalu mengirim gambar sebagai
+         base64; menerima URL jarak jauh berarti proxy ini bersedia mengunduh
+         dari alamat mana pun yang disodorkan pemanggilnya. */
+      if (b.type === 'image_url' && b.image_url && b.image_url.url) {
+        var d = /^data:([^;,]+);base64,(.+)$/.exec(String(b.image_url.url));
+        if (d) blok.push({ type: 'image', source: { type: 'base64', media_type: d[1], data: d[2] } });
+      }
+    });
+    if (blok.length) pesan.push({ role: peran, content: blok });
+  });
+
+  // Percakapan harus dimulai dari user
+  while (pesan.length && pesan[0].role !== 'user') pesan.shift();
+
+  /* Dua pesan berperan sama berturut-turut digabung. Riwayat chat di klien bisa
+     menghasilkan bentuk itu (mis. saat balasan galat tak ikut masuk riwayat
+     asisten), dan bentuk seperti itu ditolak sebagian jalur API. */
+  var rapat = [];
+  pesan.forEach(function (p) {
+    var akhir = rapat[rapat.length - 1];
+    if (akhir && akhir.role === p.role) {
+      var a = typeof akhir.content === 'string' ? [{ type: 'text', text: akhir.content }] : akhir.content;
+      var b = typeof p.content === 'string' ? [{ type: 'text', text: p.content }] : p.content;
+      akhir.content = a.concat(b);
+      return;
+    }
+    rapat.push({ role: p.role, content: p.content });
+  });
+
+  return { system: sistem.join('\n\n'), messages: rapat };
+}
+
+function keOpenAI(resp) {
+  var teks = (resp.content || [])
+    .filter(function (b) { return b && b.type === 'text'; })
+    .map(function (b) { return b.text || ''; })
+    .join('');
+  return {
+    choices: [{ index: 0, message: { role: 'assistant', content: teks }, finish_reason: resp.stop_reason || 'stop' }],
+    usage: resp.usage || null
+  };
+}
+
+/* Galat penyedia diterjemahkan ke kode yang SUDAH dikenali peramban (aiErrMsg
+   di index.html). Kodenya sengaja tidak diganti saat pindah penyedia: yang
+   berganti penyedianya, bukan arti kegagalannya bagi pengguna. */
+function kodeGalat(e) {
+  var status = (e && e.status) || 0;
+  var pesan = String((e && e.message) || '');
+  if (status === 429) return 'ai_kuota';
+  if (status === 401 || status === 403 || status === 402) return 'ai_kunci';
+  if (status === 404) return 'ai_model';
+  if (status >= 500) return 'ai_penuh';
+  if (!status && /abort|timeout|network|fetch/i.test(pesan)) return 'ai_penuh';
+  return 'ai_gagal';
 }
 
 export default async function handler(req) {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
-  var GKEY = process.env.GEMINI_API_KEY;
+  var AKEY = process.env.ANTHROPIC_API_KEY;
   var SB_URL = process.env.SUPABASE_URL;
   var SB_ANON = process.env.SUPABASE_ANON_KEY;
   var SB_SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
   var FREE_LIMIT = parseInt(process.env.AI_FREE_LIMIT || '30', 10);
   var PREMIUM_LIMIT = parseInt(process.env.AI_PREMIUM_LIMIT || '500', 10);
 
-  if (!GKEY || !SB_URL || !SB_SERVICE || !SB_ANON) {
+  if (!AKEY || !SB_URL || !SB_SERVICE || !SB_ANON) {
     return json({ error: 'server_misconfig', detail: 'Environment variables belum lengkap' }, 500);
   }
 
@@ -181,70 +174,55 @@ export default async function handler(req) {
     return json({ error: 'quota_exceeded', limit: LIMIT, used: used, plan: planLabel }, 429);
   }
 
-  // 3) Teruskan ke Gemini — bedakan chat/vision (JSON) vs audio (multipart)
+  // 3) Teruskan ke Claude
   var contentType = req.headers.get('content-type') || '';
-  var outText, outStatus, providerOk;
-  try {
-    if (contentType.indexOf('multipart/form-data') >= 0) {
-      // --- AUDIO (transkripsi via Gemini native generateContent) ---
-      var form = await req.formData();
-      var file = form.get('file');
-      if (!file || typeof file.arrayBuffer !== 'function') return json({ error: 'no_audio' }, 400);
-      var buf = await file.arrayBuffer();
-      var b64 = b64FromBuffer(buf);
-      var mime = file.type || 'audio/webm';
-      var gBody = {
-        contents: [{
-          parts: [
-            { text: 'Transkripsikan audio ini menjadi teks Bahasa Indonesia. Keluarkan HANYA teksnya, tanpa penjelasan atau tanda kutip.' },
-            { inlineData: { mimeType: mime, data: b64 } }
-          ]
-        }]
-      };
-      var ar = await fetchTO(GEMINI_BASE + '/models/' + AUDIO_MODEL + ':generateContent?key=' + GKEY, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(gBody)
-      }, 20000);
-      var aj = await ar.json();
-      providerOk = ar.ok; outStatus = ar.status;
-      if (!ar.ok) {
-        outText = JSON.stringify({ error: { message: (aj && aj.error && aj.error.message) || 'gemini_audio_error' } });
-      } else {
-        var txt = '';
-        try { txt = (aj.candidates[0].content.parts || []).map(function (p) { return p.text || '' }).join('').trim(); } catch (e) { txt = ''; }
-        outText = JSON.stringify({ text: txt }); // meniru bentuk respons Whisper agar client tak berubah
-      }
-    } else {
-      // --- CHAT / VISION (endpoint Gemini kompatibel-OpenAI, terbukti stabil) ---
-      var body = await req.json();
-      if (!body) return json({ error: 'bad_request' }, 400);
-      // Normalisasi model: apa pun yang diminta client dipetakan ke Gemini Flash (tahan beda-versi & cegah model mahal)
-      // Model dipetakan ke keluarga Flash yang STABIL. Sebelumnya dipetakan ke alias
-      // -latest, dan justru alias itu yang ditolak Google karena kapasitasnya penuh.
-      body.model = (String(body.model || '').indexOf('lite') >= 0) ? 'gemini-3.5-flash-lite' : 'gemini-3.5-flash';
-      if (body.max_tokens && body.max_tokens > MAX_TOKENS_CAP) body.max_tokens = MAX_TOKENS_CAP;
-      body.reasoning_effort = 'low'; // kurangi thinking Gemini (nilai valid); 'none' tidak didukung -> hang
-      var hasil = await panggilGemini(GKEY, body);
-      outText = hasil.teks; providerOk = hasil.ok; outStatus = hasil.status || 502;
 
-      /* Galat penyedia diterjemahkan ke kode yang dikenali peramban. Meneruskan
-         balasan mentah membuat peramban kehilangan sebabnya: badan 503 sering
-         kosong, dan yang sampai ke pengguna cuma "respons kosong". */
-      if (!providerOk) {
-        var pesanGoogle = '';
-        try { var pj2 = bukaBungkus(JSON.parse(outText || '{}')); pesanGoogle = (pj2 && pj2.error && (pj2.error.message || pj2.error.status)) || ''; } catch (e2) { }
-        if (!pesanGoogle && hasil.galat) pesanGoogle = hasil.galat;
-        var kodeKita = 'ai_gagal';
-        if (outStatus >= 500 || outStatus === 0) kodeKita = 'ai_penuh';
-        else if (/high traffic|overload/i.test(pesanGoogle)) kodeKita = 'ai_penuh';
-        else if (outStatus === 429 || /quota|rate|exhaust/i.test(pesanGoogle)) kodeKita = 'ai_kuota';
-        else if (outStatus === 401 || outStatus === 403) kodeKita = 'ai_kunci';
-        else if (outStatus === 404 || /model/i.test(pesanGoogle)) kodeKita = 'ai_model';
-        outText = JSON.stringify({ error: kodeKita, http: outStatus, detail: String(pesanGoogle).slice(0, 200) });
-        outStatus = 502;
-      }
-    }
+  /* Claude tidak menerima audio. Catat-lewat-suara dulu memakai transkripsi
+     Gemini, dan itu ikut hilang saat penyedianya pindah. Dijawab jujur di sini
+     daripada dibiarkan gagal dengan galat yang tak bisa dimengerti. */
+  if (contentType.indexOf('multipart/form-data') >= 0) {
+    return json({
+      error: 'audio_tak_didukung',
+      detail: 'Catat lewat suara belum tersedia. Ketik saja transaksinya, atau kirim foto struk.'
+    }, 501);
+  }
+
+  var outText, providerOk = false;
+  try {
+    var body = await req.json();
+    if (!body) return json({ error: 'bad_request' }, 400);
+
+    var konv = keClaude(body.messages);
+    if (!konv.messages.length) return json({ error: 'bad_request', detail: 'Tidak ada pesan untuk dikirim' }, 400);
+
+    var maxTok = Math.min(Number(body.max_tokens) || 4096, MAX_TOKENS_CAP);
+
+    /* Petunjuk "lite" dari klien dipakai sebagai petunjuk KEDALAMAN, bukan untuk
+       memilih model lain. Jalur lite cuma mengekstrak JSON dari satu kalimat;
+       menyuruhnya berpikir panjang hanya menambah biaya dan waktu tunggu. */
+    var hemat = String(body.model || '').indexOf('lite') >= 0;
+
+    var client = new Anthropic({ apiKey: AKEY, maxRetries: 1, timeout: 22000 });
+
+    var permintaan = {
+      model: MODEL,
+      max_tokens: maxTok,
+      messages: konv.messages,
+      output_config: { effort: hemat ? 'low' : 'medium' },
+      /* Penolakan penyaring keamanan dialihkan ke model lain oleh server,
+         bukan dijatuhkan sebagai galat ke muka pengguna. */
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default'
+    };
+    if (konv.system) permintaan.system = konv.system;
+
+    var resp = await client.beta.messages.create(permintaan);
+
+    outText = JSON.stringify(keOpenAI(resp));
+    providerOk = true;
   } catch (e) {
-    return json({ error: 'upstream_failed', detail: String(e && e.message || e) }, 502);
+    var kode = kodeGalat(e);
+    return json({ error: kode, http: (e && e.status) || 0, detail: String((e && e.message) || e).slice(0, 200) }, 502);
   }
 
   // 4) Hitung pemakaian hanya bila provider sukses (tetap dihitung meski premium — demi fair-use cap)
@@ -259,7 +237,7 @@ export default async function handler(req) {
   }
 
   return new Response(outText, {
-    status: outStatus,
+    status: 200,
     headers: {
       'Content-Type': 'application/json',
       'X-AI-Quota-Limit': String(LIMIT),
