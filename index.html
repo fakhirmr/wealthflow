@@ -2481,6 +2481,29 @@
       }
       // Nilai DB -> teks form: selalu bulat, supaya desimal tak menular ke penyimpanan berikutnya
       function numStr(v) { return String(Math.round(Number(v) || 0)) }
+      /* Draft formulir DITIMPAKAN ke bentuk bawaan, bukan dipakai mentah.
+
+         Draft yang tersimpan bisa berasal dari versi aplikasi yang bentuk
+         formulirnya berbeda, atau tertulis saat sebagian kolom belum terisi.
+         Dipakai mentah, satu kolom yang hilang bernilai undefined, dan
+         `String(f.description || '').trim()` di jalur simpan langsung melempar TypeError
+         begitu tombol simpan ditekan. Karena draftnya bertahan di
+         sessionStorage, galat yang sama terulang SETIAP KALI menyimpan
+         sampai tab ditutup; itulah yang membuatnya terasa muncul terus.
+
+         Kunci yang tidak ada di bentuk bawaan sengaja dibuang, supaya sisa
+         kolom dari versi lama tidak ikut terkirim ke basis data. */
+      function muatDraft(bawaan, kunci) {
+        var n = {}; for (var k in bawaan) n[k] = bawaan[k];
+        try {
+          var mentah = sessionStorage.getItem(kunci);
+          if (!mentah) return n;
+          var d = JSON.parse(mentah);
+          if (!d || typeof d !== 'object') return n;
+          for (var k2 in bawaan) if (d[k2] !== undefined && d[k2] !== null) n[k2] = d[k2];
+        } catch (e) { }
+        return n;
+      }
       // Nominal ringkas untuk ruang sempit (mis. tengah donat): 6.200.000 -> "6,2jt"
       function fmtShort(n) {
         n = Number(n) || 0;
@@ -3770,7 +3793,12 @@
       function QuickTxn(p) {
         var W = p.W, C = p.C, rT = p.rT, rW = p.rW; var t = useContext(TCtx);
         var DRAFT = 'wf_draft_quick';
-        var initF = function () { try { var d = JSON.parse(sessionStorage.getItem(DRAFT) || 'null'); if (d && d.date && d.date === td()) return d } catch (e) { } return { type: 'expense', wallet_id: W.length ? W[0].id : '', wallet_id_to: '', category_id: '', sub_category_id: '', amount: '', description: '', date: td() } };
+        var initF = function () {
+          var bawaan = { type: 'expense', wallet_id: W.length ? W[0].id : '', wallet_id_to: '', category_id: '', sub_category_id: '', amount: '', description: '', date: td() };
+          var d = muatDraft(bawaan, DRAFT);
+          // Draft hari lain tidak dipakai: tanggalnya sudah lewat
+          return d.date === td() ? d : bawaan;
+        };
         var _f = useState(initF), f = _f[0], sF = _f[1];
         var relC = C.filter(function (c) { return c.type === f.type && !c.parent_id });
         // Split kategori (satu pembayaran dipecah ke beberapa kategori)
@@ -3797,7 +3825,7 @@
             if (f.wallet_id === f.wallet_id_to) { t('Dompet asal & tujuan harus beda', 'err'); return }
             // Transfer menyentuh dua dompet sekaligus — kalau hanya separuh terkirim, saldo kacau
             if (!navigator.onLine) { t('📴 Transfer butuh internet. Coba lagi saat online.', 'err'); return }
-            var desc = f.description.trim() || ('Transfer ' + wn(W, f.wallet_id) + ' → ' + wn(W, f.wallet_id_to));
+            var desc = String(f.description || '').trim() || ('Transfer ' + wn(W, f.wallet_id) + ' → ' + wn(W, f.wallet_id_to));
             simpanTransfer({ from: f.wallet_id, to: f.wallet_id_to, amount: amt, date: f.date, description: desc }, t, function () {
               try { sessionStorage.removeItem(DRAFT) } catch (e) { }
               rW(); rT(); p.onClose();
@@ -3810,7 +3838,7 @@
             if (splits.some(function (r) { return !(Number(r.amount) > 0) })) { t('Nominal tiap pecahan harus > 0', 'err'); return }
             if (sTot !== amt) { t('Total pecahan ' + fmt(sTot) + ' ≠ jumlah ' + fmt(amt), 'err'); return }
             var srows = splits.map(function (r) {
-              return { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: r.category_id || null, sub_category_id: r.sub_category_id || null, amount: Number(r.amount), description: f.description.trim(), date: f.date };
+              return { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: r.category_id || null, sub_category_id: r.sub_category_id || null, amount: Number(r.amount), description: String(f.description || '').trim(), date: f.date };
             });
             saveTxns(srows, function (status) {
               if (status === 'saved') adjWallet(f.wallet_id, (f.type === 'income' ? 1 : -1) * amt, rW);
@@ -3820,7 +3848,7 @@
             }, function (msg) { t(msg, 'err') });
             return
           }
-          var pay = { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: f.category_id || null, sub_category_id: f.sub_category_id || null, amount: amt, description: f.description.trim(), date: f.date };
+          var pay = { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: f.category_id || null, sub_category_id: f.sub_category_id || null, amount: amt, description: String(f.description || '').trim(), date: f.date };
           saveTxns([pay], function (status) {
             if (status === 'saved') adjWallet(f.wallet_id, (f.type === 'income' ? 1 : -1) * amt, rW);
             try { sessionStorage.removeItem(DRAFT) } catch (e) { }
@@ -4918,8 +4946,8 @@
         var W = p.W, T = p.T, C = p.C, rT = p.rT, rW = p.rW; var t = useContext(TCtx);
         var _pg = useState('list'), txPg = _pg[0], sTxPg = _pg[1];
         var _m = useState(function() { try { return sessionStorage.getItem('wf_txn_draft') ? { m: 'add' } : null } catch(e) { return null } }), mo = _m[0], sM = _m[1]; var _cf = useCf(), cf = _cf[0], cfE = _cf[1];
-        var _defF = { type: 'expense', wallet_id: '', category_id: '', sub_category_id: '', amount: '', description: '', date: td(), is_installment: false, installment_count: 6 };
-        var _f = useState(function() { try { var _r = sessionStorage.getItem('wf_txn_draft'); return _r ? JSON.parse(_r) : _defF } catch(e) { return _defF } }), f = _f[0], sF = _f[1];
+        var _defF = { type: 'expense', wallet_id: '', wallet_id_to: '', category_id: '', sub_category_id: '', amount: '', description: '', date: td(), is_installment: false, installment_count: 6 };
+        var _f = useState(function () { return muatDraft(_defF, 'wf_txn_draft') }), f = _f[0], sF = _f[1];
         var _dr = useState(function() { try { return !!sessionStorage.getItem('wf_txn_draft') } catch(e) { return false } }), draftRestored = _dr[0], sDr = _dr[1];
         // Split transaksi: null = tidak aktif; array = daftar pecahan {amount, category_id, sub_category_id}
         var _sp = useState(null), splits = _sp[0], sSplits = _sp[1];
@@ -4994,7 +5022,7 @@
             if (f.wallet_id === f.wallet_id_to) { t('Dompet asal & tujuan harus beda', 'err'); return }
             // Transfer menyentuh dua dompet sekaligus — kalau hanya separuh terkirim, saldo kacau
             if (!navigator.onLine) { t('📴 Transfer butuh internet. Coba lagi saat online.', 'err'); return }
-            var desc = f.description.trim() || ('Transfer ' + wn(W, f.wallet_id) + ' → ' + wn(W, f.wallet_id_to));
+            var desc = String(f.description || '').trim() || ('Transfer ' + wn(W, f.wallet_id) + ' → ' + wn(W, f.wallet_id_to));
             simpanTransfer({ from: f.wallet_id, to: f.wallet_id_to, amount: amt, date: f.date, description: desc }, t, function () {
               sM(null); rW(); rT();
             });
@@ -5006,7 +5034,7 @@
             if (splits.some(function (r) { return !(Number(r.amount) > 0) })) { t('Nominal tiap pecahan harus > 0', 'err'); return }
             if (sTot !== amt) { t('Total pecahan ' + fmt(sTot) + ' ≠ jumlah ' + fmt(amt), 'err'); return }
             var srows = splits.map(function (r) {
-              return { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: r.category_id || null, sub_category_id: r.sub_category_id || null, amount: Number(r.amount), description: f.description.trim(), date: f.date };
+              return { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: r.category_id || null, sub_category_id: r.sub_category_id || null, amount: Number(r.amount), description: String(f.description || '').trim(), date: f.date };
             });
             saveTxns(srows, function (status) {
               function doneSplit() { t(status === 'queued' ? '📴 ' + srows.length + ' transaksi tersimpan offline' : srows.length + ' transaksi tersimpan'); sSplits(null); sM(null); rT() }
@@ -5018,10 +5046,10 @@
             }, function (msg) { t(msg, 'err') });
             return
           }
-          var pay = { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: f.category_id || null, sub_category_id: f.sub_category_id || null, amount: amt, description: f.description.trim(), date: f.date };
+          var pay = { user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: f.category_id || null, sub_category_id: f.sub_category_id || null, amount: amt, description: String(f.description || '').trim(), date: f.date };
           if (f.is_installment && mo.m === 'add') {
             var splitN = f.installment_count; var perAmt = Math.floor(amt / splitN); var rows = []; var baseD = new Date(f.date + 'T00:00:00');
-            for (var si = 0; si < splitN; si++) { var sd = new Date(baseD); sd.setMonth(sd.getMonth() + si); var sAmt = si === splitN - 1 ? amt - perAmt * (splitN - 1) : perAmt; var sDate = sd.getFullYear() + '-' + String(sd.getMonth() + 1).padStart(2, '0') + '-' + String(sd.getDate()).padStart(2, '0'); rows.push({ user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: f.category_id || null, sub_category_id: f.sub_category_id || null, amount: sAmt, description: f.description.trim() + ' (' + (si + 1) + '/' + splitN + ')', date: sDate }) }
+            for (var si = 0; si < splitN; si++) { var sd = new Date(baseD); sd.setMonth(sd.getMonth() + si); var sAmt = si === splitN - 1 ? amt - perAmt * (splitN - 1) : perAmt; var sDate = sd.getFullYear() + '-' + String(sd.getMonth() + 1).padStart(2, '0') + '-' + String(sd.getDate()).padStart(2, '0'); rows.push({ user_id: UID, type: f.type, wallet_id: f.wallet_id || null, category_id: f.category_id || null, sub_category_id: f.sub_category_id || null, amount: sAmt, description: String(f.description || '').trim() + ' (' + (si + 1) + '/' + splitN + ')', date: sDate }) }
             saveTxns(rows, function (status) {
               var lbl = status === 'queued' ? ('📴 ' + splitN + ' transaksi tersimpan offline') : (splitN + ' transaksi ditambahkan');
               if (status === 'saved' && f.wallet_id) { adjWallet(f.wallet_id, -amt, function () { t(lbl); sM(null); rT(); rW() }); return }
