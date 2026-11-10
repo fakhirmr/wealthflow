@@ -1652,6 +1652,99 @@
         width: 100%
       }
     }
+
+    /* Penanda proses berjalan. Dua tingkat supaya tidak berkedip untuk
+       permintaan yang selesai seketika: garis tipis dulu, pil menyusul hanya
+       bila tunggunya mulai terasa. */
+    #wf-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      width: 100%;
+      z-index: 4000;
+      pointer-events: none;
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity .15s
+    }
+
+    #wf-bar.on {
+      opacity: 1
+    }
+
+    #wf-bar::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, var(--acc), transparent);
+      transform: translateX(-100%);
+      animation: wfBar 1.1s ease-in-out infinite
+    }
+
+    @keyframes wfBar {
+      to {
+        transform: translateX(100%)
+      }
+    }
+
+    #wf-pil {
+      position: fixed;
+      left: 50%;
+      top: 14px;
+      transform: translateX(-50%) translateY(-8px);
+      z-index: 4000;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bgc);
+      color: var(--t1);
+      border: 1px solid var(--brd);
+      border-radius: 999px;
+      padding: 7px 14px;
+      font-size: .78rem;
+      font-weight: 600;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, .25);
+      opacity: 0;
+      transition: opacity .2s, transform .2s
+    }
+
+    #wf-pil.on {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0)
+    }
+
+    #wf-pil i {
+      display: block;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      border: 2px solid var(--brd);
+      border-top-color: var(--acc);
+      animation: wfPutar .7s linear infinite
+    }
+
+    @keyframes wfPutar {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    /* Tanpa animasi, garisnya akan tak terlihat sama sekali karena ia digeser
+       keluar layar. Jadi di mode ini ia dibuat diam dan penuh, bukan dimatikan. */
+    @media (prefers-reduced-motion: reduce) {
+
+      #wf-bar::after {
+        animation: none;
+        transform: none;
+        background: var(--acc)
+      }
+
+      #wf-pil i {
+        animation: none
+      }
+    }
   </style>
 </head>
 
@@ -1975,6 +2068,71 @@
                 h('button', { style: { color: 'var(--acc)', background: 'none', border: 'none', fontWeight: 700, cursor: 'pointer', fontSize: '.8rem' }, onClick: function () { sTab(isLogin ? 'register' : 'login'); sErr('') } }, isLogin ? 'Daftar gratis' : 'Masuk')))))
       }
       var sb = window.supabase.createClient('https://wkhjxgrjkrakfhwckriu.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndraGp4Z3Jqa3Jha2Zod2Nrcml1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MjQyOTUsImV4cCI6MjA5NDMwMDI5NX0.Prtzf84zL-MvJuWF6Qk9HrJLzb2wmxxRD_OA094ulck');
+      /* === PENANDA PROSES BERJALAN ===
+         Dipasang di fetch, bukan di tiap tombol. Setiap permintaan ke Supabase
+         maupun ke /api/ melewati satu pintu ini, jadi tidak ada operasi yang
+         bisa lupa memasang penandanya, dan tidak ada penanda yang tersangkut
+         menyala gara-gara satu cabang galat terlewat: hitungannya selalu turun
+         di finally, berhasil maupun gagal.
+
+         Dua tingkat. Garis tipis muncul sesudah 250ms supaya permintaan yang
+         selesai seketika tidak membuat layar berkedip; pil "Menyimpan..." baru
+         menyusul sesudah 1,2 detik, saat tunggunya memang sudah terasa dan
+         orang mulai curiga ketukannya tidak masuk.
+
+         Kata kerjanya mengikuti metode HTTP: PostgREST memakai GET untuk
+         membaca dan POST/PATCH/DELETE untuk menulis, jadi "Menyimpan" dan
+         "Memuat" bisa dibedakan tanpa perlu diberi tahu dari pemanggilnya. */
+      (function () {
+        if (!window.fetch) return;
+        var asli = window.fetch.bind(window);
+        var aktif = 0, tulis = 0, tBar = null, tPil = null, tMaks = null, bar = null, pil = null;
+
+        function buat(id, isi) {
+          var d = document.getElementById(id);
+          if (d) return d;
+          d = document.createElement('div'); d.id = id;
+          if (isi) d.innerHTML = isi;
+          (document.body || document.documentElement).appendChild(d);
+          return d;
+        }
+        function nyala() {
+          tBar = setTimeout(function () { bar = buat('wf-bar'); bar.className = 'on' }, 250);
+          tPil = setTimeout(function () {
+            pil = buat('wf-pil', '<i></i><span></span>');
+            pil.setAttribute('role', 'status');
+            pil.lastChild.textContent = tulis > 0 ? 'Menyimpan...' : 'Memuat...';
+            pil.className = 'on';
+          }, 1200);
+          /* Permintaan yang menggantung selamanya tak boleh meninggalkan penanda
+             menyala terus. Hitungannya tetap jalan, hanya tampilannya yang
+             menyerah. */
+          tMaks = setTimeout(padam, 30000);
+        }
+        function padam() {
+          clearTimeout(tBar); clearTimeout(tPil); clearTimeout(tMaks);
+          if (bar) bar.className = '';
+          if (pil) pil.className = '';
+        }
+        function dipantau(u) {
+          u = String(u || '');
+          return u.indexOf('supabase.co') >= 0 || u.indexOf('/api/') >= 0;
+        }
+        window.fetch = function (input, init) {
+          var url = typeof input === 'string' ? input : (input && input.url) || '';
+          if (!dipantau(url)) return asli(input, init);
+          var metode = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+          var menulis = metode !== 'GET' && metode !== 'HEAD';
+          if (aktif === 0) { tulis = menulis ? 1 : 0; nyala(); }
+          else if (menulis) tulis++;
+          aktif++;
+          return asli(input, init).finally(function () {
+            aktif--; if (menulis) tulis--;
+            if (aktif <= 0) { aktif = 0; tulis = 0; padam(); }
+          });
+        };
+      })();
+
       var COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#6366f1'];
       var WGROUPS = [{ id: 'cash', lb: 'Cash', ico: '💵' }, { id: 'accounts', lb: 'Rekening', ico: '🏦' }, { id: 'card', lb: 'Kartu Kredit', ico: '💳' }, { id: 'debit', lb: 'Kartu Debit', ico: '💳' }, { id: 'savings', lb: 'Tabungan', ico: '🐖' }, { id: 'ewallet', lb: 'E-Wallet', ico: '📱' }, { id: 'investments', lb: 'Investasi', ico: '📈' }, { id: 'others', lb: 'Lainnya', ico: '📦' }];
       var TG_BOT = 'wealthflowmeBot'; // username bot Telegram (tanpa @)
