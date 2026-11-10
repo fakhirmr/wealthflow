@@ -2290,6 +2290,91 @@
         }).catch(function () { if (done) done() });
       }
 
+      /* === TRANSFER ANTAR DOMPET ===
+         Satu tempat untuk TIGA form yang sebelumnya punya salinannya sendiri
+         (TransferMod di halaman Dompet, QuickTxn di tombol mengambang, dan form
+         di halaman Transaksi). Ketiganya salah dengan cara yang sama, dan
+         membetulkan satu tak pernah membetulkan dua lainnya.
+
+         Dua hal yang diperbaiki:
+
+         (a) Saldo dulu ditulis sebagai nilai MUTLAK yang dihitung dari angka di
+             layar: `balance = saldoDiLayar + jumlah`. Angka di layar bisa sudah
+             basi karena perubahan dari Telegram, perangkat lain, atau antrean
+             offline, dan menimpanya dengan nilai basi itu menghapus perubahan
+             tersebut. Inilah yang membuat dompet penerima terlihat tidak
+             bertambah. Sekarang yang dikirim SELISIHNYA, lewat fungsi SQL yang
+             menambahkan langsung di basis data.
+
+         (b) Dua baris transaksi dulu disimpan LEBIH DULU, saldonya menyusul.
+             Kalau penyesuaian saldo gagal, yang tertinggal adalah catatan
+             transfer yang tidak pernah menyentuh saldo. Menghapus catatan itu
+             kemudian justru membalik saldo yang belum pernah diterapkan,
+             sehingga dompet penerima malah BERKURANG. Sekarang kegagalan di
+             tengah jalan dikembalikan sepenuhnya: saldo yang terlanjur berubah
+             dipulihkan dan kedua baris transaksinya dihapus, jadi tidak pernah
+             ada keadaan separuh jadi. */
+      function adjSaldo(walletId, delta) {
+        if (!walletId || !delta) return Promise.resolve(true);
+        return sb.rpc('adjust_wallet_balance', { p_wallet: walletId, p_delta: delta })
+          .then(function (r) {
+            if (!r.error) return r.data !== null;   // null = dompet bukan milik pemanggil
+            /* Cadangan bila fungsi SQL belum dipasang. Saldo dibaca ULANG dari
+               server, bukan diambil dari layar, supaya tetap tidak menimpa
+               perubahan yang belum tampil. */
+            return sb.from('wallets').select('balance').eq('id', walletId).single().then(function (wr) {
+              if (wr.error || !wr.data) return false;
+              return sb.from('wallets').update({ balance: (Number(wr.data.balance) || 0) + delta }).eq('id', walletId)
+                .then(function (ur) { return !ur.error });
+            });
+          })
+          .catch(function () { return false });
+      }
+
+      // o: { from, to, amount, date, description }. onOk dipanggil sesudah keadaan tenang.
+      function simpanTransfer(o, t, onOk) {
+        var amt = Number(o.amount);
+        var idOut = uuid(), idIn = uuid();
+        var baris = [
+          { id: idOut, user_id: UID, date: o.date, wallet_id: o.from, type: 'transfer_out', amount: amt, description: o.description },
+          { id: idIn, user_id: UID, date: o.date, wallet_id: o.to, type: 'transfer_in', amount: amt, description: o.description }
+        ];
+        sb.from('transactions').insert(baris).then(function (r) {
+          if (r.error) { t('Transfer gagal dicatat: ' + r.error.message, 'err'); return }
+          Promise.all([adjSaldo(o.from, -amt), adjSaldo(o.to, amt)]).then(function (hasil) {
+            if (hasil[0] && hasil[1]) { t('Transfer berhasil!'); onOk(); return }
+            // Satu sisi gagal: pulihkan yang terlanjur, lalu buang kedua barisnya
+            var balik = [];
+            if (hasil[0]) balik.push(adjSaldo(o.from, amt));
+            if (hasil[1]) balik.push(adjSaldo(o.to, -amt));
+            Promise.all(balik)
+              .then(function () { return sb.from('transactions').delete().in('id', [idOut, idIn]) })
+              .then(function () {
+                t('Transfer dibatalkan: saldo dompet tidak bisa diperbarui, jadi tidak ada yang berubah.', 'err');
+                onOk();
+              });
+          });
+        });
+      }
+
+      // tx = sisi yang diklik, pair = sisi lawannya (boleh null bila tak ketemu)
+      function hapusTransfer(tx, pair, t, onOk) {
+        var outTx = tx.type === 'transfer_out' ? tx : pair;
+        var inTx = tx.type === 'transfer_in' ? tx : pair;
+        var ids = [tx.id]; if (pair) ids.push(pair.id);
+        sb.from('transactions').delete().in('id', ids).then(function (r) {
+          if (r.error) { t(r.error.message, 'err'); return }
+          var ps = [];
+          if (outTx && outTx.wallet_id) ps.push(adjSaldo(outTx.wallet_id, Number(outTx.amount)));
+          if (inTx && inTx.wallet_id) ps.push(adjSaldo(inTx.wallet_id, -Number(inTx.amount)));
+          Promise.all(ps).then(function (hasil) {
+            var gagal = hasil.some(function (x) { return !x });
+            t(gagal ? 'Transfer dihapus, tapi saldo dompet gagal disesuaikan. Periksa saldonya.' : 'Transfer dihapus', gagal ? 'err' : undefined);
+            onOk();
+          });
+        });
+      }
+
       // Simpan transaksi dengan dukungan offline. Jaringan mati -> diantre, bukan gagal.
       // onDone('saved' | 'queued'), onError(pesan) hanya untuk error database asli.
       function saveTxns(rows, onDone, onError) {
@@ -3669,32 +3754,10 @@
           var wFrom = fid(W, f.from); var wTo = fid(W, f.to);
           if (!wFrom || !wTo) { t('Dompet tidak ditemukan', 'err'); return }
           var desc = f.desc || ('Transfer ' + wn(W, f.from) + ' → ' + wn(W, f.to));
-          var newBalFrom = (Number(wFrom.balance) || 0) - amt;
-          var newBalTo = (Number(wTo.balance) || 0) + amt;
-
-          // Step 1: Insert transfer_out transaction
-          sb.from('transactions').insert({ user_id: UID, date: td(), wallet_id: f.from, type: 'transfer_out', amount: amt, description: desc })
-            .then(function (r1) {
-              if (r1.error) { t('Gagal catat transfer keluar: ' + r1.error.message, 'err'); return }
-              // Step 2: Insert transfer_in transaction
-              sb.from('transactions').insert({ user_id: UID, date: td(), wallet_id: f.to, type: 'transfer_in', amount: amt, description: desc })
-                .then(function (r2) {
-                  if (r2.error) { t('Gagal catat transfer masuk: ' + r2.error.message, 'err'); return }
-                  // Step 3: Update source wallet balance
-                  sb.from('wallets').update({ balance: newBalFrom }).eq('id', f.from)
-                    .then(function (r3) {
-                      if (r3.error) { t('Gagal update saldo asal: ' + r3.error.message, 'err'); return }
-                      // Step 4: Update destination wallet balance
-                      sb.from('wallets').update({ balance: newBalTo }).eq('id', f.to)
-                        .then(function (r4) {
-                          if (r4.error) { t('Gagal update saldo tujuan: ' + r4.error.message, 'err'); return }
-                          // All 4 steps succeeded
-                          t('Transfer berhasil! ' + fmt(amt) + ' → ' + wn(W, f.to));
-                          rW(); rT(); p.onClose();
-                        })
-                    })
-                })
-            })
+          if (!navigator.onLine) { t('📴 Transfer butuh internet. Coba lagi saat online.', 'err'); return }
+          simpanTransfer({ from: f.from, to: f.to, amount: amt, date: td(), description: desc }, t, function () {
+            rW(); rT(); p.onClose();
+          });
         }
         return h(Mod, { open: true, onClose: p.onClose, title: 'Transfer Antar Dompet', footer: h(F, null, h('button', { className: 'btn bs', onClick: p.onClose }, 'Batal'), h('button', { className: 'btn bp', onClick: save }, 'Transfer')) },
           h('div', { className: 'fg' }, h('label', null, 'Dari Dompet'), h('select', { className: 'fi', value: f.from, onChange: function (e) { ufx('from', e.target.value) } }, h('option', { value: '' }, 'Pilih asal'), W.map(function (w) { return h('option', { key: w.id, value: w.id }, w.name + ' (' + fmt(w.balance) + ')') }))),
@@ -3734,26 +3797,11 @@
             if (f.wallet_id === f.wallet_id_to) { t('Dompet asal & tujuan harus beda', 'err'); return }
             // Transfer menyentuh dua dompet sekaligus — kalau hanya separuh terkirim, saldo kacau
             if (!navigator.onLine) { t('📴 Transfer butuh internet. Coba lagi saat online.', 'err'); return }
-            var wFrom = fid(W, f.wallet_id); var wTo = fid(W, f.wallet_id_to);
             var desc = f.description.trim() || ('Transfer ' + wn(W, f.wallet_id) + ' → ' + wn(W, f.wallet_id_to));
-            sb.from('transactions').insert({ user_id: UID, date: f.date, wallet_id: f.wallet_id, type: 'transfer_out', amount: amt, description: desc })
-              .then(function (r1) {
-                if (r1.error) { t(r1.error.message, 'err'); return }
-                sb.from('transactions').insert({ user_id: UID, date: f.date, wallet_id: f.wallet_id_to, type: 'transfer_in', amount: amt, description: desc })
-                  .then(function (r2) {
-                    if (r2.error) { t(r2.error.message, 'err'); return }
-                    sb.from('wallets').update({ balance: (Number(wFrom.balance) || 0) - amt }).eq('id', f.wallet_id)
-                      .then(function (r3) {
-                        if (r3.error) { t(r3.error.message, 'err'); return }
-                        sb.from('wallets').update({ balance: (Number(wTo.balance) || 0) + amt }).eq('id', f.wallet_id_to)
-                          .then(function (r4) {
-                            if (r4.error) { t(r4.error.message, 'err'); return }
-                            try { sessionStorage.removeItem(DRAFT) } catch (e) { }
-                            t('Transfer berhasil!'); rW(); rT(); p.onClose()
-                          })
-                      })
-                  })
-              })
+            simpanTransfer({ from: f.wallet_id, to: f.wallet_id_to, amount: amt, date: f.date, description: desc }, t, function () {
+              try { sessionStorage.removeItem(DRAFT) } catch (e) { }
+              rW(); rT(); p.onClose();
+            });
             return
           }
           // Split kategori: simpan jadi beberapa transaksi terpisah
@@ -4946,25 +4994,10 @@
             if (f.wallet_id === f.wallet_id_to) { t('Dompet asal & tujuan harus beda', 'err'); return }
             // Transfer menyentuh dua dompet sekaligus — kalau hanya separuh terkirim, saldo kacau
             if (!navigator.onLine) { t('📴 Transfer butuh internet. Coba lagi saat online.', 'err'); return }
-            var wFr = fid(W, f.wallet_id); var wTo = fid(W, f.wallet_id_to);
             var desc = f.description.trim() || ('Transfer ' + wn(W, f.wallet_id) + ' → ' + wn(W, f.wallet_id_to));
-            sb.from('transactions').insert({ user_id: UID, date: f.date, wallet_id: f.wallet_id, type: 'transfer_out', amount: amt, description: desc })
-              .then(function (r1) {
-                if (r1.error) { t(r1.error.message, 'err'); return }
-                sb.from('transactions').insert({ user_id: UID, date: f.date, wallet_id: f.wallet_id_to, type: 'transfer_in', amount: amt, description: desc })
-                  .then(function (r2) {
-                    if (r2.error) { t(r2.error.message, 'err'); return }
-                    sb.from('wallets').update({ balance: (Number(wFr.balance) || 0) - amt }).eq('id', f.wallet_id)
-                      .then(function (r3) {
-                        if (r3.error) { t(r3.error.message, 'err'); return }
-                        sb.from('wallets').update({ balance: (Number(wTo.balance) || 0) + amt }).eq('id', f.wallet_id_to)
-                          .then(function (r4) {
-                            if (r4.error) { t(r4.error.message, 'err'); return }
-                            t('Transfer berhasil!'); sM(null); rW(); rT()
-                          })
-                      })
-                  })
-              })
+            simpanTransfer({ from: f.wallet_id, to: f.wallet_id_to, amount: amt, date: f.date, description: desc }, t, function () {
+              sM(null); rW(); rT();
+            });
             return
           }
           // Split kategori: simpan jadi beberapa transaksi terpisah, masing-masing punya kategori sendiri
@@ -5044,20 +5077,7 @@
               var pairType = tx.type === 'transfer_out' ? 'transfer_in' : 'transfer_out';
               var pairCands = T.filter(function (tt) { return tt.type === pairType && Number(tt.amount) === Number(tx.amount) && tt.date === tx.date && tt.description === tx.description && tt.id !== tx.id && tt.wallet_id !== tx.wallet_id });
               var pair = pairCands.length <= 1 ? pairCands[0] : pairCands.slice().sort(function (a, b) { var da = Math.abs(new Date(a.created_at) - new Date(tx.created_at)); var db = Math.abs(new Date(b.created_at) - new Date(tx.created_at)); return da - db })[0];
-              // Determine which wallet is source (transfer_out) and dest (transfer_in)
-              var outTx = tx.type === 'transfer_out' ? tx : pair; var inTx = tx.type === 'transfer_in' ? tx : pair;
-              // Delete both transactions
-              sb.from('transactions').delete().eq('id', tx.id).then(function (r) {
-                if (r.error) { t(r.error.message, 'err'); return }
-                function afterPair() {
-                  // Reverse balances: source wallet +amt back, dest wallet -amt back
-                  var ps = [];
-                  if (outTx && outTx.wallet_id) { var ws = fid(W, outTx.wallet_id); if (ws) ps.push(sb.from('wallets').update({ balance: (Number(ws.balance) || 0) + Number(outTx.amount) }).eq('id', outTx.wallet_id).then(function () { })) }
-                  if (inTx && inTx.wallet_id) { var wd = fid(W, inTx.wallet_id); if (wd) ps.push(sb.from('wallets').update({ balance: (Number(wd.balance) || 0) - Number(inTx.amount) }).eq('id', inTx.wallet_id).then(function () { })) }
-                  Promise.all(ps).then(function () { t('Transfer dihapus'); rT(); rW() })
-                }
-                if (pair) { sb.from('transactions').delete().eq('id', pair.id).then(afterPair) } else afterPair()
-              });
+              hapusTransfer(tx, pair, t, function () { rT(); rW() });
               return;
             }
             sb.from('transactions').delete().eq('id', tx.id).then(function (r) {
@@ -5659,7 +5679,10 @@
           if (pf.record_txn && pf.wallet_id && amt > 0) {
             sb.from('transactions').insert({ user_id: UID, type: 'expense', wallet_id: pf.wallet_id, amount: amt, date: pf.paid_date, description: 'Bayar: ' + item.name, category_id: pf.category_id || null, sub_category_id: pf.sub_category_id || null }).then(function (tr) {
               if (tr.error) { t('Gagal catat transaksi: ' + tr.error.message, 'err'); return; }
-              var w = fid(W, pf.wallet_id); if (w) { sb.from('wallets').update({ balance: (Number(w.balance) || 0) - amt }).eq('id', pf.wallet_id).then(function () { rW(); }); }
+              /* Penyakit yang sama dengan transfer: saldo ditulis mutlak dari angka
+                 di layar, dan bila dompetnya tak ada di snapshot `W` saldo tak pernah
+                 disesuaikan sama sekali padahal transaksinya sudah tercatat. */
+              adjWallet(pf.wallet_id, -amt, rW);
               rT(); afterTxn();
             }).catch(function (e) { t('Error transaksi: ' + e.message, 'err'); });
           } else afterTxn();
